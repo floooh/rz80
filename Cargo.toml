@@ -1,0 +1,6 @@
+[package]
+name = "rz80"
+version = "0.1.0"
+authors = ["Andre Weissflog <floooh@gmail.com>"]
+
+[dependencies]
