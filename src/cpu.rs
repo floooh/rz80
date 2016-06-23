@@ -161,7 +161,6 @@ impl CPU {
         self.reg[A] = (res&0xFF) as u8;
     }
 
-
     /// 8-bit subtraction
     pub fn sub8(&mut self, v: u8) {
         let acc = self.reg[A] as i32;
