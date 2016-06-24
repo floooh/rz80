@@ -1,3 +1,4 @@
+use RegT;
 const SIZE : usize = 1<<16;
 
 /// memory access (simplified, no memory mapping or bank switching)
@@ -19,28 +20,28 @@ impl Memory {
     }
 
     /// read unsigned byte from 16-bit address
-    pub fn r8(&self, addr: u16) -> u8 {
-        self.buf[addr as usize]
+    pub fn r8(&self, addr: RegT) -> RegT {
+        self.buf[(addr & 0xFFFF) as usize] as RegT
     }
 
     /// write unsigned byte to 16-bit address
-    pub fn w8(&mut self, addr: u16, val: u8) {
-        self.buf[addr as usize] = val;
+    pub fn w8(&mut self, addr: RegT, val: RegT) {
+        self.buf[(addr & 0xFFFF) as usize] = val as u8;
     }
 
     /// read unsigned word from 16-bit address
-    pub fn r16(&self, addr: u16) -> u16 {
-        let l = self.r8(addr) as u16;
-        let h = self.r8(addr.wrapping_add(1)) as u16;
+    pub fn r16(&self, addr: RegT) -> RegT {
+        let l = self.r8(addr);
+        let h = self.r8(addr + 1);
         h<<8 | l
     }
 
     /// write unsigned word to 16-bit address
-    pub fn w16(&mut self, addr: u16, val: u16) {
-        let l = (val & 0xff) as u8;
-        let h = (val >> 8) as u8;
+    pub fn w16(&mut self, addr: RegT, val: RegT) {
+        let l = val & 0xff;
+        let h = (val >> 8) & 0xff;
         self.w8(addr, l);
-        self.w8(addr.wrapping_add(1), h);
+        self.w8(addr + 1, h);
     }
 }
 
@@ -54,7 +55,7 @@ mod tests {
         assert!(mem.r8(0x1234) == 0);
         assert!(mem.r16(0x0) == 0);
         assert!(mem.r16(0xFFFF) == 0);
-        let addr : u16 = 0xFFFF;
+        let addr = 0xFFFF;
         assert!(mem.r16(addr) == 0);
     }
 
