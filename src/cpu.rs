@@ -105,6 +105,13 @@ impl CPU {
         self.pc -= 1;
     }
 
+    pub fn fetch_op(&mut self) -> RegT {
+        self.r = (self.r & 0x80) | ((self.r+1) & 0x7F);
+        let op = self.mem.r8(self.pc);
+        self.pc = (self.pc + 1) & 0xFFFF;
+        op
+    }
+
     pub fn push(&mut self, val: RegT) {
         let sp = self.r16(SP).wrapping_sub(2);
         self.w16(SP, sp);
@@ -306,6 +313,54 @@ impl CPU {
         let res = val>>1 & 0xFF;
         self.reg[F] = CPU::flags_szp(res) | (val & CF);
         res
+    }
+    
+    pub fn bit(&mut self, val: RegT, mask: RegT) {
+        let res = val & mask;
+        self.reg[F] = HF | (self.reg[F] & CF) |
+            (if res == 0 {ZF|PF} else {res & SF}) |
+            (val & (XF|YF));
+    }
+
+    pub fn ibit(&mut self, val: RegT, mask: RegT) {
+        // special version of the BIT instruction for 
+        // (HL), (IX+d), (IY+d) to set the undocumented XF|YF flags
+        // from high byte of HL+1 or IX/IY+d (expected in WZ)
+        let res = val & mask;
+        self.reg[F] = HF | (self.reg[F] & CF) |
+            (if res == 0 {ZF|PF} else {res & SF}) |
+            ((self.wz >> 8) & (XF|YF));
+    }
+
+    pub fn add16(&mut self, acc: RegT, add: RegT) -> RegT {
+        self.wz = (acc+1) & 0xFFFF;
+        let res = acc + add;
+        self.reg[F] = (self.reg[F] & (SF|ZF|VF)) |
+            (((acc^res^add)>>8) & HF) |
+            (res>>16 & CF) | (res>>8 & (YF|XF));
+        res & 0xFFFF
+    }
+    
+    pub fn adc16(&mut self, acc: RegT, add: RegT) -> RegT {
+        self.wz = (acc+1) & 0xFFFF;
+        let res = acc + add + (self.reg[F] & CF);
+        self.reg[F] = (((acc^res^add)>>8) & HF) |
+            ((res>>16) & CF) |
+            ((res>>8) & (SF|XF|YF)) |
+            (if (res & 0xFFFF) == 0 {ZF} else {0}) |
+            (((add^acc^0x8000) & (add^res) & 0x8000)>>13);
+        res & 0xFFFF
+    }
+
+    pub fn sbc16(&mut self, acc: RegT, sub: RegT) -> RegT {
+        self.wz = (acc+1) & 0xFFFF;
+        let res = acc - sub - (self.reg[F] & CF);
+        self.reg[F] = NF | (((acc^res^sub)>>8) & HF) |
+            ((res>>16) & CF) |
+            ((res>>8) & (SF|XF|YF)) |
+            (if (res & 0xFFFF) == 0 {ZF} else {0}) |
+            (((sub^acc) & (acc^res) & 0x8000)>>13);
+        res & 0xFFFF
     }
 }
 
