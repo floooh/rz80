@@ -256,6 +256,57 @@ impl CPU {
         self.reg[F] = (acc & CF) | (res & (XF|YF)) | (self.reg[F] & (SF|ZF|PF));
         self.reg[A] = res;
     }
+
+    pub fn rl8(&mut self, val: RegT) -> RegT {
+        let res = (val<<1 | (self.reg[F] & CF)) & 0xFF;
+        self.reg[F] = CPU::flags_szp(res) | ((val>>7) & CF);
+        res
+    }
+
+    pub fn rla8(&mut self) {
+        let acc = self.reg[A];
+        let res = (acc<<1 | (self.reg[F] & CF)) & 0xFF;
+        self.reg[F] = ((acc>>7) & CF) | (res & (XF|YF)) | (self.reg[F] & (SF|ZF|PF));
+        self.reg[A] = res;
+    }
+
+    pub fn rr8(&mut self, val: RegT) -> RegT {
+        let res = (val>>1 | (self.reg[F] & CF)<<7) & 0xFF;
+        self.reg[F] = CPU::flags_szp(res) | (val & CF);
+        res
+    }
+
+    pub fn rra8(&mut self) {
+        let acc = self.reg[A];
+        let res = (acc>>1 | (self.reg[F] & CF)<<7) & 0xFF;
+        self.reg[F] = (acc & CF) | (res & (XF|YF)) | (self.reg[F] & (SF|ZF|PF));
+        self.reg[A] = res
+    }
+
+    pub fn sla8(&mut self, val: RegT) -> RegT {
+        let res = (val<<1) & 0xFF;
+        self.reg[F] = CPU::flags_szp(res) | (val>>7 & CF);
+        res
+    }
+
+    pub fn sll8(&mut self, val: RegT) -> RegT {
+        // undocumented, sll8 is identical with sla8, but shifts a 1 into LSB
+        let res = (val<<1 | 1) & 0xFF;
+        self.reg[F] = CPU::flags_szp(res) | (val>>7 & CF);
+        res
+    }
+
+    pub fn sra8(&mut self, val: RegT) -> RegT {
+        let res = (val>>1 | (val & 0x80)) & 0xFF;
+        self.reg[F] = CPU::flags_szp(res) | (val & CF);
+        res
+    }
+
+    pub fn srl8(&mut self, val: RegT) -> RegT {
+        let res = val>>1 & 0xFF;
+        self.reg[F] = CPU::flags_szp(res) | (val & CF);
+        res
+    }
 }
 
 #[cfg(test)]
@@ -549,6 +600,82 @@ mod tests {
         assert!(0x41 == cpu.reg[A]); assert!(test_flags(&cpu, SF|ZF|VF));
         cpu.rrca8();
         assert!(0xA0 == cpu.reg[A]); assert!(test_flags(&cpu, SF|ZF|VF|CF));
+    }
+
+    #[test]
+    fn rl8_rr8() {
+        let mut cpu = CPU::new();
+        let a = cpu.rr8(0x01);
+        assert!(0x00 == a); assert!(test_flags(&cpu, ZF|PF|CF));
+        let b = cpu.rl8(a);
+        assert!(0x01 == b); assert!(test_flags(&cpu, 0));
+        let c = cpu.rr8(0xFF);
+        assert!(0x7F == c); assert!(test_flags(&cpu, CF));
+        let d = cpu.rl8(c);
+        assert!(0xFF == d); assert!(test_flags(&cpu, SF|PF));
+        let e = cpu.rl8(0x03);
+        assert!(0x06 == e); assert!(test_flags(&cpu, PF));
+        let f = cpu.rr8(e);
+        assert!(0x03 == f); assert!(test_flags(&cpu, PF));
+    }
+
+
+    #[test]
+    fn rla8_rra8() {
+        let mut cpu = CPU::new();
+        cpu.reg[F] = 0xFF;
+        cpu.reg[A] = 0xA0;
+        cpu.rla8();
+        assert!(0x41 == cpu.reg[A]); assert!(test_flags(&cpu, SF|ZF|VF|CF));
+        cpu.rla8();
+        assert!(0x83 == cpu.reg[A]); assert!(test_flags(&cpu, SF|ZF|VF));
+        cpu.rra8();
+        assert!(0x41 == cpu.reg[A]); assert!(test_flags(&cpu, SF|ZF|VF|CF));
+        cpu.rra8();
+        assert!(0xA0 == cpu.reg[A]); assert!(test_flags(&cpu, SF|ZF|VF|CF));
+    }
+
+    #[test]
+    fn sla8() {
+        let mut cpu = CPU::new();
+        let a = cpu.sla8(0x01);
+        assert!(0x02 == a); assert!(test_flags(&cpu, 0));
+        let b = cpu.sla8(0x80);
+        assert!(0x00 == b); assert!(test_flags(&cpu, ZF|PF|CF));
+        let c = cpu.sla8(0xAA);
+        assert!(0x54 == c); assert!(test_flags(&cpu, CF));
+        let d = cpu.sla8(0xFE);
+        assert!(0xFC == d); assert!(test_flags(&cpu, SF|PF|CF));
+        let e = cpu.sla8(0x7F);
+        assert!(0xFE == e); assert!(test_flags(&cpu, SF));
+    }
+
+    #[test]
+    fn sra8() {
+        let mut cpu = CPU::new();
+        let a = cpu.sra8(0x01);
+        assert!(0x00 == a); assert!(test_flags(&cpu, ZF|PF|CF));
+        let b = cpu.sra8(0x80);
+        assert!(0xC0 == b); assert!(test_flags(&cpu, SF|PF));
+        let c = cpu.sra8(0xAA);
+        assert!(0xD5 == c); assert!(test_flags(&cpu, SF));
+        let d = cpu.sra8(0xFE);
+        assert!(0xFF == d); assert!(test_flags(&cpu, SF|PF));
+    }
+
+    #[test]
+    fn srl8() {
+        let mut cpu = CPU::new();
+        let a = cpu.srl8(0x01);
+        assert!(0x00 == a); assert!(test_flags(&cpu, ZF|PF|CF));
+        let b = cpu.srl8(0x80);
+        assert!(0x40 == b); assert!(test_flags(&cpu, 0));
+        let c = cpu.srl8(0xAA);
+        assert!(0x55 == c); assert!(test_flags(&cpu, PF));
+        let d = cpu.srl8(0xFE);
+        assert!(0x7f == d); assert!(test_flags(&cpu, 0));
+        let e = cpu.srl8(0x7F);
+        assert!(0x3F == e); assert!(test_flags(&cpu, PF|CF));
     }
 }
 
