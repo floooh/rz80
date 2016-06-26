@@ -138,7 +138,7 @@ impl CPU {
             self.r16(HL)
         }
         else {
-            self.wz = self.r16(m)+d;
+            self.wz = (self.r16(m) + d) & 0xFFFF;
             self.wz
         }
     }
@@ -229,19 +229,20 @@ impl CPU {
             if z == 0 {
                 match y {
                     // NOP
-                    0 => cyc += 4,
+                    0 => { cyc += 4 },
                     // EX AF,AF'
                     1 => { self.swap16(AF, AF_); cyc += 4; },
                     // DJNZ
                     2 => {
-                        self.reg[B] -= 1;
+                        self.reg[B] = (self.reg[B] - 1) & 0xFF;
                         if self.reg[B] > 0 {
-                            self.wz = self.pc + self.mem.rs8(self.pc) + 1;
+                            let d = self.mem.rs8(self.pc);
+                            self.wz = (self.pc + d + 1) & 0xFFFF;
                             self.pc = self.wz;
                             cyc += 13;
                         }
                         else {
-                            self.pc += 1;
+                            self.pc = (self.pc + 1) & 0xFFFF;
                             cyc += 8;
                         }
                     },
@@ -291,7 +292,7 @@ impl CPU {
             }
             else if z == 6 {
                 let v = self.mem.r8(self.pc);
-                self.pc += 1;
+                self.pc = (self.pc + 1) & 0xFFFF;
                 if y == 6 {
                     // LD (HL),n; LD (IX+d),n; LD (IY+d),n
                     let a = self.addr(m, d);
@@ -535,7 +536,7 @@ impl CPU {
     }
 
     pub fn add16(&mut self, acc: RegT, add: RegT) -> RegT {
-        self.wz = (acc+1) & 0xFFFF;
+        self.wz = (acc + 1) & 0xFFFF;
         let res = acc + add;
         self.reg[F] = (self.reg[F] & (SF|ZF|VF)) |
             (((acc^res^add)>>8) & HF) |
@@ -544,7 +545,7 @@ impl CPU {
     }
     
     pub fn adc16(&mut self, acc: RegT, add: RegT) -> RegT {
-        self.wz = (acc+1) & 0xFFFF;
+        self.wz = (acc + 1) & 0xFFFF;
         let res = acc + add + (self.reg[F] & CF);
         self.reg[F] = (((acc^res^add)>>8) & HF) |
             ((res>>16) & CF) |
@@ -555,7 +556,7 @@ impl CPU {
     }
 
     pub fn sbc16(&mut self, acc: RegT, sub: RegT) -> RegT {
-        self.wz = (acc+1) & 0xFFFF;
+        self.wz = (acc + 1) & 0xFFFF;
         let res = acc - sub - (self.reg[F] & CF);
         self.reg[F] = NF | (((acc^res^sub)>>8) & HF) |
             ((res>>16) & CF) |
