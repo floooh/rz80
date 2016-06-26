@@ -24,6 +24,12 @@ impl Memory {
         self.buf[(addr & 0xFFFF) as usize] as RegT
     }
 
+    /// read signed byte from 16-bit address
+    pub fn rs8(&self, addr: RegT) -> RegT {
+        let d : i8 = self.buf[(addr & 0xFFFF) as usize] as i8;
+        d as RegT
+    }
+
     /// write unsigned byte to 16-bit address
     pub fn w8(&mut self, addr: RegT, val: RegT) {
         self.buf[(addr & 0xFFFF) as usize] = val as u8;
@@ -42,6 +48,15 @@ impl Memory {
         let h = (val >> 8) & 0xff;
         self.w8(addr, l);
         self.w8(addr + 1, h);
+    }
+
+    /// write a whole chunk of memory
+    pub fn write(&mut self, addr: RegT, data: &[u8]) {
+        let mut offset = 0;
+        for b in data {
+            self.w8(addr+offset, *b as RegT);
+            offset += 1;
+        }
     }
 }
 

@@ -27,7 +27,15 @@ pub const IYH : usize = 10;
 pub const IYL : usize = 11;
 pub const SPH : usize = 12;
 pub const SPL : usize = 13;
-pub const NUM_REGS : usize = 14;
+pub const B_ : usize = 14;
+pub const C_ : usize = 15;
+pub const D_ : usize = 16;
+pub const E_ : usize = 17;
+pub const H_ : usize = 18;
+pub const L_ : usize = 19;
+pub const F_ : usize = 20;
+pub const A_ : usize = 21;
+pub const NUM_REGS : usize = 22;
 
 /// 16-bit register indices
 pub const BC : usize = 0;
@@ -37,19 +45,18 @@ pub const AF : usize = 6;
 pub const IX : usize = 8;
 pub const IY : usize = 10;
 pub const SP : usize = 12;
+pub const BC_ : usize = 14;
+pub const DE_ : usize = 16;
+pub const HL_ : usize = 18;
+pub const AF_ : usize = 20;
 
 /// the Z80 CPU state
 pub struct CPU {
     pub reg : [RegT; NUM_REGS],
 
     pub wz: RegT,
-    pub pc: RegT,
-    
-    pub af_: RegT,
-    pub bc_: RegT,
-    pub de_: RegT,
-    pub hl_: RegT,
     pub wz_: RegT,
+    pub pc: RegT,
     
     pub i: RegT,
     pub r: RegT,
@@ -59,6 +66,8 @@ pub struct CPU {
     pub iff1: bool,
     pub iff2: bool,
 
+    pub invalid_op: bool,
+    pub enable_interrupt: bool,
     pub mem : Memory,
 }
 
@@ -67,10 +76,11 @@ impl CPU {
     pub fn new() -> CPU {
         CPU {
             reg: [0; NUM_REGS],
-            af_: 0, bc_: 0, de_: 0, hl_: 0, wz_: 0,
-            wz: 0, pc: 0,
+            wz: 0, wz_: 0, pc: 0,
             i: 0, r: 0, im: 0,
             halt: false, iff1: false, iff2: false,
+            invalid_op: false,
+            enable_interrupt: false,
             mem: Memory::new()
         }
     }
@@ -85,6 +95,8 @@ impl CPU {
         self.iff2 = false;
         self.i = 0;
         self.r = 0;
+        self.invalid_op = false;
+        self.enable_interrupt = false;
     }
 
     /// write 16-bit register value
@@ -100,16 +112,206 @@ impl CPU {
         h | l
     }
 
-    pub fn halt(&mut self) {
-        self.halt = true;
-        self.pc -= 1;
-    }
-
-    pub fn fetch_op(&mut self) -> RegT {
+    /// fetch the next instruction byte from memory
+    fn fetch_op(&mut self) -> RegT {
         self.r = (self.r & 0x80) | ((self.r+1) & 0x7F);
         let op = self.mem.r8(self.pc);
         self.pc = (self.pc + 1) & 0xFFFF;
         op
+    }
+
+    /// decode and execute one instruction
+    pub fn step(&mut self) -> i32 {
+        self.invalid_op = false;
+        if self.enable_interrupt {
+            self.iff1 = true;
+            self.iff2 = true;
+            self.enable_interrupt = false
+        }
+        return self.do_op(HL, 0);
+    }
+
+    /// compute effective address for (HL) or (IX/Y+d) instructions
+    /// and update WZ register if needed
+    fn addr(&mut self, m: usize, d: RegT) -> RegT {
+        if m == HL {
+            self.r16(HL)
+        }
+        else {
+            self.wz = self.r16(m)+d;
+            self.wz
+        }
+    }
+
+    /// swap a 16-bit register with its counterpart
+    fn swap16(&mut self, r : usize, r_ : usize) {
+        let v = self.r16(r);
+        let v_ = self.r16(r_);
+        self.w16(r, v_);
+        self.w16(r_, v);
+    }
+
+    /// execute a single 'main-instruction'
+    ///
+    /// This function may be called recursively for prefixed
+    /// instructions
+    ///
+    /// * 'm'   - index of 16-bit register (may be HL, IX or IY)
+    /// * 'd'   - the d in (IX+d), (IY+d), 0 if m is HL
+    ///
+    /// returns number of cycles the instruction takes
+    pub fn do_op(&mut self, m: usize, d: RegT) -> i32 {
+        let mut cyc = if m == HL { 0 } else { 4 };
+        let ext_cyc = if m == HL { 0 } else { 8 };
+        let op = self.fetch_op();
+
+        // split instruction byte into bit groups
+        let x = op>>6;
+        let y = (op>>3 & 7) as usize;
+        let z = (op & 7) as usize;
+        
+        //--- block 1: 8-bit loads
+        if x == 1 {
+            if y == 6 {
+                if z == 6 {
+                    // special case LD (HL),(HL) -> HALT
+                    self.halt(); 
+                    cyc += 4;
+                }
+                else {
+                    // LD (HL),r; LD (IX+d),r; LD (IY+d),r
+                    let a = self.addr(m, d);
+                    self.mem.w8(a, self.reg[z]);
+                    cyc += 7 + ext_cyc;
+                }
+            }
+            else if z == 6 {
+                // LD r,(HL); LD r,(IX+d); LD r,(IY+d)
+                let a = self.addr(m, d);
+                self.reg[y] = self.mem.r8(a);
+                cyc += 7 + ext_cyc; 
+            }
+            else {
+                // LD r,s
+                self.reg[y] = self.reg[z];
+                cyc += 4;
+            }
+        }
+
+        //--- block 2: 8-bit ALU instructions
+        else if x == 2 {
+            let val = if z == 6 {
+                // ALU (HL); ALU (IX+d); ALU (IY+d)
+                cyc += 7 + ext_cyc;
+                let a = self.addr(m, d);
+                self.mem.r8(a)
+            }
+            else {
+                // ALU r
+                cyc += 4;
+                self.reg[z]
+            };
+            match y {
+                0 => self.add8(val),
+                1 => self.adc8(val),
+                2 => self.sub8(val),
+                3 => self.sbc8(val),
+                4 => self.and8(val),
+                5 => self.xor8(val),
+                6 => self.or8(val),
+                7 => self.cp8(val),
+                _ => (),
+            }
+        }
+        
+        //--- block 0: misc ops
+        else if x == 0 {
+            if z == 0 {
+                match y {
+                    // NOP
+                    0 => cyc += 4,
+                    // EX AF,AF'
+                    1 => { self.swap16(AF, AF_); cyc += 4; },
+                    // DJNZ
+                    2 => {
+                        self.reg[B] -= 1;
+                        if self.reg[B] > 0 {
+                            self.wz = self.pc + self.mem.rs8(self.pc) + 1;
+                            self.pc = self.wz;
+                            cyc += 13;
+                        }
+                        else {
+                            self.pc += 1;
+                            cyc += 8;
+                        }
+                    },
+                    _ => ()
+                }
+            }
+            else if z == 1 {
+
+            }
+            else if z == 2 {
+
+            }
+            else if z == 3 {
+
+            }
+            else if z == 4 {
+                if y == 6 {
+                    // INC (HL); INC (IX+d); INC (IY+d)
+                    let a = self.addr(m, d);
+                    let v = self.mem.r8(a);
+                    let w = self.inc8(v);
+                    self.mem.w8(a, w);
+                    cyc += 11 + ext_cyc;
+                }
+                else {
+                    // INC r
+                    let v = self.reg[y];
+                    self.reg[y] = self.inc8(v);
+                    cyc += 4;
+                }
+            }
+            else if z == 5 {
+                if y == 6 {
+                    // DEC (HL); DEC (IX+d); DEC (IY+d)
+                    let a = self.addr(m, d);
+                    let v = self.mem.r8(a);
+                    let w = self.dec8(v);
+                    self.mem.w8(a, w);
+                    cyc += 11 + ext_cyc;
+                }
+                else {
+                    // DEC r
+                    let v = self.reg[y];
+                    self.reg[y] = self.dec8(v);
+                    cyc += 4;
+                }
+            }
+            else if z == 6 {
+                let v = self.mem.r8(self.pc);
+                self.pc += 1;
+                if y == 6 {
+                    // LD (HL),n; LD (IX+d),n; LD (IY+d),n
+                    let a = self.addr(m, d);
+                    self.mem.w8(a, v);
+                    cyc += if m == HL { 10 } else { 15 };
+                }
+                else {
+                    self.reg[y] = v;
+                    cyc += 7;
+                }
+            }
+        }
+
+        // return resulting number of CPU cycles taken
+        cyc
+    }
+
+    pub fn halt(&mut self) {
+        self.halt = true;
+        self.pc -= 1;
     }
 
     pub fn push(&mut self, val: RegT) {
@@ -373,18 +575,12 @@ mod tests {
     #[test]
     fn new() {
         let cpu = CPU::new();
-        assert!((0 == cpu.reg[A]) && (0 == cpu.reg[F]));
-        assert!((0 == cpu.reg[B]) && (0 == cpu.reg[C]));
-        assert!((0 == cpu.reg[D]) && (0 == cpu.reg[E]));
-        assert!((0 == cpu.reg[H]) && (0 == cpu.reg[L]));
-        assert!((0 == cpu.reg[IXH]) && (0 == cpu.reg[IXL]));
-        assert!((0 == cpu.reg[IYH]) && (0 == cpu.reg[IYL]));
-        assert!((0 == cpu.reg[SPH]) && (0 == cpu.reg[SPL]));
+        for v in cpu.reg.iter() {
+            assert!(*v == 0);
+        }
         assert!(0 == cpu.wz);
-        assert!(0 == cpu.pc);
-        assert!((0 == cpu.af_) && (0 == cpu.bc_));
-        assert!((0 == cpu.de_) && (0 == cpu.hl_));
         assert!(0 == cpu.wz_);
+        assert!(0 == cpu.pc);
         assert!((0 == cpu.i) && (0 == cpu.r));
         assert!(0 == cpu.im);
         assert!(!cpu.halt);
