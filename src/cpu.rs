@@ -233,19 +233,7 @@ impl CPU {
                     // EX AF,AF'
                     1 => { self.swap16(AF, AF_); cyc += 4; },
                     // DJNZ
-                    2 => {
-                        self.reg[B] = (self.reg[B] - 1) & 0xFF;
-                        if self.reg[B] > 0 {
-                            let d = self.mem.rs8(self.pc);
-                            self.wz = (self.pc + d + 1) & 0xFFFF;
-                            self.pc = self.wz;
-                            cyc += 13;
-                        }
-                        else {
-                            self.pc = (self.pc + 1) & 0xFFFF;
-                            cyc += 8;
-                        }
-                    },
+                    2 => { cyc += self.djnz(); },
                     _ => ()
                 }
             }
@@ -564,6 +552,20 @@ impl CPU {
             (if (res & 0xFFFF) == 0 {ZF} else {0}) |
             (((sub^acc) & (acc^res) & 0x8000)>>13);
         res & 0xFFFF
+    }
+
+    pub fn djnz(&mut self) -> i32 {
+        self.reg[B] = (self.reg[B] - 1) & 0xFF;
+        if self.reg[B] > 0 {
+            let d = self.mem.rs8(self.pc);
+            self.wz = (self.pc + d + 1) & 0xFFFF;
+            self.pc = self.wz;
+            13  // return num cycles if branch taken
+        }
+        else {
+            self.pc = (self.pc + 1) & 0xFFFF;
+            8   // return num cycles if loop finished
+        }
     }
 }
 
