@@ -316,7 +316,7 @@ impl CPU {
     }
 
     pub fn push(&mut self, val: RegT) {
-        let sp = self.r16(SP).wrapping_sub(2);
+        let sp = (self.r16(SP) - 2) & 0xFFFF;
         self.w16(SP, sp);
         self.mem.w16(sp, val);
     }
