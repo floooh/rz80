@@ -170,117 +170,105 @@ impl CPU {
         let y = (op>>3 & 7) as usize;
         let z = (op & 7) as usize;
         
-        //--- block 1: 8-bit loads
-        if x == 1 {
-            if y == 6 {
-                if z == 6 {
-                    // special case LD (HL),(HL) -> HALT
-                    self.halt(); 
-                    cyc += 4;
-                }
-                else {
-                    // LD (HL),r; LD (IX+d),r; LD (IY+d),r
-                    let a = self.addr(m, d);
-                    self.mem.w8(a, self.reg[z]);
-                    cyc += 7 + ext_cyc;
-                }
-            }
-            else if z == 6 {
+        match (x, y, z) {
+            //--- block 1: 8-bit loads
+            (1, 6, 6) => {
+                // special case LD (HL),(HL) -> HALT
+                self.halt();
+                cyc += 4;
+            },
+            (1, 6, _) => {
+                // LD (HL),r; LD (IX+d),r; LD (IY+d),r
+                let a = self.addr(m, d);
+                self.mem.w8(a, self.reg[z]);
+                cyc += 7 + ext_cyc;
+            },
+            (1, _, 6) => {
                 // LD r,(HL); LD r,(IX+d); LD r,(IY+d)
                 let a = self.addr(m, d);
                 self.reg[y] = self.mem.r8(a);
                 cyc += 7 + ext_cyc; 
-            }
-            else {
+            },
+            (1, _, _) => {
                 // LD r,s
                 self.reg[y] = self.reg[z];
                 cyc += 4;
-            }
-        }
+            },
 
-        //--- block 2: 8-bit ALU instructions
-        else if x == 2 {
-            let val = if z == 6 {
-                // ALU (HL); ALU (IX+d); ALU (IY+d)
-                cyc += 7 + ext_cyc;
-                let a = self.addr(m, d);
-                self.mem.r8(a)
-            }
-            else {
-                // ALU r
-                cyc += 4;
-                self.reg[z]
-            };
-            match y {
-                0 => self.add8(val),
-                1 => self.adc8(val),
-                2 => self.sub8(val),
-                3 => self.sbc8(val),
-                4 => self.and8(val),
-                5 => self.xor8(val),
-                6 => self.or8(val),
-                7 => self.cp8(val),
-                _ => (),
-            }
-        }
-        
-        //--- block 0: misc ops
-        else if x == 0 {
-            if z == 0 {
+            //--- block 2: 8-bit ALU instructions
+            (2, _, _) => {
+                let val = if z == 6 {
+                    // ALU (HL); ALU (IX+d); ALU (IY+d)
+                    cyc += 7 + ext_cyc;
+                    let a = self.addr(m, d);
+                    self.mem.r8(a)
+                }
+                else {
+                    // ALU r
+                    cyc += 4;
+                    self.reg[z]
+                };
                 match y {
-                    // NOP
-                    0 => { cyc += 4 },
-                    // EX AF,AF'
-                    1 => { self.swap16(AF, AF_); cyc += 4; },
-                    // DJNZ
-                    2 => { cyc += self.djnz(); },
-                    _ => ()
+                    0 => self.add8(val),
+                    1 => self.adc8(val),
+                    2 => self.sub8(val),
+                    3 => self.sbc8(val),
+                    4 => self.and8(val),
+                    5 => self.xor8(val),
+                    6 => self.or8(val),
+                    7 => self.cp8(val),
+                    _ => (),
                 }
-            }
-            else if z == 1 {
+            },
 
-            }
-            else if z == 2 {
-
-            }
-            else if z == 3 {
-
-            }
-            else if z == 4 {
-                if y == 6 {
-                    // INC (HL); INC (IX+d); INC (IY+d)
-                    let a = self.addr(m, d);
-                    let v = self.mem.r8(a);
-                    let w = self.inc8(v);
-                    self.mem.w8(a, w);
-                    cyc += 11 + ext_cyc;
-                }
-                else {
-                    // INC r
-                    let v = self.reg[y];
-                    self.reg[y] = self.inc8(v);
-                    cyc += 4;
-                }
-            }
-            else if z == 5 {
-                if y == 6 {
-                    // DEC (HL); DEC (IX+d); DEC (IY+d)
-                    let a = self.addr(m, d);
-                    let v = self.mem.r8(a);
-                    let w = self.dec8(v);
-                    self.mem.w8(a, w);
-                    cyc += 11 + ext_cyc;
-                }
-                else {
-                    // DEC r
-                    let v = self.reg[y];
-                    self.reg[y] = self.dec8(v);
-                    cyc += 4;
-                }
-            }
-            else if z == 6 {
+            //--- block 0: misc ops
+            (0, 0, 0) => {
+                // NOP
+                cyc += 4
+            },
+            (0, 1, 0) => {
+                // EX AF,AF'
+                self.swap16(AF, AF_); cyc += 4;
+            },
+            (0, 2, 0) => {
+                // DJNZ
+                cyc += self.djnz();
+            },
+            (0, _, 1) => {},
+            (0, _, 2) => {},
+            (0, _, 3) => {},
+            (0, 6, 4) => {
+                // INC (HL); INC (IX+d); INC (IY+d)
+                let a = self.addr(m, d);
+                let v = self.mem.r8(a);
+                let w = self.inc8(v);
+                self.mem.w8(a, w);
+                cyc += 11 + ext_cyc;
+            },
+            (0, _, 4) => {
+                // INC r
+                let v = self.reg[y];
+                self.reg[y] = self.inc8(v);
+                cyc += 4;
+            },
+            (0, 6, 5) => {
+                // DEC (HL); DEC (IX+d); DEC (IY+d)
+                let a = self.addr(m, d);
+                let v = self.mem.r8(a);
+                let w = self.dec8(v);
+                self.mem.w8(a, w);
+                cyc += 11 + ext_cyc;
+            },
+            (0, _, 5) => {
+                // DEC r
+                let v = self.reg[y];
+                self.reg[y] = self.dec8(v);
+                cyc += 4;
+            },
+            (0, _, 6) => {
                 let v = self.mem.r8(self.pc);
                 self.pc = (self.pc + 1) & 0xFFFF;
+
                 if y == 6 {
                     // LD (HL),n; LD (IX+d),n; LD (IY+d),n
                     let a = self.addr(m, d);
@@ -291,7 +279,9 @@ impl CPU {
                     self.reg[y] = v;
                     cyc += 7;
                 }
-            }
+            },
+
+            _ => (),
         }
 
         // return resulting number of CPU cycles taken
