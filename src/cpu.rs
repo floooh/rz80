@@ -65,9 +65,12 @@ pub struct CPU {
     pub halt: bool,
     pub iff1: bool,
     pub iff2: bool,
-
     pub invalid_op: bool,
-    pub enable_interrupt: bool,
+
+    enable_interrupt: bool,
+    m_sp : [usize; 4],
+//    m_af : [usize; 4],
+    
     pub mem : Memory,
 }
 
@@ -81,10 +84,12 @@ impl CPU {
             halt: false, iff1: false, iff2: false,
             invalid_op: false,
             enable_interrupt: false,
-            mem: Memory::new()
+            m_sp : [ BC, DE, HL, SP ],
+ //           m_af : [ BC, DE, HL, AF ],
+            mem: Memory::new(),
+
         }
     }
-
     /// reset the cpu
     pub fn reset(&mut self) {
         self.pc = 0;
@@ -143,12 +148,41 @@ impl CPU {
         }
     }
 
+    /// load 8-bit immediate operand and increment PC
+    fn imm8(&mut self) -> RegT {
+        let imm = self.mem.r8(self.pc);
+        self.pc = (self.pc + 1) & 0xFFFF;
+        imm
+    }
+
+    /// load 16-bit immediate operand and bump PC
+    fn imm16(&mut self) -> RegT {
+        let imm = self.mem.r16(self.pc);
+        self.pc = (self.pc + 2) & 0xFFFF;
+        imm
+    }
+
     /// swap a 16-bit register with its counterpart
     fn swap16(&mut self, r : usize, r_ : usize) {
         let v = self.r16(r);
         let v_ = self.r16(r_);
         self.w16(r, v_);
         self.w16(r_, v);
+    }
+
+    /// check condition (for conditional jumps etc)
+    fn cc(&self, y: usize) -> bool {
+        match y-4 {
+            0 => 0 == self.reg[F] & ZF, // JR NZ
+            1 => 0 != self.reg[F] & ZF, // JR Z
+            2 => 0 == self.reg[F] & CF, // JR NC
+            3 => 0 != self.reg[F] & CF, // JC C
+            4 => 0 == self.reg[F] & PF, // JR PO
+            5 => 0 != self.reg[F] & PF, // JR PE
+            6 => 0 == self.reg[F] & SF, // JR P
+            7 => 0 != self.reg[F] & SF, // JR M
+            _ => false,
+        }
     }
 
     /// execute a single 'main-instruction'
@@ -169,6 +203,8 @@ impl CPU {
         let x = op>>6;
         let y = (op>>3 & 7) as usize;
         let z = (op & 7) as usize;
+        let p = y>>1;
+        let q = y & 1;
         match (x, y, z) {
         //--- block 1: 8-bit loads
             // special case LD (HL),(HL): HALT
@@ -209,28 +245,68 @@ impl CPU {
                     cyc += 4;
                     self.reg[z]
                 };
-                match y {
-                    0 => self.add8(val),
-                    1 => self.adc8(val),
-                    2 => self.sub8(val),
-                    3 => self.sbc8(val),
-                    4 => self.and8(val),
-                    5 => self.xor8(val),
-                    6 => self.or8(val),
-                    7 => self.cp8(val),
-                    _ => (),
-                }
+                self.alu8(y, val);
             },
         //--- block 0: misc ops
             // NOP
-            (0, 0, 0) => { cyc += 4 },
+            (0, 0, 0) => { 
+                cyc += 4 
+            },
             // EX AF,AF'
-            (0, 1, 0) => { self.swap16(AF, AF_); cyc += 4; },
+            (0, 1, 0) => { 
+                self.swap16(AF, AF_); cyc += 4; 
+            },
             // DJNZ
-            (0, 2, 0) => { cyc += self.djnz(); },
-            (0, _, 1) => {},
-            (0, _, 2) => {},
-            (0, _, 3) => {},
+            (0, 2, 0) => { 
+                cyc += self.djnz(); 
+            },
+            // JR d
+            (0, 3, 0) => {
+                self.wz = (self.pc + self.mem.rs8(self.pc) + 1) & 0xFFFF;
+                self.pc = self.wz;
+                cyc += 12;
+            },
+            // JR cc
+            (0, _, 0) => {
+                if self.cc(y) {
+                    self.wz = (self.pc + self.mem.rs8(self.pc) + 1) & 0xFFFF;
+                    self.pc = self.wz;
+                    cyc += 12;
+                }
+                else {
+                    self.pc = (self.pc + 1) & 0xFFFF;
+                    cyc += 7;                    
+                }
+            }
+            // 16-bit immediate loads and 16-bit ADD
+            (0, _, 1) => {
+                if q == 0 {
+                    // LD rr,nn (inkl IX,IY)
+                    let val = self.imm16();
+                    let reg = self.m_sp[p];
+                    self.w16(reg, val);
+                    cyc += 10;
+                }
+                else {
+                    // ADD HL,rr; ADD IX,rr; ADD IY,rr
+                    let acc_reg = self.m_sp[2];
+                    let acc = self.r16(acc_reg);
+                    let add = self.r16(self.m_sp[p]);
+                    let res = self.add16(acc, add);
+                    self.w16(acc_reg, res);
+                    cyc += 11;
+                }
+            },
+            (0, _, 2) => {
+                panic!("FIXME: indirect loads");
+            },
+            (0, _, 3) => {
+                // 16-bit INC/DEC
+                let reg = self.m_sp[p];
+                let val = (self.r16(reg) + if q==0 {1} else {-1}) & 0xFFFF;
+                self.w16(reg, val);
+                cyc += 6
+            },
             // INC (HL); INC (IX+d); INC (IY+d)
             (0, 6, 4) => {
                 let a = self.addr(m, d);
@@ -261,8 +337,7 @@ impl CPU {
             },
             // LD (HL),n; LD (IX+d),n; LD (IY+d),n
             (0, _, 6) => {
-                let v = self.mem.r8(self.pc);
-                self.pc = (self.pc + 1) & 0xFFFF;
+                let v = self.imm8();
                 if y == 6 {
                     // LD (HL),n; LD (IX+d),n; LD (IY+d),n
                     let a = self.addr(m, d);
@@ -274,7 +349,40 @@ impl CPU {
                     cyc += 7;
                 }
             },
-            _ => (),
+        //--- block 3: misc and prefixed ops
+            (3, _, 0) => {
+                panic!("FIXME: RET cc!");
+            },
+            (3, _, 1) => {
+                panic!("FIXME: POP + misc!");
+            },
+            (3, _, 2) => {
+                panic!("FIXME: JP cc,nn!");
+            },
+            (3, _, 3) => {
+                panic!("FIXME: misc ops!");
+            },
+            (3, _, 4) => {
+                panic!("FIXME: CALL cc, nn!");
+            },
+            (3, _, 5) => {
+                panic!("FIXME: PUSH and CALL!");
+            },
+            // ALU n
+            (3, _, 6) => {
+                let val = self.imm8();
+                self.alu8(y, val);
+                cyc += 7;
+            },
+            // RST
+            (3, _, 7) => {
+                self.rst((y * 8) as RegT);
+                cyc += 11;
+            },
+            // not implemented
+            _ => {
+                panic!("Unimplemented Z80 instruction!");
+            }
         }
 
         // return resulting number of CPU cycles taken
@@ -298,6 +406,20 @@ impl CPU {
         self.push(pc);
         self.pc = val;
         self.wz = self.pc;
+    }
+
+    pub fn alu8(&mut self, alu: usize, val: RegT) {
+        match alu {
+            0 => self.add8(val),
+            1 => self.adc8(val),
+            2 => self.sub8(val),
+            3 => self.sbc8(val),
+            4 => self.and8(val),
+            5 => self.xor8(val),
+            6 => self.or8(val),
+            7 => self.cp8(val),
+            _ => (),
+        }
     }
 
     pub fn flags_add(acc: RegT, add: RegT, res: RegT) -> RegT {
