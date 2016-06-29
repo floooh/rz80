@@ -24,3 +24,14 @@ pub use cpu::AF as AF;
 pub use cpu::IX as IX;
 pub use cpu::IY as IY;
 pub use cpu::SP as SP;
+
+pub use cpu::CF as CF;
+pub use cpu::NF as NF;
+pub use cpu::VF as VF;
+pub use cpu::PF as PF;
+pub use cpu::XF as XF;
+pub use cpu::HF as HF;
+pub use cpu::YF as YF;
+pub use cpu::ZF as ZF;
+pub use cpu::SF as SF;
+

@@ -298,7 +298,55 @@ impl CPU {
                 }
             },
             (0, _, 2) => {
-                panic!("FIXME: indirect loads");
+                // indirect loads
+                match (q, p) {
+                    // LD (nn),HL; LD (nn),IX; LD (nn),IY
+                    (0, 2) => {
+                        let addr = self.imm16();
+                        let val  = self.r16(self.m_sp[2]);
+                        self.mem.w16(addr, val);
+                        self.wz = (addr + 1) & 0xFFFF;
+                        cyc += 16;
+                    },
+                    // LD (nn),A
+                    (0, 3) => {
+                        let addr = self.imm16();
+                        self.mem.w8(addr, self.reg[A]);
+                        self.wz = (addr + 1) & 0xFFFF;
+                        cyc += 13;
+                    }
+                    // LD (BC),A; LD (DE),A,; LD (nn),A
+                    (0, _) => {
+                        let addr = if p==0 { self.r16(BC) } else { self.r16(DE) };
+                        self.mem.w8(addr, self.reg[A]); 
+                        self.wz = (self.reg[A]<<8) | ((addr+1) & 0xFF);
+                        cyc += 7;
+                    },
+                    // LD HL,(nn); LD IX,(nn); LD IY,(nn)
+                    (1, 2) => {
+                        let addr = self.imm16();
+                        let val  = self.mem.r16(addr);
+                        let r    = self.m_sp[2];
+                        self.w16(r, val);
+                        self.wz = (addr + 1) & 0xFFFF;
+                        cyc += 16;
+                    },
+                    // LD A,(nn)
+                    (1, 3) => {
+                        let addr = self.imm16();
+                        self.reg[A] = self.mem.r8(addr);
+                        self.wz = (addr + 1) & 0xFFFF;
+                        cyc += 13;
+                    }
+                    // LD A,(BC); LD A,(DE)
+                    (1, _) => {
+                        let addr = if p == 0 { self.r16(BC) } else { self.r16(DE) };
+                        self.reg[A] = self.mem.r8(addr);
+                        self.wz = (addr + 1) & 0xFFFF;
+                        cyc += 7;
+                    },
+                    (_,_) => { }
+                }
             },
             (0, _, 3) => {
                 // 16-bit INC/DEC
@@ -335,7 +383,7 @@ impl CPU {
                 self.reg[y] = self.dec8(v);
                 cyc += 4;
             },
-            // LD (HL),n; LD (IX+d),n; LD (IY+d),n
+            // LD r,n; LD (HL),n; LD (IX+d),n; LD (IY+d),n
             (0, _, 6) => {
                 let v = self.imm8();
                 if y == 6 {
@@ -345,10 +393,26 @@ impl CPU {
                     cyc += if m == HL { 10 } else { 15 };
                 }
                 else {
+                    // LD r,n
                     self.reg[y] = v;
                     cyc += 7;
                 }
             },
+            // misc ops on A and F
+            (0, _, 7) => {
+                match y {
+                    0 => self.rlca8(),
+                    1 => self.rrca8(),
+                    2 => self.rla8(),
+                    3 => self.rra8(),
+                    4 => self.daa(),
+                    5 => self.cpl(),
+                    6 => self.scf(),
+                    7 => self.ccf(),
+                    _ => panic!("CAN'T HAPPEN!"),
+                }
+                cyc += 4;
+            }
         //--- block 3: misc and prefixed ops
             (3, _, 0) => {
                 panic!("FIXME: RET cc!");
@@ -671,6 +735,52 @@ impl CPU {
             self.pc = (self.pc + 1) & 0xFFFF;
             8   // return num cycles if loop finished
         }
+    }
+
+    pub fn daa(&mut self) {
+        let a = self.reg[A];
+        let mut val = a;
+        let f = self.reg[F];
+        if 0 != (f & NF) {
+            if ((a & 0xF) > 0x9) || (0 != (f & HF)) {
+                val = (val - 0x06) & 0xFF;
+            }
+            if (a > 0x99) || (0 != (f & CF)) {
+                val = (val - 0x60) & 0xFF;
+            }
+        }
+        else {
+            if ((a & 0xF) > 0x9) || (0 != (f & HF)) {
+                val = (val + 0x06) & 0xFF;
+            }
+            if (a > 0x99) || (0 != (f & CF)) {
+                val = (val + 0x60) & 0xFF;
+            }
+        }
+        self.reg[F] = (f & (CF|NF)) |
+            (if a>0x99 {CF} else {0}) |
+            ((a^val) & HF) |
+            CPU::flags_szp(val);
+        self.reg[A] = val;
+    }
+
+    pub fn cpl(&mut self) {
+        let f = self.reg[F];
+        let a = self.reg[A] ^ 0xFF;
+        self.reg[F] = (f & (SF|ZF|PF|CF)) | (HF|NF) | (a & (YF|XF));
+        self.reg[A] = a;
+    }
+
+    pub fn scf(&mut self) {
+        let f = self.reg[F];
+        let a = self.reg[A];
+        self.reg[F] = (f & (SF|ZF|YF|XF|PF)) | CF | (a & (YF|XF));
+    }
+
+    pub fn ccf(&mut self) {
+        let f = self.reg[F];
+        let a = self.reg[A];
+        self.reg[F] = ((f & (SF|ZF|YF|XF|PF|CF)) | ((f & CF)<<4) | (a & (YF|XF))) ^ CF;
     }
 }
 
