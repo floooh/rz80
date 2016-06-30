@@ -112,9 +112,7 @@ impl CPU {
 
     /// read 16-bit register value
     pub fn r16(&self, r: usize) -> RegT {
-        let h = self.reg[r] <<8;
-        let l = self.reg[r+1];
-        h | l
+        (self.reg[r]<<8) | self.reg[r+1]
     }
 
     /// fetch the next instruction byte from memory
@@ -172,7 +170,7 @@ impl CPU {
 
     /// check condition (for conditional jumps etc)
     fn cc(&self, y: usize) -> bool {
-        match y-4 {
+        match y {
             0 => 0 == self.reg[F] & ZF, // JR NZ
             1 => 0 != self.reg[F] & ZF, // JR Z
             2 => 0 == self.reg[F] & CF, // JR NC
@@ -268,7 +266,7 @@ impl CPU {
             },
             // JR cc
             (0, _, 0) => {
-                if self.cc(y) {
+                if self.cc(y-4) {
                     self.wz = (self.pc + self.mem.rs8(self.pc) + 1) & 0xFFFF;
                     self.pc = self.wz;
                     cyc += 12;
@@ -414,23 +412,76 @@ impl CPU {
                 cyc += 4;
             }
         //--- block 3: misc and prefixed ops
-            (3, _, 0) => {
-                panic!("FIXME: RET cc!");
-            },
+            (3, _, 0) => { 
+                // RET cc
+                cyc += self.retcc(y); 
+            }
             (3, _, 1) => {
-                panic!("FIXME: POP + misc!");
+                match (q,p) {
+                    (0, _) => {
+                        // POP BC,DE,HL,IX,IY
+                        panic!("FIXME: POP");
+                    },
+                    (1, 0) => {
+                        // RET
+                        cyc += self.ret();
+                    },
+                    (1, 1) => {
+                        // EXX
+                        panic!("FIXME: EXX");
+                    },
+                    (1, 2) => {
+                        // JP HL; JP IX; JP IY
+                        panic!("FIXME JP (HL)!");
+                    },
+                    (1, 3) => {
+                        // LD SP,HL, LD SP,IX; LD SP,IY
+                        let r = self.r16(self.m_sp[2]);
+                        self.w16(SP, r);
+                        cyc += 6;
+                    },
+                    (_, _) => {
+                        panic!("Can't happen!");
+                    }
+                }
             },
             (3, _, 2) => {
-                panic!("FIXME: JP cc,nn!");
+                // JP cc,nn
+                panic!("FIXME: JP cc,nn")
             },
             (3, _, 3) => {
                 panic!("FIXME: misc ops!");
             },
             (3, _, 4) => {
-                panic!("FIXME: CALL cc, nn!");
+                // CALL cc
+                cyc += self.callcc(y);
             },
             (3, _, 5) => {
-                panic!("FIXME: PUSH and CALL!");
+                match (q, p) {
+                    (0, _) => {
+                        // PUSH BC,DE,HL,IX,IY,AF
+                        panic!("FIXME PUSH");
+                    },
+                    (1, 0) => {
+                        // CALL nn
+                        cyc += self.call();
+                    },
+                    (1, 1) => {
+                        // DD prefix instructions
+                        panic!("FIXME: DD prefix!");
+                    },
+                    (1, 2) => {
+                        // ED prefix instructions
+                        panic!("FIXME: ED prefix!");
+                    },
+                    (1, 3) => {
+                        // FD prefix instructions
+                        panic!("FIXME FD prefix!");
+                    },
+                    (_, _) => {
+                        panic!("Can't happen!");
+                    }
+                }
             },
             // ALU n
             (3, _, 6) => {
@@ -782,6 +833,43 @@ impl CPU {
         let a = self.reg[A];
         self.reg[F] = ((f & (SF|ZF|YF|XF|PF|CF)) | ((f & CF)<<4) | (a & (YF|XF))) ^ CF;
     }
+
+    pub fn ret(&mut self) -> i32 {
+        let sp = self.r16(SP);
+        self.wz = self.mem.r16(sp);
+        self.pc = self.wz;
+        self.w16(SP, sp + 2);
+        10
+    }
+
+    pub fn call(&mut self) -> i32 {
+        self.wz = self.imm16();
+        let sp = (self.r16(SP) - 2) & 0xFFFF;
+        self.mem.w16(sp, self.pc);
+        self.w16(SP, sp);
+        self.pc = self.wz;
+        17 
+    }
+
+    pub fn retcc(&mut self, y: usize) -> i32 {
+        if self.cc(y) {
+            self.ret() + 1
+        }
+        else {
+            5
+        }
+    }
+
+    pub fn callcc(&mut self, y: usize) -> i32 {
+        if self.cc(y) {
+            self.call()
+        }
+        else {
+            self.wz = self.imm16();
+            10
+        }               
+    }
+
 }
 
 #[cfg(test)]
