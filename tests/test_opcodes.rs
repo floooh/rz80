@@ -83,7 +83,7 @@ mod test_opcodes {
         cpu.mem.write(0x0100, &prog);
 
         cpu.reg[A] = 0x33;
-        cpu.w16(HL, 0x1000);
+        cpu.w16_i(HL, 0x1000);
         cpu.pc = 0x0100;
         assert!(7 == cpu.step()); assert!(0x33 == cpu.mem.r8(0x1000));
         assert!(7 == cpu.step()); assert!(0x33 == cpu.reg[B]);
@@ -541,7 +541,7 @@ mod test_opcodes {
         ];
         cpu.mem.write(0x0000, &prog);
 
-        assert!(10 == cpu.step()); assert!(0x1000 == cpu.r16(HL));
+        assert!(10 == cpu.step()); assert!(0x1000 == cpu.r16_i(HL));
         assert!(7  == cpu.step()); assert!(0x12 == cpu.reg[A]);
         assert!(7  == cpu.step()); assert!(0x12 == cpu.mem.r8(0x1000));
         assert!(7  == cpu.step()); assert!(0x13 == cpu.reg[B]);
@@ -578,14 +578,14 @@ mod test_opcodes {
         for _ in 0..4 {
             cpu.step();
         }
-        assert!(6 == cpu.step()); assert!(0xFFFF == cpu.r16(BC));
-        assert!(6 == cpu.step()); assert!(0x0000 == cpu.r16(BC));
-        assert!(6 == cpu.step()); assert!(0x0000 == cpu.r16(DE));
-        assert!(6 == cpu.step()); assert!(0xFFFF == cpu.r16(DE));
-        assert!(6 == cpu.step()); assert!(0x0100 == cpu.r16(HL));
-        assert!(6 == cpu.step()); assert!(0x00FF == cpu.r16(HL));
-        assert!(6 == cpu.step()); assert!(0x1112 == cpu.r16(SP));
-        assert!(6 == cpu.step()); assert!(0x1111 == cpu.r16(SP));
+        assert!(6 == cpu.step()); assert!(0xFFFF == cpu.r16_i(BC));
+        assert!(6 == cpu.step()); assert!(0x0000 == cpu.r16_i(BC));
+        assert!(6 == cpu.step()); assert!(0x0000 == cpu.r16_i(DE));
+        assert!(6 == cpu.step()); assert!(0xFFFF == cpu.r16_i(DE));
+        assert!(6 == cpu.step()); assert!(0x0100 == cpu.r16_i(HL));
+        assert!(6 == cpu.step()); assert!(0x00FF == cpu.r16_i(HL));
+        assert!(6 == cpu.step()); assert!(0x1112 == cpu.r16_i(SP));
+        assert!(6 == cpu.step()); assert!(0x1111 == cpu.r16_i(SP));
     }
 
     #[test]
@@ -604,8 +604,8 @@ mod test_opcodes {
         ];
         cpu.mem.write(0x0000, &prog);
 
-        assert!(10 == cpu.step()); assert!(0x1000 == cpu.r16(BC));
-        assert!(10 == cpu.step()); assert!(0x1001 == cpu.r16(DE));
+        assert!(10 == cpu.step()); assert!(0x1000 == cpu.r16_i(BC));
+        assert!(10 == cpu.step()); assert!(0x1001 == cpu.r16_i(DE));
         assert!(7  == cpu.step()); assert!(0x11 == cpu.reg[A]);
         assert!(7  == cpu.step()); assert!(0x22 == cpu.reg[A]);
         assert!(13 == cpu.step()); assert!(0x33 == cpu.reg[A]);
@@ -625,8 +625,8 @@ mod test_opcodes {
         ];
         cpu.mem.write(0x0000, &prog);
 
-        assert!(10 == cpu.step()); assert!(0x1000 == cpu.r16(BC));
-        assert!(10 == cpu.step()); assert!(0x1001 == cpu.r16(DE));
+        assert!(10 == cpu.step()); assert!(0x1000 == cpu.r16_i(BC));
+        assert!(10 == cpu.step()); assert!(0x1001 == cpu.r16_i(DE));
         assert!(7  == cpu.step()); assert!(0x77 == cpu.reg[A]);
         assert!(7  == cpu.step()); assert!(0x77 == cpu.mem.r8(0x1000));
         assert!(7  == cpu.step()); assert!(0x77 == cpu.mem.r8(0x1001));
@@ -754,18 +754,18 @@ mod test_opcodes {
 
         assert!(17 == cpu.step());
         assert!(0x020A == cpu.pc);
-        assert!(0xFFFE == cpu.r16(SP));
+        assert!(0xFFFE == cpu.r16_i(SP));
         assert!(0x0207 == cpu.mem.r16(0xFFFE));
         assert!(10 == cpu.step());
         assert!(0x0207 == cpu.pc);
-        assert!(0x0000 == cpu.r16(SP));
+        assert!(0x0000 == cpu.r16_i(SP));
         assert!(17 == cpu.step());
         assert!(0x020A == cpu.pc);
-        assert!(0xFFFE == cpu.r16(SP));
+        assert!(0xFFFE == cpu.r16_i(SP));
         assert!(0x020A == cpu.mem.r16(0xFFFE));
         assert!(10 == cpu.step());
         assert!(0x020A == cpu.pc);
-        assert!(0x0000 == cpu.r16(SP));
+        assert!(0x0000 == cpu.r16_i(SP));
     }
 
     #[test]
@@ -801,7 +801,7 @@ mod test_opcodes {
         ];
 		cpu.mem.write(0x0204, &prog);
 		cpu.pc = 0x0204;
-		cpu.w16(SP, 0x0100);
+		cpu.w16_i(SP, 0x0100);
 
         assert!(4 ==cpu.step()); assert!(0x00 == cpu.reg[A]);
         assert!(10==cpu.step()); assert!(0x0208 == cpu.pc);
