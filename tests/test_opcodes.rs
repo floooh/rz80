@@ -19,6 +19,10 @@ mod test_opcodes {
     use rz80::AF as AF;
     use rz80::IX as IX;
     use rz80::IY as IY;
+    use rz80::BC_ as BC_;
+    use rz80::DE_ as DE_;
+    use rz80::HL_ as HL_;
+    use rz80::AF_ as AF_;
     use rz80::CF as CF;
     use rz80::NF as NF;
     use rz80::VF as VF;
@@ -1359,16 +1363,68 @@ mod test_opcodes {
     #[test]
     fn test_halt() {
         let mut cpu = rz80::CPU::new();
-
         let prog = [
             0x76,       // HALT
         ];
         cpu.mem.write(0x0000, &prog);
-
         assert!(4==cpu.step()); assert!(0x0000 == cpu.pc); assert!(cpu.halt);
         assert!(4==cpu.step()); assert!(0x0000 == cpu.pc); assert!(cpu.halt);
         assert!(4==cpu.step()); assert!(0x0000 == cpu.pc); assert!(cpu.halt);
     }
 
+    #[test]
+    fn test_ex() {
+        let mut cpu = rz80::CPU::new(); 
+        let prog = [
+            0x21, 0x34, 0x12,       // LD HL,0x1234
+            0x11, 0x78, 0x56,       // LD DE,0x5678
+            0xEB,                   // EX DE,HL
+            0x3E, 0x11,             // LD A,0x11
+            0x08,                   // EX AF,AF'
+            0x3E, 0x22,             // LD A,0x22
+            0x08,                   // EX AF,AF'
+            0x01, 0xBC, 0x9A,       // LD BC,0x9ABC
+            0xD9,                   // EXX
+            0x21, 0x11, 0x11,       // LD HL,0x1111
+            0x11, 0x22, 0x22,       // LD DE,0x2222
+            0x01, 0x33, 0x33,       // LD BC,0x3333
+            0xD9,                   // EXX
+            0x31, 0x00, 0x01,       // LD SP,0x0100
+            0xD5,                   // PUSH DE
+            0xE3,                   // EX (SP),HL
+            0xDD, 0x21, 0x99, 0x88, // LD IX,0x8899
+            0xDD, 0xE3,             // EX (SP),IX
+            0xFD, 0x21, 0x77, 0x66, // LD IY,0x6677
+            0xFD, 0xE3,             // EX (SP),IY
+        ];
+        cpu.mem.write(0x0000, &prog);
+
+        assert!(10==cpu.step()); assert!(0x1234 == cpu.r16_i(HL));
+        assert!(10==cpu.step()); assert!(0x5678 == cpu.r16_i(DE));
+        assert!(4 ==cpu.step()); assert!(0x1234 == cpu.r16_i(DE)); assert!(0x5678 == cpu.r16_i(HL)); 
+        assert!(7 ==cpu.step()); assert!(0x1100 == cpu.r16_i(AF)); assert!(0x0000 == cpu.r16_i(AF_));
+        assert!(4 ==cpu.step()); assert!(0x0000 == cpu.r16_i(AF)); assert!(0x1100 == cpu.r16_i(AF_));
+        assert!(7 ==cpu.step()); assert!(0x2200 == cpu.r16_i(AF)); assert!(0x1100 == cpu.r16_i(AF_));
+        assert!(4 ==cpu.step()); assert!(0x1100 == cpu.r16_i(AF)); assert!(0x2200 == cpu.r16_i(AF_));
+        assert!(10==cpu.step()); assert!(0x9ABC == cpu.r16_i(BC));
+        assert!(4 ==cpu.step());
+        assert!(0x0000 == cpu.r16_i(HL)); assert!(0x5678 == cpu.r16_i(HL_));
+        assert!(0x0000 == cpu.r16_i(DE)); assert!(0x1234 == cpu.r16_i(DE_));
+        assert!(0x0000 == cpu.r16_i(BC)); assert!(0x9ABC == cpu.r16_i(BC_));
+        assert!(10==cpu.step()); assert!(0x1111 == cpu.r16_i(HL));
+        assert!(10==cpu.step()); assert!(0x2222 == cpu.r16_i(DE));
+        assert!(10==cpu.step()); assert!(0x3333 == cpu.r16_i(BC));
+        assert!(4 ==cpu.step());
+        assert!(0x5678 == cpu.r16_i(HL)); assert!(0x1111 == cpu.r16_i(HL_));
+        assert!(0x1234 == cpu.r16_i(DE)); assert!(0x2222 == cpu.r16_i(DE_));
+        assert!(0x9ABC == cpu.r16_i(BC)); assert!(0x3333 == cpu.r16_i(BC_));
+        assert!(10==cpu.step()); assert!(0x0100 == cpu.r16_i(SP));
+        assert!(11==cpu.step()); assert!(0x1234 == cpu.mem.r16(0x00FE));
+        assert!(19==cpu.step()); assert!(0x1234 == cpu.r16_i(HL)); assert!(0x5678 == cpu.mem.r16(0x00FE));
+        assert!(14==cpu.step()); assert!(0x8899 == cpu.r16_i(IX));
+        assert!(23==cpu.step()); assert!(0x5678 == cpu.r16_i(IX)); assert!(0x8899 == cpu.mem.r16(0x00FE));
+        assert!(14==cpu.step()); assert!(0x6677 == cpu.r16_i(IY));
+        assert!(23==cpu.step()); assert!(0x8899 == cpu.r16_i(IY)); assert!(0x6677 == cpu.mem.r16(0x00FE));
+    }
 } 
 

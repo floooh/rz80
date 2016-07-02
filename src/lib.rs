@@ -24,6 +24,10 @@ pub use cpu::AF as AF;
 pub use cpu::IX as IX;
 pub use cpu::IY as IY;
 pub use cpu::SP as SP;
+pub use cpu::BC_ as BC_;
+pub use cpu::DE_ as DE_;
+pub use cpu::HL_ as HL_;
+pub use cpu::AF_ as AF_;
 
 pub use cpu::CF as CF;
 pub use cpu::NF as NF;

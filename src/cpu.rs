@@ -1,3 +1,5 @@
+use std::mem;
+
 use memory::Memory;
 use RegT;
 
@@ -483,7 +485,11 @@ impl CPU {
                     },
                     (1, 1) => {
                         // EXX
-                        panic!("FIXME: EXX");
+                        self.swap16(BC, BC_);
+                        self.swap16(DE, DE_);
+                        self.swap16(HL, HL_);
+                        mem::swap(&mut self.wz, &mut self.wz_);
+                        cyc += 4;
                     },
                     (1, 2) => {
                         // JP HL; JP IX; JP IY
@@ -505,7 +511,46 @@ impl CPU {
                 panic!("FIXME: JP cc,nn")
             },
             (3, _, 3) => {
-                panic!("FIXME: misc ops!");
+                // misc ops
+                match y {
+                    0 => { 
+                        panic!("FIXME: JP nn"); 
+                    },
+                    1 => {
+                        panic!("FIXME: CB prefix");
+                    },
+                    2 => {
+                        panic!("FIXME: OUT");
+                    },
+                    3 => {
+                        panic!("FIXME IN");
+                    },
+                    4 => {
+                        // EX (SP),HL; EX (SP),IX; EX (SP),IY
+                        let sp = self.r16_i(SP);
+                        let v  = self.r16_sp(2);
+                        self.wz = self.mem.r16(sp);
+                        self.mem.w16(sp, v);
+                        let wz = self.wz;
+                        self.w16_sp(2, wz);
+                        cyc += 19;
+                    },
+                    5 => {
+                        // EX DE,HL
+                        self.swap16(DE, HL);
+                        cyc += 4;
+                    },
+                    6 => {
+                        // DI
+                        self.iff1 = false; self.iff2 = false;
+                        cyc += 4;
+                    },
+                    7 => {
+                        // EI
+                        self.enable_interrupt = true;
+                    },
+                    _ => panic!("Can't happen!")
+                }
             },
             (3, _, 4) => {
                 // CALL cc
