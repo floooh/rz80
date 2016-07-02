@@ -583,7 +583,7 @@ impl CPU {
                     },
                     (1, 2) => {
                         // ED prefix instructions
-                        panic!("FIXME: ED prefix!");
+                        cyc += self.do_ed_op();
                     },
                     (1, 3) => {
                         // FD prefix instructions
@@ -615,6 +615,38 @@ impl CPU {
 
         // return resulting number of CPU cycles taken
         cyc
+    }
+
+    /// fetch and execute ED prefix instruction
+    fn do_ed_op(&mut self) -> i32 {
+        let op = self.fetch_op();
+
+        // split instruction byte into bit groups
+        let x = op>>6;
+        let y = (op>>3 & 7) as usize;
+        let z = (op & 7) as usize;
+//        let p = y>>1;
+//        let q = y & 1;
+        match (x, y, z) {
+            // block instructions
+            (2, 4, 0) => { self.ldi(); 16 },
+            (2, 5, 0) => { self.ldd(); 16 },
+            (2, 6, 0) => { self.ldir() },
+            (2, 7, 0) => { self.lddr() },
+            (2, 4, 1) => { self.cpi(); 16 },
+            (2, 5, 1) => { self.cpd(); 16 },
+            (2, 6, 1) => { self.cpir() },
+            (2, 7, 1) => { self.cpdr() },
+            (2, 4, 2) => { self.ini(); 16 },
+            (2, 5, 2) => { self.ind(); 16 },
+            (2, 6, 2) => { self.inir() },
+            (2, 7, 2) => { self.indr() },
+            (2, 4, 3) => { self.outi(); 16 },
+            (2, 5, 3) => { self.outd(); 16 },
+            (2, 6, 3) => { self.otir() },
+            (2, 7, 3) => { self.otdr() },
+            _ => panic!("FIXME!")
+        }
     }
 
     pub fn halt(&mut self) {
@@ -989,6 +1021,109 @@ impl CPU {
         }               
     }
 
+    pub fn ldi(&mut self) {
+        let hl = self.r16_i(HL);
+        let de = self.r16_i(DE);
+        let val = self.mem.r8(hl);
+        self.mem.w8(de, val);
+        self.w16_i(HL, hl + 1);
+        self.w16_i(DE, de + 1);
+        let bc = (self.r16_i(BC) - 1) & 0xFFFF;
+        self.w16_i(BC, bc);
+        let n = (val + self.reg[A]) & 0xFF;
+        self.reg[F] = (self.reg[F] & (SF|ZF|CF)) |
+            (if (n & 0x02) != 0 {YF} else {0}) |
+            (if (n & 0x08) != 0 {XF} else {0}) |
+            (if bc > 0 {VF} else {0});
+    }
+
+    pub fn ldd(&mut self) {
+        let hl = self.r16_i(HL);
+        let de = self.r16_i(DE);
+        let val = self.mem.r8(hl);
+        self.mem.w8(de, val);
+        self.w16_i(HL, hl - 1);
+        self.w16_i(DE, de - 1);
+        let bc = (self.r16_i(BC) - 1) & 0xFFFF;
+        self.w16_i(BC, bc);
+        let n = (val + self.reg[A]) & 0xFF;
+        self.reg[F] = (self.reg[F] & (SF|ZF|CF)) |
+            (if (n & 0x02) != 0 {YF} else {0}) |
+            (if (n & 0x08) != 0 {XF} else {0}) |
+            (if bc > 0 {VF} else {0});
+    }
+
+    pub fn ldir(&mut self) -> i32 {
+        self.ldi();
+        if (self.reg[F] & VF) != 0 {
+            self.pc = (self.pc - 2) & 0xFFFF;
+            self.wz = (self.pc + 1) & 0xFFFF;
+            21
+        }
+        else {
+            16
+        }
+    }
+
+    pub fn lddr(&mut self) -> i32 {
+        self.ldd();
+        if (self.reg[F] & VF) != 0 {
+            self.pc = (self.pc - 2) & 0xFFFF;
+            self.wz = (self.pc + 1) & 0xFFFF;
+            21
+        }
+        else {
+            16
+        }
+    }
+
+    pub fn cpi(&mut self) {
+        panic!("FIXME: cpi!");
+    }
+
+    pub fn cpd(&mut self) {
+        panic!("FIXME: cpd!");
+    }
+
+    pub fn cpir(&mut self) -> i32 {
+        panic!("FIXME: cpir!");
+    }
+
+    pub fn cpdr(&mut self) -> i32 {
+        panic!("FIXME: cpdr!");
+    }
+
+    pub fn ini(&mut self) {
+        panic!("FIXME: ini!");
+    }
+
+    pub fn ind(&mut self) {
+        panic!("FIXME: ind!");
+    }
+
+    pub fn inir(&mut self) -> i32 {
+        panic!("FIXME: inir!");
+    }
+
+    pub fn indr(&mut self) -> i32 {
+        panic!("FIXME: indr!");
+    }
+
+    pub fn outi(&mut self) {
+        panic!("FIXME: outi!");
+    }
+
+    pub fn outd(&mut self) {
+        panic!("FIXME: outd!");
+    }
+
+    pub fn otir(&mut self) -> i32 {
+        panic!("FIXME: otir!");
+    }
+
+    pub fn otdr(&mut self) -> i32 {
+        panic!("FIXME: otdr!");
+    }
 }
 
 #[cfg(test)]
