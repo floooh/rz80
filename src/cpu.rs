@@ -19,8 +19,8 @@ pub const D : usize = 2;
 pub const E : usize = 3;
 pub const H : usize = 4;
 pub const L : usize = 5;
-pub const F : usize = 6;
-pub const A : usize = 7;
+pub const A : usize = 6;
+pub const F : usize = 7;
 pub const IXH : usize = 8;
 pub const IXL : usize = 9;
 pub const IYH : usize = 10;
@@ -69,6 +69,7 @@ pub struct CPU {
 
     enable_interrupt: bool,
     m_r  : [usize; 8],
+    m_r2 : [usize; 8],
     m_sp : [usize; 4],
     m_af : [usize; 4],
     
@@ -86,6 +87,7 @@ impl CPU {
             invalid_op: false,
             enable_interrupt: false,
             m_r  : [ B, C, D, E, H, L, F, A ],
+            m_r2 : [ B, C, D, E, H, L, F, A ],
             m_sp : [ BC, DE, HL, SP ],
             m_af : [ BC, DE, HL, AF ],
             mem: Memory::new(),
@@ -165,22 +167,10 @@ impl CPU {
             self.iff2 = true;
             self.enable_interrupt = false
         }
-        return self.do_op(0, false);
+        return self.do_op(false);
     }
 
-    /// compute effective address for (HL) or (IX/Y+d) instructions
-    /// and update WZ register if needed
-    fn addr(&mut self, d: RegT, ext: bool) -> RegT {
-        if ext {
-            self.wz = (self.r16_sp(2) + d) & 0xFFFF;
-            self.wz
-        }
-        else {
-            self.r16_sp(2)
-        }
-    }
-
-    /// load 8-bit immediate operand and increment PC
+    /// load 8-bit unsigned immediate operand and increment PC
     fn imm8(&mut self) -> RegT {
         let imm = self.mem.r8(self.pc);
         self.pc = (self.pc + 1) & 0xFFFF;
@@ -192,6 +182,20 @@ impl CPU {
         let imm = self.mem.r16(self.pc);
         self.pc = (self.pc + 2) & 0xFFFF;
         imm
+    }
+
+    /// compute effective address for (HL) or (IX/Y+d) instructions
+    /// and update WZ register if needed
+    fn addr(&mut self, ext: bool) -> RegT {
+        if ext {
+            let d = self.mem.rs8(self.pc);
+            self.pc = (self.pc + 1) & 0xFFFF;
+            self.wz = (self.r16_sp(2) + d) & 0xFFFF;
+            self.wz
+        }
+        else {
+            self.r16_sp(2)
+        }
     }
 
     /// swap a 16-bit register with its counterpart
@@ -217,6 +221,22 @@ impl CPU {
         }
     }
 
+    /// patch register mapping tables for DD/FD extended instructions
+    fn patch_reg_tables(&mut self, rr: usize, rh: usize, rl: usize) {
+        self.m_r[H] = rh;       // H replaced with IXH or IYH
+        self.m_r[L] = rl;       // L replaced with IXL or IYL
+        self.m_sp[2] = rr;     // HL replaced with IX or IY
+        self.m_af[2] = rr;     // ditto
+    }
+
+    /// unpatch register mapping tables after extended instructions
+    fn unpatch_reg_tables(&mut self) {
+        self.m_r[H] = H;
+        self.m_r[L] = L;
+        self.m_sp[2] = HL;
+        self.m_af[2] = HL;
+    }
+
     /// execute a single 'main-instruction'
     ///
     /// This function may be called recursively for prefixed
@@ -226,7 +246,7 @@ impl CPU {
     /// * 'd'   - the d in (IX+d), (IY+d), 0 if m is HL
     ///
     /// returns number of cycles the instruction takes
-    pub fn do_op(&mut self, d: RegT, ext: bool) -> i32 {
+    pub fn do_op(&mut self, ext: bool) -> i32 {
         let (mut cyc, ext_cyc) = if ext {(4,8)} else {(0,0)};
         let op = self.fetch_op();
 
@@ -246,18 +266,16 @@ impl CPU {
             // LD (HL),r; LD (IX+d),r; LD (IY+d),r
             // NOTE: this always loads from H,L, never IXH, ...
             (1, 6, _) => {
-                let a = self.addr(d, ext);
-                self.mem.w8(a, self.reg[z]);
+                let a = self.addr(ext);
+                self.mem.w8(a, self.reg[self.m_r2[z]]);
                 cyc += 7 + ext_cyc;
-                
             },
             // LD r,(HL); LD r,(IX+d); LD r,(IY+d)
             // NOTE: this always loads to H,L, never IXH,...
             (1, _, 6) => {
-                let a = self.addr(d, ext);
-                self.reg[y] = self.mem.r8(a);
+                let a = self.addr(ext);
+                self.reg[self.m_r2[y]] = self.mem.r8(a);
                 cyc += 7 + ext_cyc; 
-                
             },
             // LD r,s
             (1, _, _) => {
@@ -271,7 +289,7 @@ impl CPU {
                 let val = if z == 6 {
                     // ALU (HL); ALU (IX+d); ALU (IY+d)
                     cyc += 7 + ext_cyc;
-                    let a = self.addr(d, ext);
+                    let a = self.addr(ext);
                     self.mem.r8(a)
                 }
                 else {
@@ -387,7 +405,7 @@ impl CPU {
             },
             // INC (HL); INC (IX+d); INC (IY+d)
             (0, 6, 4) => {
-                let a = self.addr(d, ext);
+                let a = self.addr(ext);
                 let v = self.mem.r8(a);
                 let w = self.inc8(v);
                 self.mem.w8(a, w);
@@ -402,7 +420,7 @@ impl CPU {
             },
             // DEC (HL); DEC (IX+d); DEC (IY+d)
             (0, 6, 5) => {
-                let a = self.addr(d, ext);
+                let a = self.addr(ext);
                 let v = self.mem.r8(a);
                 let w = self.dec8(v);
                 self.mem.w8(a, w);
@@ -417,15 +435,16 @@ impl CPU {
             },
             // LD r,n; LD (HL),n; LD (IX+d),n; LD (IY+d),n
             (0, _, 6) => {
-                let v = self.imm8();
                 if y == 6 {
                     // LD (HL),n; LD (IX+d),n; LD (IY+d),n
-                    let a = self.addr(d, ext);
+                    let a = self.addr(ext);
+                    let v = self.imm8();
                     self.mem.w8(a, v);
-                    cyc += if ext { 10 } else { 15 };
+                    cyc += if ext { 15 } else { 10 };
                 }
                 else {
                     // LD r,n
+                    let v = self.imm8();
                     self.w8(y, v);
                     cyc += 7;
                 }
@@ -506,7 +525,9 @@ impl CPU {
                     },
                     (1, 1) => {
                         // DD prefix instructions
-                        panic!("FIXME: DD prefix!");
+                        self.patch_reg_tables(IX, IXH, IXL);
+                        cyc += self.do_op(true);
+                        self.unpatch_reg_tables();
                     },
                     (1, 2) => {
                         // ED prefix instructions
@@ -514,7 +535,9 @@ impl CPU {
                     },
                     (1, 3) => {
                         // FD prefix instructions
-                        panic!("FIXME FD prefix!");
+                        self.patch_reg_tables(IY, IYH, IYL);
+                        cyc += self.do_op(true); 
+                        self.unpatch_reg_tables();
                     },
                     (_, _) => {
                         panic!("Can't happen!");
@@ -976,8 +999,8 @@ mod tests {
         assert!(0x13 == cpu.reg[H]);
         assert!(0x57 == cpu.reg[L]);
         assert!(0x1357 == cpu.r16_i(HL));
-        assert!(0x11 == cpu.reg[F]);
-        assert!(0x22 == cpu.reg[A]);
+        assert!(0x22 == cpu.reg[F]);
+        assert!(0x11 == cpu.reg[A]);
     }
 
     #[test]
