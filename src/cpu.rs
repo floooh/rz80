@@ -493,7 +493,8 @@ impl CPU {
                     },
                     (1, 2) => {
                         // JP HL; JP IX; JP IY
-                        panic!("FIXME JP (HL)!");
+                        self.pc = self.r16_sp(2);
+                        cyc += 4;
                     },
                     (1, 3) => {
                         // LD SP,HL, LD SP,IX; LD SP,IY
@@ -508,13 +509,19 @@ impl CPU {
             },
             (3, _, 2) => {
                 // JP cc,nn
-                panic!("FIXME: JP cc,nn")
+                self.wz = self.imm16();
+                if self.cc(y) {
+                    self.pc = self.wz;
+                }
+                cyc += 10;
             },
             (3, _, 3) => {
                 // misc ops
                 match y {
                     0 => { 
-                        panic!("FIXME: JP nn"); 
+                        self.wz = self.imm16();
+                        self.pc = self.wz;
+                        cyc += 10;
                     },
                     1 => {
                         panic!("FIXME: CB prefix");

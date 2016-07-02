@@ -1426,5 +1426,82 @@ mod test_opcodes {
         assert!(14==cpu.step()); assert!(0x6677 == cpu.r16_i(IY));
         assert!(23==cpu.step()); assert!(0x8899 == cpu.r16_i(IY)); assert!(0x6677 == cpu.mem.r16(0x00FE));
     }
-} 
+
+    #[test]
+    fn test_jp_cc_nn() {
+        let mut cpu = rz80::CPU::new();
+        let prog = [
+            0x97,               //          SUB A
+            0xC2, 0x0C, 0x02,   //          JP NZ,label0
+            0xCA, 0x0C, 0x02,   //          JP Z,label0
+            0x00,               //          NOP
+            0xC6, 0x01,         // label0:  ADD A,0x01
+            0xCA, 0x15, 0x02,   //          JP Z,label1
+            0xC2, 0x15, 0x02,   //          JP NZ,label1
+            0x00,               //          NOP
+            0x07,               // label1:  RLCA
+            0xEA, 0x1D, 0x02,   //          JP PE,label2
+            0xE2, 0x1D, 0x02,   //          JP PO,label2
+            0x00,               //          NOP
+            0xC6, 0xFD,         // label2:  ADD A,0xFD
+            0xF2, 0x26, 0x02,   //          JP P,label3
+            0xFA, 0x26, 0x02,   //          JP M,label3
+            0x00,               //          NOP
+            0xD2, 0x2D, 0x02,   // label3:  JP NC,label4
+            0xDA, 0x2D, 0x02,   //          JP C,label4
+            0x00,               //          NOP
+            0x00,               //          NOP
+        ];
+        cpu.mem.write(0x0204, &prog);
+        cpu.pc = 0x0204;
+
+        assert!(4 ==cpu.step()); assert!(0x00 == cpu.reg[A]); assert!(flags(&cpu, ZF|NF));
+        assert!(10==cpu.step()); assert!(0x0208 == cpu.pc);
+        assert!(10==cpu.step()); assert!(0x020C == cpu.pc);
+        assert!(7 ==cpu.step()); assert!(0x01 == cpu.reg[A]); assert!(flags(&cpu, 0));
+        assert!(10==cpu.step()); assert!(0x0211 == cpu.pc);
+        assert!(10==cpu.step()); assert!(0x0215 == cpu.pc);
+        assert!(4 ==cpu.step()); assert!(0x02 == cpu.reg[A]); assert!(flags(&cpu, 0));
+        assert!(10==cpu.step()); assert!(0x0219 == cpu.pc);
+        assert!(10==cpu.step()); assert!(0x021D == cpu.pc);
+        assert!(7 ==cpu.step()); assert!(0xFF == cpu.reg[A]); assert!(flags(&cpu, SF));
+        assert!(10==cpu.step()); assert!(0x0222 == cpu.pc);
+        assert!(10==cpu.step()); assert!(0x0226 == cpu.pc);
+        assert!(10==cpu.step()); assert!(0x022D == cpu.pc);
+    }
+    
+    #[test]
+    fn test_jp_jr() {
+        let mut cpu = rz80::CPU::new();
+        let prog = [
+            0x21, 0x16, 0x02,           //      LD HL,l3
+            0xDD, 0x21, 0x19, 0x02,     //      LD IX,l4
+            0xFD, 0x21, 0x21, 0x02,     //      LD IY,l5
+            0xC3, 0x14, 0x02,           //      JP l0
+            0x18, 0x04,                 // l1:  JR l2
+            0x18, 0xFC,                 // l0:  JR l1
+            0xDD, 0xE9,                 // l3:  JP (IX)
+            0xE9,                       // l2:  JP (HL)
+            0xFD, 0xE9,                 // l4:  JP (IY)
+            0x18, 0x06,                 // l6:  JR l7
+            0x00, 0x00, 0x00, 0x00,     //      4x NOP
+            0x18, 0xF8,                 // l5:  JR l6
+            0x00                        // l7:  NOP
+        ];
+        cpu.mem.write(0x0204, &prog);
+        cpu.pc = 0x0204;
+
+        assert!(10==cpu.step()); assert!(0x0216 == cpu.r16_i(HL));
+        assert!(14==cpu.step()); assert!(0x0219 == cpu.r16_i(IX));
+        assert!(14==cpu.step()); assert!(0x0221 == cpu.r16_i(IY));
+        assert!(10==cpu.step()); assert!(0x0214 == cpu.pc);
+        assert!(12==cpu.step()); assert!(0x0212 == cpu.pc);
+        assert!(12==cpu.step()); assert!(0x0218 == cpu.pc);
+        assert!(4 ==cpu.step()); assert!(0x0216 == cpu.pc);
+        assert!(8 ==cpu.step()); assert!(0x0219 == cpu.pc);
+        assert!(8 ==cpu.step()); assert!(0x0221 == cpu.pc);
+        assert!(12==cpu.step()); assert!(0x021B == cpu.pc);
+        assert!(12==cpu.step()); assert!(0x0223 == cpu.pc);
+    }
+}
 
