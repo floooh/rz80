@@ -695,6 +695,35 @@ impl CPU {
                 self.neg8();
                 8
             },
+            (1, _, 5) => {
+                panic!("FIXME: RETN, RETI");
+            },
+            (1, _, 6) => {
+                match y {
+                    0|1|4|5 => { self.im = 0; },
+                    2|6     => { self.im = 1; },
+                    3|7     => { self.im = 2; },
+                    _       => { panic!("Can't happen!") }
+                }
+                8
+            },
+            (1, 0, 7) => { self.i = self.reg[A]; 9 },   // LD I,A
+            (1, 1, 7) => { self.r = self.reg[A]; 9 },   // LD R,A
+            (1, 2, 7) => { 
+                // LD A,I
+                self.reg[A] = self.i; 
+                self.reg[F] = CPU::flags_sziff2(self.i, self.iff2)|(self.reg[F]&CF);
+                9
+            },
+            (1, 3, 7) => {
+                // LD A,R
+                self.reg[A] = self.r;
+                self.reg[F] = CPU::flags_sziff2(self.r, self.iff2)|(self.reg[F]&CF);
+                9
+            },
+            (1, 4, 7) => { self.rrd(); 18 },    // RRD
+            (1, 5, 7) => { self.rld(); 18 },    // RLD
+            (1, _, 7) => { 9 },     // NOP (ED)
             _ => panic!("FIXME!")
         }
     }
@@ -759,7 +788,7 @@ impl CPU {
         }
     }
 
-    pub fn flags_add(acc: RegT, add: RegT, res: RegT) -> RegT {
+    fn flags_add(acc: RegT, add: RegT, res: RegT) -> RegT {
         (if (res & 0xFF)==0 { ZF } else { res & SF }) |
         (res & (YF|XF)) |
         ((res>>8) & CF) |            
@@ -767,7 +796,7 @@ impl CPU {
         ((((acc^add^0x80) & (add^res))>>5) & VF)
     }
 
-    pub fn flags_sub(acc: RegT, sub: RegT, res: RegT) -> RegT {
+    fn flags_sub(acc: RegT, sub: RegT, res: RegT) -> RegT {
         NF | 
         (if (res & 0xFF)==0 { ZF } else { res & SF }) |
         (res & (YF|XF)) |
@@ -776,7 +805,7 @@ impl CPU {
         ((((acc^sub) & (res^acc))>>5) & VF)
     }
 
-    pub fn flags_cp(acc: RegT, sub: RegT, res: RegT) -> RegT {
+    fn flags_cp(acc: RegT, sub: RegT, res: RegT) -> RegT {
         // the only difference to flags_sub() is that the 
         // 2 undocumented flag bits X and Y are taken from the
         // sub-value, not the result
@@ -788,11 +817,17 @@ impl CPU {
         ((((acc^sub) & (res^acc))>>5) & VF)
     }
 
-    pub fn flags_szp(val: RegT) -> RegT {
+    fn flags_szp(val: RegT) -> RegT {
         let v = val & 0xFF;
         (if (v.count_ones()&1)==0 { PF } else { 0 }) |
         (if v==0 { ZF } else { v & SF }) |
         (v & (YF|XF))
+    }
+
+    fn flags_sziff2(val: RegT, iff2: bool) -> RegT {
+        (if (val & 0xFF)==0 {ZF} else {val & SF}) |
+        (val & (YF|XF)) |
+        if iff2 {PF} else {0}
     }
 
     pub fn add8(&mut self, add: RegT) {
@@ -948,6 +983,14 @@ impl CPU {
         res
     }
     
+    pub fn rrd(&mut self) -> RegT {
+        panic!("FIXME: RRD");
+    }
+
+    pub fn rld(&mut self) -> RegT {
+        panic!("FIXME: RLD");
+    }
+
     pub fn bit(&mut self, val: RegT, mask: RegT) {
         let res = val & mask;
         self.reg[F] = HF | (self.reg[F] & CF) |
