@@ -646,22 +646,24 @@ impl CPU {
             (2, 6, 3) => { self.otir() },
             (2, 7, 3) => { self.otdr() },
 
-            // IN r,(C)
             (1, 6, 0) => { 
+                // IN (C) (undocumented)
                 panic!("FIXME IN (C)"); 
             },
             (1, _, 0) => {
+                // IN r,(C)
                 panic!("FIXME IN r,(C)");
             },
-            // OUT (C),r
             (1, 6, 1) => {
+                // OUT (C) (undocumented)
                 panic!("FIXME OUT (C)");
             },
             (1, _, 1) => {
+                // OUT (C),r
                 panic!("FIXME OUT (C),r");
             },
-            // SBC/ADC HL,rr
             (1, _, 2) => {
+            // SBC/ADC HL,rr
                 let acc = self.r16_i(HL);
                 let val = self.r16_sp(p);
                 let res = if q == 0 {
@@ -673,8 +675,8 @@ impl CPU {
                 self.w16_i(HL, res);
                 15
             },
-            /// 16-bit immediate address load/store
             (1, _, 3) => {
+                // 16-bit immediate address load/store
                 self.wz = self.imm16();
                 if q == 0 {
                     // LD (nn),rr
@@ -688,6 +690,10 @@ impl CPU {
                 }
                 self.wz = (self.wz + 1) & 0xFFFF;
                 20
+            },
+            (1, _, 4) => {
+                self.neg8();
+                8
             },
             _ => panic!("FIXME!")
         }
