@@ -1659,5 +1659,158 @@ mod test_opcodes {
         assert!(flags(&cpu, 0));
         cpu.step(); assert!(0x33 == cpu.reg[A]);
     }
+
+    #[test]
+    fn test_cpi() {
+        let mut cpu = rz80::CPU::new();
+
+        let data = [ 0x01, 0x02, 0x03, 0x04 ];
+        cpu.mem.write(0x1000, &data);
+        let prog = [
+            0x21, 0x00, 0x10,       // ld hl,0x1000
+            0x01, 0x04, 0x00,       // ld bc,0x0004
+            0x3e, 0x03,             // ld a,0x03
+            0xed, 0xa1,             // cpi
+            0xed, 0xa1,             // cpi
+            0xed, 0xa1,             // cpi
+            0xed, 0xa1,             // cpi
+        ];
+        cpu.mem.write(0x0000, &prog);
+
+        // skip loads
+        for _ in 0..3 {
+            cpu.step();
+        }
+        assert!(16 == cpu.step());
+        assert!(0x1001 == cpu.r16_i(HL));
+        assert!(0x0003 == cpu.r16_i(BC));
+        assert!(flags(&cpu, PF|NF));
+        cpu.reg[F] |= CF;
+        assert!(16 == cpu.step());
+        assert!(0x1002 == cpu.r16_i(HL));
+        assert!(0x0002 == cpu.r16_i(BC));
+        assert!(flags(&cpu, PF|NF|CF));
+        assert!(16 == cpu.step());
+        assert!(0x1003 == cpu.r16_i(HL));
+        assert!(0x0001 == cpu.r16_i(BC));
+        assert!(flags(&cpu, ZF|PF|NF|CF));
+        assert!(16 == cpu.step());
+        assert!(0x1004 == cpu.r16_i(HL));
+        assert!(0x0000 == cpu.r16_i(BC));
+        assert!(flags(&cpu, SF|HF|NF|CF));
+    }
+    
+    #[test]
+    fn test_cpir() {
+        let mut cpu = rz80::CPU::new();
+        let data = [ 0x01, 0x02, 0x03, 0x04 ];
+        cpu.mem.write(0x1000, &data);
+        let prog = [
+            0x21, 0x00, 0x10,       // ld hl,0x1000
+            0x01, 0x04, 0x00,       // ld bc,0x0004
+            0x3e, 0x03,             // ld a,0x03
+            0xed, 0xb1,             // cpir
+            0xed, 0xb1,             // cpir
+        ];
+        cpu.mem.write(0x0000, &prog);
+
+        // skip loads
+        for _ in 0..3 {
+            cpu.step();
+        }
+        assert!(21 == cpu.step());
+        assert!(0x1001 == cpu.r16_i(HL));
+        assert!(0x0003 == cpu.r16_i(BC));
+        assert!(flags(&cpu, PF|NF));
+        cpu.reg[F] |= CF;
+        assert!(21 == cpu.step());
+        assert!(0x1002 == cpu.r16_i(HL));
+        assert!(0x0002 == cpu.r16_i(BC));
+        assert!(flags(&cpu, PF|NF|CF));
+        assert!(16 == cpu.step());
+        assert!(0x1003 == cpu.r16_i(HL));
+        assert!(0x0001 == cpu.r16_i(BC));
+        assert!(flags(&cpu, ZF|PF|NF|CF));
+        assert!(16 == cpu.step());
+        assert!(0x1004 == cpu.r16_i(HL));
+        assert!(0x0000 == cpu.r16_i(BC));
+        assert!(flags(&cpu, SF|HF|NF|CF));
+    }
+
+    #[test]
+    fn test_cpd() {
+        let mut cpu = rz80::CPU::new();
+        let data = [ 0x01, 0x02, 0x03, 0x04 ];
+        cpu.mem.write(0x1000, &data);
+        let prog = [
+            0x21, 0x03, 0x10,       // ld hl,0x1004
+            0x01, 0x04, 0x00,       // ld bc,0x0004
+            0x3e, 0x02,             // ld a,0x03
+            0xed, 0xa9,             // cpi
+            0xed, 0xa9,             // cpi
+            0xed, 0xa9,             // cpi
+            0xed, 0xa9,             // cpi
+        ];
+        cpu.mem.write(0x0000, &prog);
+
+        // skip loads
+        for _ in 0..3 {
+            cpu.step();
+        }
+        assert!(16 == cpu.step());
+        assert!(0x1002 == cpu.r16_i(HL));
+        assert!(0x0003 == cpu.r16_i(BC));
+        assert!(flags(&cpu, SF|HF|PF|NF));
+        cpu.reg[F] |= CF;
+        assert!(16 == cpu.step());
+        assert!(0x1001 == cpu.r16_i(HL));
+        assert!(0x0002 == cpu.r16_i(BC));
+        assert!(flags(&cpu, SF|HF|PF|NF|CF));
+        assert!(16 == cpu.step());
+        assert!(0x1000 == cpu.r16_i(HL));
+        assert!(0x0001 == cpu.r16_i(BC));
+        assert!(flags(&cpu, ZF|PF|NF|CF));
+        assert!(16 == cpu.step());
+        assert!(0x0FFF == cpu.r16_i(HL));
+        assert!(0x0000 == cpu.r16_i(BC));
+        assert!(flags(&cpu, NF|CF));
+    }
+    
+    #[test]
+    fn test_cpdr() {
+        let mut cpu = rz80::CPU::new();
+        let data = [ 0x01, 0x02, 0x03, 0x04 ];
+        cpu.mem.write(0x1000, &data);
+        let prog = [
+            0x21, 0x03, 0x10,       // ld hl,0x1004
+            0x01, 0x04, 0x00,       // ld bc,0x0004
+            0x3e, 0x02,             // ld a,0x03
+            0xed, 0xb9,             // cpdr
+            0xed, 0xb9,             // cpdr
+        ];
+        cpu.mem.write(0x0000, &prog);
+
+        // skip loads
+        for _ in 0..3 {
+            cpu.step();
+        }
+        assert!(21 == cpu.step());
+        assert!(0x1002 == cpu.r16_i(HL));
+        assert!(0x0003 == cpu.r16_i(BC));
+        assert!(flags(&cpu, SF|HF|PF|NF));
+        cpu.reg[F] |= CF;
+        assert!(21 == cpu.step());
+        assert!(0x1001 == cpu.r16_i(HL));
+        assert!(0x0002 == cpu.r16_i(BC));
+        assert!(flags(&cpu, SF|HF|PF|NF|CF));
+        assert!(16 == cpu.step());
+        assert!(0x1000 == cpu.r16_i(HL));
+        assert!(0x0001 == cpu.r16_i(BC));
+        assert!(flags(&cpu, ZF|PF|NF|CF));
+        assert!(16 == cpu.step());
+        assert!(0x0FFF == cpu.r16_i(HL));
+        assert!(0x0000 == cpu.r16_i(BC));
+        assert!(flags(&cpu, NF|CF));
+    }
 }
 

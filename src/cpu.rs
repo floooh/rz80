@@ -1078,19 +1078,67 @@ impl CPU {
     }
 
     pub fn cpi(&mut self) {
-        panic!("FIXME: cpi!");
+        self.wz = (self.wz + 1) & 0xFFFF;
+        let hl = self.r16_i(HL);
+        self.w16_i(HL, hl + 1);
+        let bc = (self.r16_i(BC) - 1) & 0xFFFF;
+        self.w16_i(BC, bc);
+        let a = self.reg[A];
+        let mut v = a - self.mem.r8(hl);
+        let mut f = NF | (self.reg[F] & CF) |
+            (if v==0 {ZF} else {v & SF}) |
+            (if (v & 0xF)>(a & 0xF) {HF} else {0}) |
+            (if bc != 0 {VF} else {0});
+        if (f & VF) != 0 {
+            v -= 1;
+        }
+        if (v & 0x02) != 0 { f |= YF };
+        if (v & 0x08) != 0 { f |= XF };
+        self.reg[F] = f;
     }
 
     pub fn cpd(&mut self) {
-        panic!("FIXME: cpd!");
+        self.wz = (self.wz - 1) & 0xFFFF;
+        let hl = self.r16_i(HL);
+        self.w16_i(HL, hl - 1);
+        let bc = (self.r16_i(BC) - 1) & 0xFFFF;
+        self.w16_i(BC, bc);
+        let a = self.reg[A];
+        let mut v = a - self.mem.r8(hl);
+        let mut f = NF | (self.reg[F] & CF) |
+            (if v==0 {ZF} else {v & SF}) |
+            (if (v & 0xF)>(a & 0xF) {HF} else {0}) |
+            (if bc != 0 {VF} else {0});
+        if (f & VF) != 0 {
+            v -= 1;
+        }
+        if (v & 0x02) != 0 { f |= YF };
+        if (v & 0x08) != 0 { f |= XF };
+        self.reg[F] = f;
     }
 
     pub fn cpir(&mut self) -> i32 {
-        panic!("FIXME: cpir!");
+        self.cpi();
+        if (self.reg[F] & (VF|ZF)) == VF {
+            self.pc = (self.pc - 2) & 0xFFFF;
+            self.wz = (self.pc + 1) & 0xFFFF;
+            21
+        }
+        else {
+            16
+        }
     }
 
     pub fn cpdr(&mut self) -> i32 {
-        panic!("FIXME: cpdr!");
+        self.cpd();
+        if (self.reg[F] & (VF|ZF)) == VF {
+            self.pc = (self.pc - 2) & 0xFFFF;
+            self.wz = (self.pc + 1) & 0xFFFF;
+            21
+        }
+        else {
+            16
+        }
     }
 
     pub fn ini(&mut self) {
