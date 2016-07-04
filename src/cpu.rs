@@ -524,7 +524,7 @@ impl CPU {
                         cyc += 10;
                     },
                     1 => {
-                        panic!("FIXME: CB prefix");
+                        cyc += self.do_cb_op(ext);
                     },
                     2 => {
                         panic!("FIXME: OUT");
@@ -625,8 +625,8 @@ impl CPU {
         let x = op>>6;
         let y = (op>>3 & 7) as usize;
         let z = (op & 7) as usize;
-//        let p = y>>1;
-//        let q = y & 1;
+        let p = y>>1;
+        let q = y & 1;
         match (x, y, z) {
             // block instructions
             (2, 4, 0) => { self.ldi(); 16 },
@@ -645,8 +645,57 @@ impl CPU {
             (2, 5, 3) => { self.outd(); 16 },
             (2, 6, 3) => { self.otir() },
             (2, 7, 3) => { self.otdr() },
+
+            // IN r,(C)
+            (1, 6, 0) => { 
+                panic!("FIXME IN (C)"); 
+            },
+            (1, _, 0) => {
+                panic!("FIXME IN r,(C)");
+            },
+            // OUT (C),r
+            (1, 6, 1) => {
+                panic!("FIXME OUT (C)");
+            },
+            (1, _, 1) => {
+                panic!("FIXME OUT (C),r");
+            },
+            // SBC/ADC HL,rr
+            (1, _, 2) => {
+                let acc = self.r16_i(HL);
+                let val = self.r16_sp(p);
+                let res = if q == 0 {
+                    self.sbc16(acc, val)
+                } 
+                else {
+                    self.adc16(acc, val)
+                };
+                self.w16_i(HL, res);
+                15
+            },
             _ => panic!("FIXME!")
         }
+    }
+
+    /// fetch and execute CB prefix instruction
+    #[allow(unused_variables)]
+    fn do_cb_op(&mut self, ext: bool) -> i32 {
+        panic!("FIXME");
+        /*
+        let op = self.fetch_op();
+        let mut cyc = if ext {4} else {0};
+
+        // split instruction byte into bit groups
+        let x = op>>6;
+        let y = (op>>3 & 7) as usize;
+        let z = (op & 7) as usize;
+        match (x, y, z) {
+            (_, _, _) => {
+                panic!("FIXME!")
+            }
+        }
+        cyc
+        */
     }
 
     pub fn halt(&mut self) {
