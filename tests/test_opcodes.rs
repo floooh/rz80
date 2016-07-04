@@ -1861,5 +1861,68 @@ mod test_opcodes {
         assert!(15==cpu.step()); assert!(0x000C == cpu.r16_i(IY)); assert!(flags(&cpu, 0));
         assert!(15==cpu.step()); assert!(0x100C == cpu.r16_i(IY)); assert!(flags(&cpu, 0));
     }
-}
 
+    #[test]
+    fn ld_hlddixiy_inn() {
+        let mut cpu = rz80::CPU::new();
+        let data = [
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
+        ];
+        cpu.mem.write(0x1000, &data);
+        let prog = [
+            0x2A, 0x00, 0x10,           // LD HL,(0x1000)
+            0xED, 0x4B, 0x01, 0x10,     // LD BC,(0x1001)
+            0xED, 0x5B, 0x02, 0x10,     // LD DE,(0x1002)
+            0xED, 0x6B, 0x03, 0x10,     // LD HL,(0x1003) undocumented 'long' version
+            0xED, 0x7B, 0x04, 0x10,     // LD SP,(0x1004)
+            0xDD, 0x2A, 0x05, 0x10,     // LD IX,(0x1004)
+            0xFD, 0x2A, 0x06, 0x10,     // LD IY,(0x1005)
+        ];
+        cpu.mem.write(0x0000, &prog);
+
+        assert!(16==cpu.step()); assert!(0x0201 == cpu.r16_i(HL));
+        assert!(20==cpu.step()); assert!(0x0302 == cpu.r16_i(BC));
+        assert!(20==cpu.step()); assert!(0x0403 == cpu.r16_i(DE));
+        assert!(20==cpu.step()); assert!(0x0504 == cpu.r16_i(HL));
+        assert!(20==cpu.step()); assert!(0x0605 == cpu.r16_i(SP));
+        assert!(20==cpu.step()); assert!(0x0706 == cpu.r16_i(IX));
+        assert!(20==cpu.step()); assert!(0x0807 == cpu.r16_i(IY));
+    }
+
+    #[test]
+    fn ld_inn_hlddixiy() {
+        let mut cpu = rz80::CPU::new();
+        let prog = [
+            0x21, 0x01, 0x02,           // LD HL,0x0201
+            0x22, 0x00, 0x10,           // LD (0x1000),HL
+            0x01, 0x34, 0x12,           // LD BC,0x1234
+            0xED, 0x43, 0x02, 0x10,     // LD (0x1002),BC
+            0x11, 0x78, 0x56,           // LD DE,0x5678
+            0xED, 0x53, 0x04, 0x10,     // LD (0x1004),DE
+            0x21, 0xBC, 0x9A,           // LD HL,0x9ABC
+            0xED, 0x63, 0x06, 0x10,     // LD (0x1006),HL undocumented 'long' version
+            0x31, 0x68, 0x13,           // LD SP,0x1368
+            0xED, 0x73, 0x08, 0x10,     // LD (0x1008),SP
+            0xDD, 0x21, 0x21, 0x43,     // LD IX,0x4321
+            0xDD, 0x22, 0x0A, 0x10,     // LD (0x100A),IX
+            0xFD, 0x21, 0x65, 0x87,     // LD IY,0x8765
+            0xFD, 0x22, 0x0C, 0x10,     // LD (0x100C),IY
+        ];
+        cpu.mem.write(0x0000, &prog);
+
+        assert!(10==cpu.step()); assert!(0x0201 == cpu.r16_i(HL));       
+        assert!(16==cpu.step()); assert!(0x0201 == cpu.mem.r16(0x1000));
+        assert!(10==cpu.step()); assert!(0x1234 == cpu.r16_i(BC));       
+        assert!(20==cpu.step()); assert!(0x1234 == cpu.mem.r16(0x1002));
+        assert!(10==cpu.step()); assert!(0x5678 == cpu.r16_i(DE));       
+        assert!(20==cpu.step()); assert!(0x5678 == cpu.mem.r16(0x1004));
+        assert!(10==cpu.step()); assert!(0x9ABC == cpu.r16_i(HL));       
+        assert!(20==cpu.step()); assert!(0x9ABC == cpu.mem.r16(0x1006));
+        assert!(10==cpu.step()); assert!(0x1368 == cpu.r16_i(SP));       
+        assert!(20==cpu.step()); assert!(0x1368 == cpu.mem.r16(0x1008));
+        assert!(14==cpu.step()); assert!(0x4321 == cpu.r16_i(IX));       
+        assert!(20==cpu.step()); assert!(0x4321 == cpu.mem.r16(0x100A));
+        assert!(14==cpu.step()); assert!(0x8765 == cpu.r16_i(IY));       
+        assert!(20==cpu.step()); assert!(0x8765 == cpu.mem.r16(0x100C));
+    }
+}

@@ -673,6 +673,22 @@ impl CPU {
                 self.w16_i(HL, res);
                 15
             },
+            /// 16-bit immediate address load/store
+            (1, _, 3) => {
+                self.wz = self.imm16();
+                if q == 0 {
+                    // LD (nn),rr
+                    let val = self.r16_sp(p);
+                    self.mem.w16(self.wz, val);
+                }
+                else {
+                    // LD rr,(nn)
+                    let val = self.mem.r16(self.wz);
+                    self.w16_sp(p, val);
+                }
+                self.wz = (self.wz + 1) & 0xFFFF;
+                20
+            },
             _ => panic!("FIXME!")
         }
     }
