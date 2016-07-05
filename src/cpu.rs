@@ -756,8 +756,8 @@ impl CPU {
         let x = op>>6;
         let y = (op>>3 & 7) as usize;
         let z = (op & 7) as usize;
-        match (x, y, z) {
-            (0, _, _) => {
+        match x {
+            0 => {
                 // rotates and shifts
                 if z == 6 {
                     // ROT (HL); ROT (IX+d); ROT (IY+d)
@@ -765,26 +765,92 @@ impl CPU {
                     let v = self.mem.r8(a);
                     let w = self.rot(y, v);
                     self.mem.w8(a, w);
-                    cyc += 15
+                    cyc += 15;
                 }
                 else if ext {
-                    // undocumented: ROT (IX+d), (IY+d),r (also
-                    // stores result in a register)
+                    // undocumented: ROT (IX+d), (IY+d),r 
+                    // (also stores result in a register)
                     let a = self.addr_d(d, ext);
                     let v = self.mem.r8(a);
                     let w = self.rot(y, v);
                     self.reg[self.m_r2[z]] = w;
                     self.mem.w8(a, w);
-                    cyc += 15
+                    cyc += 15;
                 }
                 else {   
                     // ROT r
                     let v = self.reg[self.m_r2[z]];
                     self.reg[self.m_r2[z]] = self.rot(y, v);
-                    cyc += 8
+                    cyc += 8;
                 }
             },
-            (_, _, _) => {
+            1 => {
+                // BIT n
+                if z == 6 {
+                    // BIT n,(HL); BIT n,(IX+d); BIT n,(IY+d)
+                    let a = self.addr_d(d, ext);
+                    let v = self.mem.r8(a);
+                    self.ibit(v, (1<<y));
+                    cyc += 12;
+                }
+                else {
+                    // BIT n,r
+                    let v = self.reg[self.m_r2[z]];
+                    self.bit(v, (1<<y));
+                    cyc += 8;
+                }
+            },
+            2 => {
+                // RES n
+                if z == 6 {
+                    // RES n,(HL); RES n,(IX+d); RES n,(IY+d)
+                    let a = self.addr_d(d, ext);
+                    let v = self.mem.r8(a) & !(1<<y);
+                    self.mem.w8(a, v);
+                    cyc += 15;
+                }
+                else if ext {
+                    // RES n,(IX+d),r; RES n,(IY+d),r
+                    // (also stores result in a register)
+                    let a = self.addr_d(d, ext);
+                    let v = self.mem.r8(a) & !(1<<y);
+                    self.reg[self.m_r2[z]] = v;
+                    self.mem.w8(a, v);
+                    cyc += 15;
+                }
+                else {
+                    // RES n,r
+                    let v = self.reg[self.m_r2[z]] & !(1<<y);
+                    self.reg[self.m_r2[z]] = v;
+                    cyc += 8;
+                }
+            },
+            3 => {
+                // SET n
+                if z == 6 {
+                    // SET n,(HL); SET n,(IX+d); SET n,(IY+d)
+                    let a = self.addr_d(d, ext);
+                    let v = self.mem.r8(a) | (1<<y);
+                    self.mem.w8(a, v);
+                    cyc += 15;
+                }
+                else if ext {
+                    // SET n,(IX+d),r; SET n,(IY+d),r
+                    // (also stores result in a register)
+                    let a = self.addr_d(d, ext);
+                    let v = self.mem.r8(a) | (1<<y);
+                    self.reg[self.m_r2[z]] = v;
+                    self.mem.w8(a, v);
+                    cyc += 15;
+                }
+                else {
+                    // SET n,r
+                    let v = self.reg[self.m_r2[z]] | (1<<y);
+                    self.reg[self.m_r2[z]] = v;
+                    cyc += 8;
+                }
+            },
+            _ => {
                 panic!("FIXME!")
             }
         }
