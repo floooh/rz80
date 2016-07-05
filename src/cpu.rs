@@ -790,13 +790,13 @@ impl CPU {
                     // BIT n,(HL); BIT n,(IX+d); BIT n,(IY+d)
                     let a = self.addr_d(d, ext);
                     let v = self.mem.r8(a);
-                    self.ibit(v, (1<<y));
+                    self.ibit(v, 1<<y);
                     cyc += 12;
                 }
                 else {
                     // BIT n,r
                     let v = self.reg[self.m_r2[z]];
-                    self.bit(v, (1<<y));
+                    self.bit(v, 1<<y);
                     cyc += 8;
                 }
             },
@@ -830,7 +830,7 @@ impl CPU {
                 if z == 6 {
                     // SET n,(HL); SET n,(IX+d); SET n,(IY+d)
                     let a = self.addr_d(d, ext);
-                    let v = self.mem.r8(a) | (1<<y);
+                    let v = self.mem.r8(a) | 1<<y;
                     self.mem.w8(a, v);
                     cyc += 15;
                 }
@@ -838,14 +838,14 @@ impl CPU {
                     // SET n,(IX+d),r; SET n,(IY+d),r
                     // (also stores result in a register)
                     let a = self.addr_d(d, ext);
-                    let v = self.mem.r8(a) | (1<<y);
+                    let v = self.mem.r8(a) | 1<<y;
                     self.reg[self.m_r2[z]] = v;
                     self.mem.w8(a, v);
                     cyc += 15;
                 }
                 else {
                     // SET n,r
-                    let v = self.reg[self.m_r2[z]] | (1<<y);
+                    let v = self.reg[self.m_r2[z]] | 1<<y;
                     self.reg[self.m_r2[z]] = v;
                     cyc += 8;
                 }
@@ -1105,12 +1105,26 @@ impl CPU {
         res
     }
     
-    pub fn rrd(&mut self) -> RegT {
-        panic!("FIXME: RRD");
+    pub fn rld(&mut self) {
+        self.wz = self.r16_i(HL);
+        let x = self.mem.r8(self.wz);
+        let tmp = self.reg[A] & 0x0F;
+        self.reg[A] = (self.reg[A] & 0xF0) | (x>>4 & 0x0F);
+        let y = (x<<4 | tmp) & 0xFF;
+        self.mem.w8(self.wz, y);
+        self.wz = (self.wz + 1) & 0xFFFF;
+        self.reg[F] = CPU::flags_szp(self.reg[A]) | (self.reg[F] & CF);
     }
 
-    pub fn rld(&mut self) -> RegT {
-        panic!("FIXME: RLD");
+    pub fn rrd(&mut self) {
+        self.wz = self.r16_i(HL);
+        let x = self.mem.r8(self.wz);
+        let tmp = self.reg[A] & 0x0F;
+        self.reg[A] = (self.reg[A] & 0xF0) | (x & 0x0F);
+        let y = (x>>4 | tmp<<4) & 0xFF;
+        self.mem.w8(self.wz, y);
+        self.wz = (self.wz + 1) & 0xFFFF;
+        self.reg[F] = CPU::flags_szp(self.reg[A]) | (self.reg[F] & CF);
     }
 
     pub fn bit(&mut self, val: RegT, mask: RegT) {
