@@ -1986,5 +1986,340 @@ mod test_opcodes {
         assert!(9==cpu.step()); assert!(0x45 == cpu.i);
         assert!(9==cpu.step()); assert!(0x45 == cpu.r);
     }
-}
 
+    #[test]
+    fn test_rlc_rl_rrc_rr_r() {
+        let mut cpu = rz80::CPU::new();
+        let prog = [
+            0x3E, 0x01,     // LD A,0x01
+            0x06, 0xFF,     // LD B,0xFF
+            0x0E, 0x03,     // LD C,0x03
+            0x16, 0xFE,     // LD D,0xFE
+            0x1E, 0x11,     // LD E,0x11
+            0x26, 0x3F,     // LD H,0x3F
+            0x2E, 0x70,     // LD L,0x70
+
+            0xCB, 0x0F,     // RRC A
+            0xCB, 0x07,     // RLC A
+            0xCB, 0x08,     // RRC B
+            0xCB, 0x00,     // RLC B
+            0xCB, 0x01,     // RLC C
+            0xCB, 0x09,     // RRC C
+            0xCB, 0x02,     // RLC D
+            0xCB, 0x0A,     // RRC D
+            0xCB, 0x0B,     // RRC E
+            0xCB, 0x03,     // RLC E
+            0xCB, 0x04,     // RLC H
+            0xCB, 0x0C,     // RCC H
+            0xCB, 0x05,     // RLC L
+            0xCB, 0x0D,     // RRC L
+
+            0xCB, 0x1F,     // RR A
+            0xCB, 0x17,     // RL A
+            0xCB, 0x18,     // RR B
+            0xCB, 0x10,     // RL B
+            0xCB, 0x11,     // RL C
+            0xCB, 0x19,     // RR C
+            0xCB, 0x12,     // RL D
+            0xCB, 0x1A,     // RR D
+            0xCB, 0x1B,     // RR E
+            0xCB, 0x13,     // RL E
+            0xCB, 0x14,     // RL H
+            0xCB, 0x1C,     // RR H
+            0xCB, 0x15,     // RL L
+            0xCB, 0x1D,     // RR L
+        ];
+        cpu.mem.write(0x0000, &prog);
+
+        // skip loads
+        for _ in 0..7 {
+            cpu.step();
+        }
+        assert!(8==cpu.step()); assert!(0x80 == cpu.reg[A]); assert!(flags(&cpu, SF|CF));
+        assert!(8==cpu.step()); assert!(0x01 == cpu.reg[A]); assert!(flags(&cpu, CF));
+        assert!(8==cpu.step()); assert!(0xFF == cpu.reg[B]); assert!(flags(&cpu, SF|PF|CF));
+        assert!(8==cpu.step()); assert!(0xFF == cpu.reg[B]); assert!(flags(&cpu, SF|PF|CF));
+        assert!(8==cpu.step()); assert!(0x06 == cpu.reg[C]); assert!(flags(&cpu, PF));
+        assert!(8==cpu.step()); assert!(0x03 == cpu.reg[C]); assert!(flags(&cpu, PF));
+        assert!(8==cpu.step()); assert!(0xFD == cpu.reg[D]); assert!(flags(&cpu, SF|CF));
+        assert!(8==cpu.step()); assert!(0xFE == cpu.reg[D]); assert!(flags(&cpu, SF|CF));
+        assert!(8==cpu.step()); assert!(0x88 == cpu.reg[E]); assert!(flags(&cpu, SF|PF|CF));
+        assert!(8==cpu.step()); assert!(0x11 == cpu.reg[E]); assert!(flags(&cpu, PF|CF));
+        assert!(8==cpu.step()); assert!(0x7E == cpu.reg[H]); assert!(flags(&cpu, PF));
+        assert!(8==cpu.step()); assert!(0x3F == cpu.reg[H]); assert!(flags(&cpu, PF));
+        assert!(8==cpu.step()); assert!(0xE0 == cpu.reg[L]); assert!(flags(&cpu, SF));
+        assert!(8==cpu.step()); assert!(0x70 == cpu.reg[L]); assert!(flags(&cpu, 0));
+        assert!(8==cpu.step()); assert!(0x00 == cpu.reg[A]); assert!(flags(&cpu, ZF|PF|CF));
+        assert!(8==cpu.step()); assert!(0x01 == cpu.reg[A]); assert!(flags(&cpu, 0));
+        assert!(8==cpu.step()); assert!(0x7F == cpu.reg[B]); assert!(flags(&cpu, CF));
+        assert!(8==cpu.step()); assert!(0xFF == cpu.reg[B]); assert!(flags(&cpu, SF|PF));
+        assert!(8==cpu.step()); assert!(0x06 == cpu.reg[C]); assert!(flags(&cpu, PF));
+        assert!(8==cpu.step()); assert!(0x03 == cpu.reg[C]); assert!(flags(&cpu, PF));
+        assert!(8==cpu.step()); assert!(0xFC == cpu.reg[D]); assert!(flags(&cpu, SF|PF|CF));
+        assert!(8==cpu.step()); assert!(0xFE == cpu.reg[D]); assert!(flags(&cpu, SF));
+        assert!(8==cpu.step()); assert!(0x08 == cpu.reg[E]); assert!(flags(&cpu, CF));
+        assert!(8==cpu.step()); assert!(0x11 == cpu.reg[E]); assert!(flags(&cpu, PF));
+        assert!(8==cpu.step()); assert!(0x7E == cpu.reg[H]); assert!(flags(&cpu, PF));
+        assert!(8==cpu.step()); assert!(0x3F == cpu.reg[H]); assert!(flags(&cpu, PF));
+        assert!(8==cpu.step()); assert!(0xE0 == cpu.reg[L]); assert!(flags(&cpu, SF));
+        assert!(8==cpu.step()); assert!(0x70 == cpu.reg[L]); assert!(flags(&cpu, 0));
+    }
+
+    #[test]
+    fn test_rrc_rlc_rr_rl_ihlixiy() {
+        let mut cpu = rz80::CPU::new();
+        let data = [ 0x01, 0xFF, 0x11 ];
+        cpu.mem.write(0x1000, &data);
+        let prog = [
+            0x21, 0x00, 0x10,           // LD HL,0x1000
+            0xDD, 0x21, 0x00, 0x10,     // LD IX,0x1001
+            0xFD, 0x21, 0x03, 0x10,     // LD IY,0x1003
+            0xCB, 0x0E,                 // RRC (HL)
+            0x7E,                       // LD A,(HL)
+            0xCB, 0x06,                 // RLC (HL)
+            0x7E,                       // LD A,(HL)
+            0xDD, 0xCB, 0x01, 0x0E,     // RRC (IX+1)
+            0xDD, 0x7E, 0x01,           // LD A,(IX+1)
+            0xDD, 0xCB, 0x01, 0x06,     // RLC (IX+1)
+            0xDD, 0x7E, 0x01,           // LD A,(IX+1)
+            0xFD, 0xCB, 0xFF, 0x0E,     // RRC (IY-1)
+            0xFD, 0x7E, 0xFF,           // LD A,(IY-1)
+            0xFD, 0xCB, 0xFF, 0x06,     // RLC (IY-1)
+            0xFD, 0x7E, 0xFF,           // LD A,(IY-1)
+            0xCB, 0x1E,                 // RR (HL)
+            0x7E,                       // LD A,(HL)
+            0xCB, 0x16,                 // RL (HL)
+            0x7E,                       // LD A,(HL)
+            0xDD, 0xCB, 0x01, 0x1E,     // RR (IX+1)
+            0xDD, 0x7E, 0x01,           // LD A,(IX+1)
+            0xDD, 0xCB, 0x01, 0x16,     // RL (IX+1)
+            0xDD, 0x7E, 0x01,           // LD A,(IX+1)
+            0xFD, 0xCB, 0xFF, 0x16,     // RL (IY-1)
+            0xFD, 0x7E, 0xFF,           // LD A,(IY-1)
+            0xFD, 0xCB, 0xFF, 0x1E,     // RR (IY-1)
+            0xFD, 0x7E, 0xFF,           // LD A,(IY-1)
+        ];
+        cpu.mem.write(0x0000, &prog);
+
+        // skip loads
+        for _ in 0..3 {
+            cpu.step();
+        }
+        assert!(15==cpu.step()); assert!(0x80 == cpu.mem.r8(0x1000)); assert!(flags(&cpu, SF|CF));
+        assert!(7 ==cpu.step()); assert!(0x80 == cpu.reg[A]);
+        assert!(15==cpu.step()); assert!(0x01 == cpu.mem.r8(0x1000)); assert!(flags(&cpu, CF));
+        assert!(7 ==cpu.step()); assert!(0x01 == cpu.reg[A]);
+        assert!(23==cpu.step()); assert!(0xFF == cpu.mem.r8(0x1001)); assert!(flags(&cpu, SF|PF|CF));
+        assert!(19==cpu.step()); assert!(0xFF == cpu.reg[A]);
+        assert!(23==cpu.step()); assert!(0xFF == cpu.mem.r8(0x1001)); assert!(flags(&cpu, SF|PF|CF));
+        assert!(19==cpu.step()); assert!(0xFF == cpu.reg[A]);
+        assert!(23==cpu.step()); assert!(0x88 == cpu.mem.r8(0x1002)); assert!(flags(&cpu, SF|PF|CF));
+        assert!(19==cpu.step()); assert!(0x88 == cpu.reg[A]);
+        assert!(23==cpu.step()); assert!(0x11 == cpu.mem.r8(0x1002)); assert!(flags(&cpu, PF|CF)); 
+        assert!(19==cpu.step()); assert!(0x11 == cpu.reg[A]);
+        assert!(15==cpu.step()); assert!(0x80 == cpu.mem.r8(0x1000)); assert!(flags(&cpu, SF|CF));
+        assert!(7 ==cpu.step()); assert!(0x80 == cpu.reg[A]);
+        assert!(15==cpu.step()); assert!(0x01 == cpu.mem.r8(0x1000)); assert!(flags(&cpu, CF));
+        assert!(7 ==cpu.step()); assert!(0x01 == cpu.reg[A]);
+        assert!(23==cpu.step()); assert!(0xFF == cpu.mem.r8(0x1001)); assert!(flags(&cpu, SF|PF|CF));
+        assert!(19==cpu.step()); assert!(0xFF == cpu.reg[A]);
+        assert!(23==cpu.step()); assert!(0xFF == cpu.mem.r8(0x1001)); assert!(flags(&cpu, SF|PF|CF));
+        assert!(19==cpu.step()); assert!(0xFF == cpu.reg[A]);
+        assert!(23==cpu.step()); assert!(0x23 == cpu.mem.r8(0x1002)); assert!(flags(&cpu, 0));
+        assert!(19==cpu.step()); assert!(0x23 == cpu.reg[A]);
+        assert!(23==cpu.step()); assert!(0x11 == cpu.mem.r8(0x1002)); assert!(flags(&cpu, PF|CF));
+        assert!(19==cpu.step()); assert!(0x11 == cpu.reg[A]);
+    }
+
+    #[test]
+    fn test_sla_r() {
+        let mut cpu = rz80::CPU::new();
+        let prog = [
+            0x3E, 0x01,         // LD A,0x01
+            0x06, 0x80,         // LD B,0x80
+            0x0E, 0xAA,         // LD C,0xAA
+            0x16, 0xFE,         // LD D,0xFE
+            0x1E, 0x7F,         // LD E,0x7F
+            0x26, 0x11,         // LD H,0x11
+            0x2E, 0x00,         // LD L,0x00
+            0xCB, 0x27,         // SLA A
+            0xCB, 0x20,         // SLA B
+            0xCB, 0x21,         // SLA C
+            0xCB, 0x22,         // SLA D
+            0xCB, 0x23,         // SLA E
+            0xCB, 0x24,         // SLA H
+            0xCB, 0x25,         // SLA L
+        ];
+        cpu.mem.write(0x0000, &prog);
+
+        // skip loads
+        for _ in 0..7 {
+            cpu.step();
+        }
+        assert!(8==cpu.step()); assert!(0x02 == cpu.reg[A]); assert!(flags(&cpu, 0));
+        assert!(8==cpu.step()); assert!(0x00 == cpu.reg[B]); assert!(flags(&cpu, ZF|PF|CF));
+        assert!(8==cpu.step()); assert!(0x54 == cpu.reg[C]); assert!(flags(&cpu, CF));
+        assert!(8==cpu.step()); assert!(0xFC == cpu.reg[D]); assert!(flags(&cpu, SF|PF|CF));
+        assert!(8==cpu.step()); assert!(0xFE == cpu.reg[E]); assert!(flags(&cpu, SF));
+        assert!(8==cpu.step()); assert!(0x22 == cpu.reg[H]); assert!(flags(&cpu, PF));
+        assert!(8==cpu.step()); assert!(0x00 == cpu.reg[L]); assert!(flags(&cpu, ZF|PF));
+    }
+
+    #[test]
+    fn test_sra_r() {
+        let mut cpu = rz80::CPU::new();
+        let prog = [
+            0x3E, 0x01,         // LD A,0x01
+            0x06, 0x80,         // LD B,0x80
+            0x0E, 0xAA,         // LD C,0xAA
+            0x16, 0xFE,         // LD D,0xFE
+            0x1E, 0x7F,         // LD E,0x7F
+            0x26, 0x11,         // LD H,0x11
+            0x2E, 0x00,         // LD L,0x00
+            0xCB, 0x2F,         // SRA A
+            0xCB, 0x28,         // SRA B
+            0xCB, 0x29,         // SRA C
+            0xCB, 0x2A,         // SRA D
+            0xCB, 0x2B,         // SRA E
+            0xCB, 0x2C,         // SRA H
+            0xCB, 0x2D,         // SRA L
+        ];
+        cpu.mem.write(0x0000, &prog);
+
+        // skip loads
+        for _ in 0..7 {
+            cpu.step();
+        }
+        assert!(8==cpu.step()); assert!(0x00 == cpu.reg[A]); assert!(flags(&cpu, ZF|PF|CF));
+        assert!(8==cpu.step()); assert!(0xC0 == cpu.reg[B]); assert!(flags(&cpu, SF|PF));
+        assert!(8==cpu.step()); assert!(0xD5 == cpu.reg[C]); assert!(flags(&cpu, SF));
+        assert!(8==cpu.step()); assert!(0xFF == cpu.reg[D]); assert!(flags(&cpu, SF|PF));
+        assert!(8==cpu.step()); assert!(0x3F == cpu.reg[E]); assert!(flags(&cpu, PF|CF));
+        assert!(8==cpu.step()); assert!(0x08 == cpu.reg[H]); assert!(flags(&cpu, CF));
+        assert!(8==cpu.step()); assert!(0x00 == cpu.reg[L]); assert!(flags(&cpu, ZF|PF));
+    }
+
+    #[test]
+    fn test_srl_r() {
+        let mut cpu = rz80::CPU::new();
+        let prog = [
+            0x3E, 0x01,         // LD A,0x01
+            0x06, 0x80,         // LD B,0x80
+            0x0E, 0xAA,         // LD C,0xAA
+            0x16, 0xFE,         // LD D,0xFE
+            0x1E, 0x7F,         // LD E,0x7F
+            0x26, 0x11,         // LD H,0x11
+            0x2E, 0x00,         // LD L,0x00
+            0xCB, 0x3F,         // SRL A
+            0xCB, 0x38,         // SRL B
+            0xCB, 0x39,         // SRL C
+            0xCB, 0x3A,         // SRL D
+            0xCB, 0x3B,         // SRL E
+            0xCB, 0x3C,         // SRL H
+            0xCB, 0x3D,         // SRL L
+        ];
+        cpu.mem.write(0x0000, &prog);
+
+        // skip loads
+        for _ in 0..7 {
+            cpu.step();
+        }
+        assert!(8==cpu.step()); assert!(0x00 == cpu.reg[A]); assert!(flags(&cpu, ZF|PF|CF));
+        assert!(8==cpu.step()); assert!(0x40 == cpu.reg[B]); assert!(flags(&cpu, 0));
+        assert!(8==cpu.step()); assert!(0x55 == cpu.reg[C]); assert!(flags(&cpu, PF));
+        assert!(8==cpu.step()); assert!(0x7F == cpu.reg[D]); assert!(flags(&cpu, 0));
+        assert!(8==cpu.step()); assert!(0x3F == cpu.reg[E]); assert!(flags(&cpu, PF|CF));
+        assert!(8==cpu.step()); assert!(0x08 == cpu.reg[H]); assert!(flags(&cpu, CF));
+        assert!(8==cpu.step()); assert!(0x00 == cpu.reg[L]); assert!(flags(&cpu, ZF|PF));
+    }
+
+    #[test]
+    fn test_sla_ihlixiy() {
+        let mut cpu = rz80::CPU::new();
+        let data = [ 0x01, 0x80, 0xAA ];
+        cpu.mem.write(0x1000, &data);
+        let prog = [
+            0x21, 0x00, 0x10,           // LD HL,0x1000
+            0xDD, 0x21, 0x00, 0x10,     // LD IX,0x1001
+            0xFD, 0x21, 0x03, 0x10,     // LD IY,0x1003
+            0xCB, 0x26,                 // SLA (HL)
+            0x7E,                       // LD A,(HL)
+            0xDD, 0xCB, 0x01, 0x26,     // SLA (IX+1)
+            0xDD, 0x7E, 0x01,           // LD A,(IX+1)
+            0xFD, 0xCB, 0xFF, 0x26,     // SLA (IY-1)
+            0xFD, 0x7E, 0xFF,           // LD A,(IY-1)
+        ];
+        cpu.mem.write(0x0000, &prog);
+
+        // skip loads
+        for _ in 0..3 {
+            cpu.step();
+        }
+        assert!(15==cpu.step()); assert!(0x02 == cpu.mem.r8(0x1000)); assert!(flags(&cpu, 0));
+        assert!(7 ==cpu.step()); assert!(0x02 == cpu.reg[A]);
+        assert!(23==cpu.step()); assert!(0x00 == cpu.mem.r8(0x1001)); assert!(flags(&cpu, ZF|PF|CF));
+        assert!(19==cpu.step()); assert!(0x00 == cpu.reg[A]);
+        assert!(23==cpu.step()); assert!(0x54 == cpu.mem.r8(0x1002)); assert!(flags(&cpu, CF));
+        assert!(19==cpu.step()); assert!(0x54 == cpu.reg[A]);
+    }
+
+    #[test]
+    fn test_sra_ihlixiy() {
+        let mut cpu = rz80::CPU::new();
+        let data = [ 0x01, 0x80, 0xAA ];
+        cpu.mem.write(0x1000, &data);
+        let prog = [
+            0x21, 0x00, 0x10,           // LD HL,0x1000
+            0xDD, 0x21, 0x00, 0x10,     // LD IX,0x1001
+            0xFD, 0x21, 0x03, 0x10,     // LD IY,0x1003
+            0xCB, 0x2E,                 // SRA (HL)
+            0x7E,                       // LD A,(HL)
+            0xDD, 0xCB, 0x01, 0x2E,     // SRA (IX+1)
+            0xDD, 0x7E, 0x01,           // LD A,(IX+1)
+            0xFD, 0xCB, 0xFF, 0x2E,     // SRA (IY-1)
+            0xFD, 0x7E, 0xFF,           // LD A,(IY-1)
+        ];
+        cpu.mem.write(0x000, &prog);
+
+        // skip loads
+        for _ in 0..3 {
+            cpu.step();
+        }
+        assert!(15==cpu.step()); assert!(0x00 == cpu.mem.r8(0x1000)); assert!(flags(&cpu, ZF|PF|CF));
+        assert!(7 ==cpu.step()); assert!(0x00 == cpu.reg[A]);
+        assert!(23==cpu.step()); assert!(0xC0 == cpu.mem.r8(0x1001)); assert!(flags(&cpu, SF|PF));
+        assert!(19==cpu.step()); assert!(0xC0 == cpu.reg[A]);
+        assert!(23==cpu.step()); assert!(0xD5 == cpu.mem.r8(0x1002)); assert!(flags(&cpu, SF));
+        assert!(19==cpu.step()); assert!(0xD5 == cpu.reg[A]);
+    }
+
+    #[test]
+    fn test_srl_ihlixiy() {
+        let mut cpu = rz80::CPU::new();
+        let data = [ 0x01, 0x80, 0xAA ];
+        cpu.mem.write(0x1000, &data);
+        let prog = [
+            0x21, 0x00, 0x10,           // LD HL,0x1000
+            0xDD, 0x21, 0x00, 0x10,     // LD IX,0x1001
+            0xFD, 0x21, 0x03, 0x10,     // LD IY,0x1003
+            0xCB, 0x3E,                 // SRL (HL)
+            0x7E,                       // LD A,(HL)
+            0xDD, 0xCB, 0x01, 0x3E,     // SRL (IX+1)
+            0xDD, 0x7E, 0x01,           // LD A,(IX+1)
+            0xFD, 0xCB, 0xFF, 0x3E,     // SRL (IY-1)
+            0xFD, 0x7E, 0xFF,           // LD A,(IY-1)
+        ];
+        cpu.mem.write(0x000, &prog);
+
+        // skip loads
+        for _ in 0..3 {
+            cpu.step();
+        }
+        assert!(15==cpu.step()); assert!(0x00 == cpu.mem.r8(0x1000)); assert!(flags(&cpu, ZF|PF|CF));
+        assert!(7 ==cpu.step()); assert!(0x00 == cpu.reg[A]);
+        assert!(23==cpu.step()); assert!(0x40 == cpu.mem.r8(0x1001)); assert!(flags(&cpu, 0));
+        assert!(19==cpu.step()); assert!(0x40 == cpu.reg[A]);
+        assert!(23==cpu.step()); assert!(0x55 == cpu.mem.r8(0x1002)); assert!(flags(&cpu, PF));
+        assert!(19==cpu.step()); assert!(0x55 == cpu.reg[A]);
+    }
+}

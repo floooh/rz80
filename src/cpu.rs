@@ -186,12 +186,30 @@ impl CPU {
         imm
     }
 
+    /// load d (as in IX+d) from memory and advance PC
+    fn d(&mut self) -> RegT {
+        let d = self.mem.rs8(self.pc);
+        self.pc = (self.pc + 1) & 0xFFFF;
+        d
+    }
+
+    /// load effective address HL, IX+d or IY+d with existing d
+    /// this is for DD CB and FD DB instructions
+    fn addr_d(&mut self, d: RegT, ext: bool) -> RegT {
+        if ext {
+            self.wz = (self.r16_sp(2) + d) & 0xFFFF;
+            self.wz
+        }
+        else {
+            self.r16_sp(2)
+        }
+    }
+
     /// compute effective address for (HL) or (IX/Y+d) instructions
     /// and update WZ register if needed
     fn addr(&mut self, ext: bool) -> RegT {
         if ext {
-            let d = self.mem.rs8(self.pc);
-            self.pc = (self.pc + 1) & 0xFFFF;
+            let d = self.d();
             self.wz = (self.r16_sp(2) + d) & 0xFFFF;
             self.wz
         }
@@ -729,10 +747,8 @@ impl CPU {
     }
 
     /// fetch and execute CB prefix instruction
-    #[allow(unused_variables)]
     fn do_cb_op(&mut self, ext: bool) -> i32 {
-        panic!("FIXME");
-        /*
+        let d = if ext {self.d()} else {0};
         let op = self.fetch_op();
         let mut cyc = if ext {4} else {0};
 
@@ -741,12 +757,38 @@ impl CPU {
         let y = (op>>3 & 7) as usize;
         let z = (op & 7) as usize;
         match (x, y, z) {
+            (0, _, _) => {
+                // rotates and shifts
+                if z == 6 {
+                    // ROT (HL); ROT (IX+d); ROT (IY+d)
+                    let a = self.addr_d(d, ext);
+                    let v = self.mem.r8(a);
+                    let w = self.rot(y, v);
+                    self.mem.w8(a, w);
+                    cyc += 15
+                }
+                else if ext {
+                    // undocumented: ROT (IX+d), (IY+d),r (also
+                    // stores result in a register)
+                    let a = self.addr_d(d, ext);
+                    let v = self.mem.r8(a);
+                    let w = self.rot(y, v);
+                    self.reg[self.m_r2[z]] = w;
+                    self.mem.w8(a, w);
+                    cyc += 15
+                }
+                else {   
+                    // ROT r
+                    let v = self.reg[self.m_r2[z]];
+                    self.reg[self.m_r2[z]] = self.rot(y, v);
+                    cyc += 8
+                }
+            },
             (_, _, _) => {
                 panic!("FIXME!")
             }
         }
         cyc
-        */
     }
 
     pub fn halt(&mut self) {
@@ -784,7 +826,7 @@ impl CPU {
             5 => self.xor8(val),
             6 => self.or8(val),
             7 => self.cp8(val),
-            _ => (),
+            _ => panic!("Can't happen!")
         }
     }
 
@@ -904,6 +946,20 @@ impl CPU {
             (if res==0x7F {VF} else {0}) |
             (self.reg[F] & CF);
         res
+    }
+
+    pub fn rot(&mut self, op: usize, val: RegT) -> RegT {
+        match op {
+            0 => self.rlc8(val),
+            1 => self.rrc8(val),
+            2 => self.rl8(val),
+            3 => self.rr8(val),
+            4 => self.sla8(val),
+            5 => self.sra8(val),
+            6 => self.sll8(val),
+            7 => self.srl8(val),
+            _ => panic!("Can't happen")
+        }
     }
 
     pub fn rlc8(&mut self, val: RegT) -> RegT {
