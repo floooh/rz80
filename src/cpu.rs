@@ -52,8 +52,11 @@ pub const DE_ : usize = 16;
 pub const HL_ : usize = 18;
 pub const AF_ : usize = 20;
 
+pub type InFn<'a> = Box<FnMut(RegT)->RegT + 'a>;
+pub type OutFn<'a> = Box<FnMut(RegT, RegT) + 'a>;
+
 /// the Z80 CPU state
-pub struct CPU {
+pub struct CPU<'a> {
     pub reg : [RegT; NUM_REGS],
 
     pub wz: RegT,
@@ -74,13 +77,17 @@ pub struct CPU {
     m_r2 : [usize; 8],
     m_sp : [usize; 4],
     m_af : [usize; 4],
-    
+
+    // FIXME: figure out more effective way to store callback pointers
+    pub in_fn : InFn<'a>,
+    pub out_fn : OutFn<'a>,
+
     pub mem : Memory,
 }
 
-impl CPU {
+impl<'a> CPU<'a> {
     /// initialize a new Z80 CPU object
-    pub fn new() -> CPU {
+    pub fn new() -> CPU<'a> {
         CPU {
             reg: [0; NUM_REGS],
             wz: 0, wz_: 0, pc: 0,
@@ -92,6 +99,8 @@ impl CPU {
             m_r2 : [ B, C, D, E, H, L, F, A ],
             m_sp : [ BC, DE, HL, SP ],
             m_af : [ BC, DE, HL, AF ],
+            in_fn : Box::new(|_| 0),
+            out_fn : Box::new(|_,_| {}),
             mem: Memory::new(),
 
         }
@@ -108,6 +117,11 @@ impl CPU {
         self.r = 0;
         self.invalid_op = false;
         self.enable_interrupt = false;
+    }
+
+    /// common entry point for "can't happen"
+    fn canthappen() {
+        panic!("Can't happen!");
     }
 
     /// write 8-bit register value with register mapping through m_r[]
@@ -480,7 +494,7 @@ impl CPU {
                     5 => self.cpl(),
                     6 => self.scf(),
                     7 => self.ccf(),
-                    _ => panic!("CAN'T HAPPEN!"),
+                    _ => CPU::canthappen()
                 }
                 cyc += 4;
             }
@@ -521,7 +535,7 @@ impl CPU {
                         cyc += 6;
                     },
                     (_, _) => {
-                        panic!("Can't happen!");
+                        CPU::canthappen();
                     }
                 }
             },
@@ -545,10 +559,17 @@ impl CPU {
                         cyc += self.do_cb_op(ext);
                     },
                     2 => {
-                        panic!("FIXME: OUT");
+                        // OUT (n),A
+                        let port = (self.reg[A]<<8 | self.imm8()) & 0xFFFF;
+                        let a = self.reg[A];
+                        self.outp(port, a);
+                        cyc += 11;
                     },
                     3 => {
-                        panic!("FIXME IN");
+                        // IN A,(n)
+                        let port = (self.reg[A]<<8 | self.imm8()) & 0xFFFF;
+                        self.reg[A] = self.inp(port);
+                        cyc += 11;
                     },
                     4 => {
                         // EX (SP),HL; EX (SP),IX; EX (SP),IY
@@ -574,7 +595,7 @@ impl CPU {
                         // EI
                         self.enable_interrupt = true;
                     },
-                    _ => panic!("Can't happen!")
+                    _ => CPU::canthappen()
                 }
             },
             (3, _, 4) => {
@@ -609,9 +630,7 @@ impl CPU {
                         cyc += self.do_op(true); 
                         self.unpatch_reg_tables();
                     },
-                    (_, _) => {
-                        panic!("Can't happen!");
-                    }
+                    (_, _) => CPU::canthappen()
                 }
             },
             // ALU n
@@ -627,7 +646,7 @@ impl CPU {
             },
             // not implemented
             _ => {
-                panic!("Unimplemented Z80 instruction!");
+                panic!("Invalid instruction!");
             }
         }
 
@@ -665,23 +684,36 @@ impl CPU {
             (2, 7, 3) => { self.otdr() },
 
             (1, 6, 0) => { 
-                // IN (C) (undocumented)
-                panic!("FIXME IN (C)"); 
+                // IN F,(C) (undocumented special case, only alter flags,
+                // don't store result)
+                let bc = self.r16_i(BC);
+                let v  = self.inp(bc);
+                self.reg[F] = CPU::flags_szp(v) | (self.reg[F] & CF);
+                12
             },
             (1, _, 0) => {
                 // IN r,(C)
-                panic!("FIXME IN r,(C)");
+                let bc = self.r16_i(BC);
+                let v = self.inp(bc);
+                self.w8(y, v);
+                self.reg[F] = CPU::flags_szp(v) | (self.reg[F] & CF);
+                12
             },
             (1, 6, 1) => {
-                // OUT (C) (undocumented)
-                panic!("FIXME OUT (C)");
+                // OUT (C),F (undocumented special case, always output 0)
+                let bc = self.r16_i(BC);
+                self.outp(bc, 0);
+                12
             },
             (1, _, 1) => {
                 // OUT (C),r
-                panic!("FIXME OUT (C),r");
+                let bc = self.r16_i(BC);
+                let v  = self.r8(y);
+                self.outp(bc, v);
+                12
             },
             (1, _, 2) => {
-            // SBC/ADC HL,rr
+                // SBC/ADC HL,rr
                 let acc = self.r16_i(HL);
                 let val = self.r16_sp(p);
                 let res = if q == 0 {
@@ -721,7 +753,7 @@ impl CPU {
                     0|1|4|5 => { self.im = 0; },
                     2|6     => { self.im = 1; },
                     3|7     => { self.im = 2; },
-                    _       => { panic!("Can't happen!") }
+                    _       => { CPU::canthappen(); }
                 }
                 8
             },
@@ -742,7 +774,7 @@ impl CPU {
             (1, 4, 7) => { self.rrd(); 18 },    // RRD
             (1, 5, 7) => { self.rld(); 18 },    // RLD
             (1, _, 7) => { 9 },     // NOP (ED)
-            _ => panic!("FIXME!")
+            _ => panic!("CB: Invalid instruction!")
         }
     }
 
@@ -1391,6 +1423,14 @@ impl CPU {
         }
     }
 
+    pub fn inp(&mut self, port: RegT) -> RegT {
+        (self.in_fn)(port) & 0xFF 
+    }
+
+    pub fn outp(&mut self, port: RegT, val: RegT) {
+        (self.out_fn)(port, val)
+    }
+
     pub fn ini(&mut self) {
         panic!("FIXME: ini!");
     }
@@ -1785,6 +1825,27 @@ mod tests {
         assert!(0x7f == d); assert!(test_flags(&cpu, 0));
         let e = cpu.srl8(0x7F);
         assert!(0x3F == e); assert!(test_flags(&cpu, PF|CF));
+    }
+
+    #[test]
+    fn inp() {
+        let mut cpu = CPU::new();
+        cpu.in_fn = Box::new(|port| { 
+            assert!(port == 0x1234);
+            port & 0xFF 
+        });
+        let i = cpu.inp(0x1234);
+        assert!(i == 0x34);
+    }
+
+    #[test]
+    fn outp() {
+        let mut cpu = CPU::new();
+        cpu.out_fn = Box::new(|port, val| { 
+            assert!(port == 0x1234);
+            assert!(val == 12);
+        });
+        cpu.outp(0x1234, 12);
     }
 }
 
