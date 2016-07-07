@@ -5,3 +5,9 @@ Experimental Z80 emulator in Rust.
 
 This is just for me getting familiar with Rust, nothing fancy yet.
 
+### How to run the ZEX conformance tests
+
+```bash
+> cargo test --release -- --nocapture --ignored
+...
+```
