@@ -16,7 +16,7 @@ mod test_zexdoc {
         match cpu.reg[C] {
             2 => {
                 // output a character
-                print!("{}", cpu.reg[E] as u8 as char)
+                print!("{}", cpu.reg[E] as u8 as char);
             },
             9 => {
                 // output a string
