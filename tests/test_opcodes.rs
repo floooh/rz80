@@ -2415,43 +2415,149 @@ mod test_opcodes {
         // FIXME FIXME FIXME: this seems awfully convoluted :/
         let out_port = Cell::new(0);
         let out_byte = Cell::new(0xFF);
-        {
-            let mut cpu = rz80::CPU::new();
-            cpu.out_fn = Box::new(|port, val| {
-                out_port.set(port);
-                out_byte.set(val);
-            });
+        let mut cpu = rz80::CPU::new();
+        cpu.out_fn = Box::new(|port, val| {
+            out_port.set(port);
+            out_byte.set(val);
+        });
 
-            let prog = [
-                0x3E, 0x01,         // LD A,0x01
-                0xD3, 0x01,         // OUT (0x01),A
-                0xD3, 0x02,         // OUT (0x02),A
-                0x01, 0x34, 0x12,   // LD BC,0x1234
-                0x11, 0x78, 0x56,   // LD DE,0x5678
-                0x21, 0xCD, 0xAB,   // LD HL,0xABCD
-                0xED, 0x79,         // OUT (C),A
-                0xED, 0x41,         // OUT (C),B
-                0xED, 0x49,         // OUT (C),C
-                0xED, 0x51,         // OUT (C),D
-                0xED, 0x59,         // OUT (C),E
-                0xED, 0x61,         // OUT (C),H
-                0xED, 0x69,         // OUT (C),L
-            ];
-            cpu.mem.write(0x0000, &prog);
+        let prog = [
+            0x3E, 0x01,         // LD A,0x01
+            0xD3, 0x01,         // OUT (0x01),A
+            0xD3, 0x02,         // OUT (0x02),A
+            0x01, 0x34, 0x12,   // LD BC,0x1234
+            0x11, 0x78, 0x56,   // LD DE,0x5678
+            0x21, 0xCD, 0xAB,   // LD HL,0xABCD
+            0xED, 0x79,         // OUT (C),A
+            0xED, 0x41,         // OUT (C),B
+            0xED, 0x49,         // OUT (C),C
+            0xED, 0x51,         // OUT (C),D
+            0xED, 0x59,         // OUT (C),E
+            0xED, 0x61,         // OUT (C),H
+            0xED, 0x69,         // OUT (C),L
+        ];
+        cpu.mem.write(0x0000, &prog);
 
-            assert!(7 ==cpu.step()); assert!(0x01 == cpu.reg[A]);
-            assert!(11==cpu.step()); assert!(0x0101 == out_port.get()); assert!(0x01 == out_byte.get());
-            assert!(11==cpu.step()); assert!(0x0102 == out_port.get()); assert!(0x01 == out_byte.get());
-            assert!(10==cpu.step()); assert!(0x1234 == cpu.r16_i(BC));
-            assert!(10==cpu.step()); assert!(0x5678 == cpu.r16_i(DE));
-            assert!(10==cpu.step()); assert!(0xABCD == cpu.r16_i(HL));
-            assert!(12==cpu.step()); assert!(0x1234 == out_port.get()); assert!(0x01 == out_byte.get());
-            assert!(12==cpu.step()); assert!(0x1234 == out_port.get()); assert!(0x12 == out_byte.get());
-            assert!(12==cpu.step()); assert!(0x1234 == out_port.get()); assert!(0x34 == out_byte.get());
-            assert!(12==cpu.step()); assert!(0x1234 == out_port.get()); assert!(0x56 == out_byte.get());
-            assert!(12==cpu.step()); assert!(0x1234 == out_port.get()); assert!(0x78 == out_byte.get());
-            assert!(12==cpu.step()); assert!(0x1234 == out_port.get()); assert!(0xAB == out_byte.get());
-            assert!(12==cpu.step()); assert!(0x1234 == out_port.get()); assert!(0xCD == out_byte.get());
-        }
+        assert!(7 ==cpu.step()); assert!(0x01 == cpu.reg[A]);
+        assert!(11==cpu.step()); assert!(0x0101 == out_port.get()); assert!(0x01 == out_byte.get());
+        assert!(11==cpu.step()); assert!(0x0102 == out_port.get()); assert!(0x01 == out_byte.get());
+        assert!(10==cpu.step()); assert!(0x1234 == cpu.r16_i(BC));
+        assert!(10==cpu.step()); assert!(0x5678 == cpu.r16_i(DE));
+        assert!(10==cpu.step()); assert!(0xABCD == cpu.r16_i(HL));
+        assert!(12==cpu.step()); assert!(0x1234 == out_port.get()); assert!(0x01 == out_byte.get());
+        assert!(12==cpu.step()); assert!(0x1234 == out_port.get()); assert!(0x12 == out_byte.get());
+        assert!(12==cpu.step()); assert!(0x1234 == out_port.get()); assert!(0x34 == out_byte.get());
+        assert!(12==cpu.step()); assert!(0x1234 == out_port.get()); assert!(0x56 == out_byte.get());
+        assert!(12==cpu.step()); assert!(0x1234 == out_port.get()); assert!(0x78 == out_byte.get());
+        assert!(12==cpu.step()); assert!(0x1234 == out_port.get()); assert!(0xAB == out_byte.get());
+        assert!(12==cpu.step()); assert!(0x1234 == out_port.get()); assert!(0xCD == out_byte.get());
+    }
+
+    #[test]
+    fn test_inir_indr() {
+        let mut cpu = rz80::CPU::new();
+        cpu.in_fn = Box::new(|port| -> rz80::RegT {
+            (port * 2) & 0xFF
+        });
+        let prog = [
+            0x21, 0x00, 0x10,       // LD HL,0x1000
+            0x01, 0x02, 0x03,       // LD BC,0x0302
+            0xED, 0xB2,             // INIR
+            0x01, 0x03, 0x03,       // LD BC,0x0303
+            0xED, 0xBA              // INDR
+        ];
+        cpu.mem.write(0x0000, &prog);
+
+        assert!(10 == cpu.step()); assert!(0x1000 == cpu.r16_i(HL));
+        assert!(10 == cpu.step()); assert!(0x0302 == cpu.r16_i(BC));
+
+        assert!(21==cpu.step());
+        assert!(0x1001 == cpu.r16_i(HL));
+        assert!(0x0202 == cpu.r16_i(BC));
+        assert!(0x04 == cpu.mem.r8(0x1000));
+        assert!((cpu.reg[F] & ZF) == 0);
+        assert!(21==cpu.step());
+        assert!(0x1002 == cpu.r16_i(HL));
+        assert!(0x0102 == cpu.r16_i(BC));
+        assert!(0x04 == cpu.mem.r8(0x1001));
+        assert!((cpu.reg[F] & ZF) == 0);
+        assert!(16==cpu.step());
+        assert!(0x1003 == cpu.r16_i(HL));
+        assert!(0x0002 == cpu.r16_i(BC));
+        assert!(0x04 == cpu.mem.r8(0x1002));
+        assert!((cpu.reg[F] & ZF) != 0);
+
+        assert!(10==cpu.step()); assert!(0x0303 == cpu.r16_i(BC));
+        assert!(21==cpu.step());
+        assert!(0x1002 == cpu.r16_i(HL));
+        assert!(0x0203 == cpu.r16_i(BC));
+        assert!(0x06 == cpu.mem.r8(0x1003));
+        assert!((cpu.reg[F] & ZF) == 0);
+        assert!(21==cpu.step());
+        assert!(0x1001 == cpu.r16_i(HL));
+        assert!(0x0103 == cpu.r16_i(BC));
+        assert!(0x06 == cpu.mem.r8(0x1002));
+        assert!((cpu.reg[F] & ZF) == 0);
+        assert!(16==cpu.step());
+        assert!(0x1000 == cpu.r16_i(HL));
+        assert!(0x0003 == cpu.r16_i(BC));
+        assert!(0x06 == cpu.mem.r8(0x1001));
+        assert!((cpu.reg[F] & ZF) != 0);
+    }
+    
+    #[test]
+    fn test_otir_otdr() {
+        // FIXME FIXME FIXME: this seems awfully convoluted :/
+        let out_port = Cell::new(0);
+        let out_byte = Cell::new(0xFF);
+        let mut cpu = rz80::CPU::new();
+        cpu.out_fn = Box::new(|port, val| {
+            out_port.set(port);
+            out_byte.set(val);
+        });
+        let data = [ 0x01, 0x02, 0x03, 0x04 ];
+        cpu.mem.write(0x1000, &data);
+        let prog = [
+            0x21, 0x00, 0x10,       // LD HL,0x1000
+            0x01, 0x02, 0x03,       // LD BC,0x0302
+            0xED, 0xB3,             // OTIR
+            0x01, 0x03, 0x03,       // LD BC,0x0303
+            0xED, 0xBB,             // OTDR
+        ];
+        cpu.mem.write(0x0000, &prog);
+
+        assert!(10==cpu.step()); assert!(0x1000 == cpu.r16_i(HL));
+        assert!(10==cpu.step()); assert!(0x0302 == cpu.r16_i(BC));
+        assert!(21==cpu.step());
+        assert!(0x1001 == cpu.r16_i(HL));
+        assert!(0x0202 == cpu.r16_i(BC));
+        assert!(0x0202 == out_port.get()); assert!(0x01 == out_byte.get());
+        assert!((cpu.reg[F] & ZF) == 0);
+        assert!(21==cpu.step());
+        assert!(0x1002 == cpu.r16_i(HL));
+        assert!(0x0102 == cpu.r16_i(BC));
+        assert!(0x0102 == out_port.get()); assert!(0x02 == out_byte.get());
+        assert!((cpu.reg[F] & ZF) == 0);
+        assert!(16==cpu.step());
+        assert!(0x1003 == cpu.r16_i(HL));
+        assert!(0x0002 == cpu.r16_i(BC));
+        assert!(0x0002 == out_port.get()); assert!(0x03 == out_byte.get());
+        assert!((cpu.reg[F] & ZF) != 0);
+        assert!(10 == cpu.step()); assert!(0x0303 == cpu.r16_i(BC));
+        assert!(21==cpu.step());
+        assert!(0x1002 == cpu.r16_i(HL));
+        assert!(0x0203 == cpu.r16_i(BC));
+        assert!(0x0203 == out_port.get()); assert!(0x04 == out_byte.get());
+        assert!((cpu.reg[F] & ZF) == 0);
+        assert!(21==cpu.step());
+        assert!(0x1001 == cpu.r16_i(HL));
+        assert!(0x0103 == cpu.r16_i(BC));
+        assert!(0x0103 == out_port.get()); assert!(0x03 == out_byte.get());
+        assert!((cpu.reg[F] & ZF) == 0);
+        assert!(16==cpu.step());
+        assert!(0x1000 == cpu.r16_i(HL));
+        assert!(0x0003 == cpu.r16_i(BC));
+        assert!(0x0003 == out_port.get()); assert!(0x02 == out_byte.get());
+        assert!((cpu.reg[F] & ZF) != 0);
     }
 }

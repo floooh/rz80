@@ -1,5 +1,4 @@
 use std::mem;
-
 use memory::Memory;
 use RegT;
 
@@ -1431,36 +1430,112 @@ impl<'a> CPU<'a> {
         (self.out_fn)(port, val)
     }
 
+    fn ini_ind_flags(&self, val: RegT, add: RegT) -> RegT {
+        let b = self.reg[B];
+        let c = self.reg[C];
+        let t = ((c + add) & 0xFF) + val;
+        (if b != 0 {b & SF} else {ZF}) |
+        (if (val & SF) != 0 {NF} else {0}) |
+        (if (t & 0x100) != 0 {HF|CF} else {0}) |
+        (CPU::flags_szp((t & 0x07) ^ b) & PF)
+    }
+
+    fn outi_outd_flags(&self, val: RegT) -> RegT {
+        let b = self.reg[B];
+        let l = self.reg[L];
+        let t = l + val;
+        (if b != 0 {b & SF} else {ZF}) |
+        (if (val & SF) != 0 {NF} else {0}) |
+        (if (t & 0x100) != 0 {HF|CF} else {0}) |
+        (CPU::flags_szp((t & 0x07) ^ b) & PF)
+    }
+
     pub fn ini(&mut self) {
-        panic!("FIXME: ini!");
+        let bc = self.r16_i(BC);
+        let io_val = self.inp(bc);
+        self.wz = (bc + 1) & 0xFFFF;
+        self.reg[B] = (self.reg[B] - 1) & 0xFF;
+        let hl = self.r16_i(HL);
+        self.mem.w8(hl, io_val);
+        self.w16_i(HL, hl + 1);
+        self.reg[F] = self.ini_ind_flags(io_val, 1);
     }
 
     pub fn ind(&mut self) {
-        panic!("FIXME: ind!");
+        let bc = self.r16_i(BC);
+        let io_val = self.inp(bc);
+        self.wz = (bc - 1) & 0xFFFF;
+        self.reg[B] = (self.reg[B] - 1) & 0xFF;
+        let hl = self.r16_i(HL);
+        self.mem.w8(hl, io_val);
+        self.w16_i(HL, hl - 1);
+        self.reg[F] = self.ini_ind_flags(io_val, -1);
     }
 
     pub fn inir(&mut self) -> i32 {
-        panic!("FIXME: inir!");
+        self.ini();
+        if self.reg[B] != 0 {
+            self.pc = (self.pc - 2) & 0xFFFF;
+            21
+        }
+        else {
+            16
+        }
     }
 
     pub fn indr(&mut self) -> i32 {
-        panic!("FIXME: indr!");
+        self.ind();
+        if self.reg[B] != 0 {
+            self.pc = (self.pc - 2) & 0xFFFF;
+            21
+        }
+        else {
+            16
+        }
     }
 
     pub fn outi(&mut self) {
-        panic!("FIXME: outi!");
+        let hl = self.r16_i(HL);
+        let io_val = self.mem.r8(hl);
+        self.w16_i(HL, hl + 1);
+        self.reg[B] = (self.reg[B] - 1) & 0xFF;
+        let bc = self.r16_i(BC);
+        self.wz = (bc + 1) & 0xFFFF;
+        self.outp(bc, io_val);
+        self.reg[F] = self.outi_outd_flags(io_val);
     }
 
     pub fn outd(&mut self) {
-        panic!("FIXME: outd!");
+        let hl = self.r16_i(HL);
+        let io_val = self.mem.r8(hl);
+        self.w16_i(HL, hl - 1);
+        self.reg[B] = (self.reg[B] - 1) & 0xFF;
+        let bc = self.r16_i(BC);
+        self.wz = (bc - 1) & 0xFFFF;
+        self.outp(bc, io_val);
+        self.reg[F] = self.outi_outd_flags(io_val);
     }
 
     pub fn otir(&mut self) -> i32 {
-        panic!("FIXME: otir!");
+        self.outi();
+        if self.reg[B] != 0 {
+            self.pc = (self.pc - 2) & 0xFFFF;
+            21
+        }
+        else {
+            16
+        }
     }
 
     pub fn otdr(&mut self) -> i32 {
-        panic!("FIXME: otdr!");
+        self.outd();
+        if self.reg[B] != 0 {
+            self.pc = (self.pc - 2) & 0xFFFF;
+            21
+        }
+        else {
+            16
+        }
     }
 }
 
