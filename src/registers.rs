@@ -35,8 +35,8 @@ const D_ : usize = 18;
 const E_ : usize = 19;
 const H_ : usize = 20;
 const L_ : usize = 21;
-const F_ : usize = 22;
-const A_ : usize = 23;
+const A_ : usize = 22;
+const F_ : usize = 23;
 const WZH_ : usize = 24;
 const WZL_ : usize = 25;
 const NUM_REGS : usize = 26;
@@ -45,9 +45,9 @@ pub const BC : usize = 0;
 pub const DE : usize = 2;
 pub const HL : usize = 4;
 pub const AF : usize = 6;
-const IX : usize = 8;
-const IY : usize = 10;
-const SP : usize = 12;
+pub const IX : usize = 8;
+pub const IY : usize = 10;
+pub const SP : usize = 12;
 pub const WZ : usize = 14;
 pub const BC_ : usize = 16;
 pub const DE_ : usize = 18;
@@ -94,108 +94,163 @@ impl Registers {
     }
 
     /// get 8-bit registers
+    #[inline(always)]
     pub fn a(&self) -> RegT { self.reg[A] }
+    #[inline(always)]
     pub fn f(&self) -> RegT { self.reg[F] }
+    #[inline(always)]
     pub fn b(&self) -> RegT { self.reg[B] }
+    #[inline(always)]
     pub fn c(&self) -> RegT { self.reg[C] }
+    #[inline(always)]
     pub fn d(&self) -> RegT { self.reg[D] }
+    #[inline(always)]
     pub fn e(&self) -> RegT { self.reg[E] }
+    #[inline(always)]
     pub fn h(&self) -> RegT { self.reg[H] }
+    #[inline(always)]
     pub fn l(&self) -> RegT { self.reg[L] }
+    #[inline(always)]
     pub fn w(&self) -> RegT { self.reg[WZH] }
 
     /// set 8-bit registers
+    #[inline(always)]
     pub fn set_a(&mut self, v: RegT) { self.reg[A] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_f(&mut self, v: RegT) { self.reg[F] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_b(&mut self, v: RegT) { self.reg[B] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_c(&mut self, v: RegT) { self.reg[C] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_d(&mut self, v: RegT) { self.reg[D] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_e(&mut self, v: RegT) { self.reg[E] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_h(&mut self, v: RegT) { self.reg[H] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_l(&mut self, v: RegT) { self.reg[L] = v & 0xFF; }
 
     /// get 16-bit registers
+    #[inline(always)]
     pub fn af(&self) -> RegT { self.reg[A]<<8 | self.reg[F] }
+    #[inline(always)]
     pub fn bc(&self) -> RegT { self.reg[B]<<8 | self.reg[C] }
+    #[inline(always)]
     pub fn de(&self) -> RegT { self.reg[D]<<8 | self.reg[E] }
+    #[inline(always)]
     pub fn hl(&self) -> RegT { self.reg[H]<<8 | self.reg[L] }
+    #[inline(always)]
     pub fn ix(&self) -> RegT { self.reg[IXH]<<8 | self.reg[IXL] }
+    #[inline(always)]
     pub fn iy(&self) -> RegT { self.reg[IYH]<<8 | self.reg[IYL] }
+    #[inline(always)]
     pub fn sp(&self) -> RegT { self.reg[SPH]<<8 | self.reg[SPL] }
+    #[inline(always)]
     pub fn wz(&self) -> RegT { self.reg[WZH]<<8 | self.reg[WZL] }
+    #[inline(always)]
     pub fn af_(&self) -> RegT { self.reg[A_]<<8 | self.reg[F_] }
+    #[inline(always)]
     pub fn bc_(&self) -> RegT { self.reg[B_]<<8 | self.reg[C_] }
+    #[inline(always)]
     pub fn de_(&self) -> RegT { self.reg[D_]<<8 | self.reg[E_] }
+    #[inline(always)]
     pub fn hl_(&self) -> RegT { self.reg[H_]<<8 | self.reg[L_] }
+    #[inline(always)]
     pub fn wz_(&self) -> RegT { self.reg[WZH_]<<8 | self.reg[WZL_] }
+    #[inline(always)]
     pub fn pc(&self) -> RegT { self.r_pc }
 
     /// set 16-bit registers
+    #[inline(always)]
     pub fn set_af(&mut self, v: RegT) { self.reg[A] = (v>>8) & 0xFF; self.reg[F] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_bc(&mut self, v: RegT) { self.reg[B] = (v>>8) & 0xFF; self.reg[C] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_de(&mut self, v: RegT) { self.reg[D] = (v>>8) & 0xFF; self.reg[E] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_hl(&mut self, v: RegT) { self.reg[H] = (v>>8) & 0xFF; self.reg[L] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_ix(&mut self, v: RegT) { self.reg[IXH] = (v>>8) & 0xFF; self.reg[IXL] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_iy(&mut self, v: RegT) { self.reg[IYH] = (v>>8) & 0xFF; self.reg[IYL] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_sp(&mut self, v: RegT) { self.reg[SPH] = (v>>8) & 0xFF; self.reg[SPL] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_wz(&mut self, v: RegT) { self.reg[WZH] = (v>>8) & 0xFF; self.reg[WZL] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_af_(&mut self, v: RegT) { self.reg[A_] = (v>>8) & 0xFF; self.reg[F_] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_bc_(&mut self, v: RegT) { self.reg[B_] = (v>>8) & 0xFF; self.reg[C_] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_de_(&mut self, v: RegT) { self.reg[D_] = (v>>8) & 0xFF; self.reg[E_] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_hl_(&mut self, v: RegT) { self.reg[H_] = (v>>8) & 0xFF; self.reg[L_] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_wz_(&mut self, v: RegT) { self.reg[WZH_] = (v>>8) & 0xFF; self.reg[WZL_] = v & 0xFF; }
+    #[inline(always)]
     pub fn set_pc(&mut self, v: RegT) { self.r_pc = v & 0xFFFF; }
 
     /// get 8-bit register by index (where index is 3-bit register id from Z80 instruction)
+    #[inline(always)]
     pub fn r8(&self, r: usize) -> RegT { 
         self.reg[self.m_r[r]] 
     }
 
     /// set 8-bit register by index (where index is 3-bit register id from Z80 instruction)
+    #[inline(always)]
     pub fn set_r8(&mut self, r: usize, v: RegT) {
         self.reg[self.m_r[r]] = v & 0xFF;
     }
 
     /// get 8-bit register by index, H,L never patched to IXH,IXL,IYH,IYL
+    #[inline(always)]
     pub fn r8i(&self, r: usize) -> RegT {
         self.reg[self.m_r2[r]]
     }
 
     /// set 8-bit register by index, H,L never patched to IXH,IXL,IYH,IYL
+    #[inline(always)]
     pub fn set_r8i(&mut self, r: usize, v: RegT) {
         self.reg[self.m_r2[r]] = v & 0xFF;
     }
 
     /// get 16-bit register by direct index (AF, BC, DE, HL, etc)
+    #[inline(always)]
     pub fn r16i(&self, i: usize) -> RegT {
         self.reg[i]<<8 | self.reg[i+1]
     }
 
     /// set 16-bit register by direct index (AF, BC, DE, ...)
+    #[inline(always)]
     pub fn set_r16i(&mut self, i: usize, v: RegT) {
         self.reg[i]   = (v>>8) & 0xFF;
         self.reg[i+1] = v & 0xFF;
     }
 
     /// get 16-bit register by 2-bit index with mapping through SP-table
+    #[inline(always)]
     pub fn r16sp(&self, r: usize) -> RegT {
         let i = self.m_sp[r];
         self.r16i(i)
     }
     
     /// set 16-bit register by 2-bit index with mapping through SP-table
+    #[inline(always)]
     pub fn set_r16sp(&mut self, r: usize, v: RegT) {
         let i = self.m_sp[r];
         self.set_r16i(i, v);
     }
 
     /// get 16-bit register by 2-bit index with mapping through AF-table
+    #[inline(always)]
     pub fn r16af(&self, r: usize) -> RegT {
         let i = self.m_af[r];
         self.r16i(i)
     }
 
     /// set 16-bit register by 2-bit index with mapping through AF-table
+    #[inline(always)]
     pub fn set_r16af(&mut self, r: usize, v: RegT) {
         let i = self.m_af[r];
         self.set_r16i(i, v);

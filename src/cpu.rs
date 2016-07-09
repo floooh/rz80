@@ -95,6 +95,7 @@ impl<'a> CPU<'a> {
     }
 
     /// load 8-bit unsigned immediate operand and increment PC
+    #[inline(always)]
     fn imm8(&mut self) -> RegT {
         let pc  = self.reg.pc();
         let imm = self.mem.r8(pc);
@@ -103,6 +104,7 @@ impl<'a> CPU<'a> {
     }
 
     /// load 16-bit immediate operand and bump PC
+    #[inline(always)]
     fn imm16(&mut self) -> RegT {
         let pc  = self.reg.pc();
         let imm = self.mem.r16(pc);
@@ -111,6 +113,7 @@ impl<'a> CPU<'a> {
     }
 
     /// load d (as in IX+d) from memory and advance PC
+    #[inline(always)]
     fn d(&mut self) -> RegT {
         let pc = self.reg.pc();
         let d = self.mem.rs8(pc);
@@ -120,6 +123,7 @@ impl<'a> CPU<'a> {
 
     /// load effective address HL, IX+d or IY+d with existing d
     /// this is for DD CB and FD DB instructions
+    #[inline(always)]
     fn addr_d(&mut self, d: RegT, ext: bool) -> RegT {
         if ext {
             let addr = (self.reg.r16sp(2) + d) & 0xFFFF;
@@ -133,6 +137,7 @@ impl<'a> CPU<'a> {
 
     /// load effective address for (HL) or (IX/Y+d) instructions
     /// and update WZ register if needed
+    #[inline(always)]
     fn addr(&mut self, ext: bool) -> RegT {
         if ext {
             let addr = (self.reg.r16sp(2) + self.d()) & 0xFFFF;
@@ -145,6 +150,7 @@ impl<'a> CPU<'a> {
     }
 
     /// check condition (for conditional jumps etc)
+    #[inline(always)]
     fn cc(&self, y: usize) -> bool {
         let f = self.reg.f();
         match y {
@@ -204,8 +210,8 @@ impl<'a> CPU<'a> {
             },
             // LD r,s
             (1, _, _) => {
-                let v = self.reg.r8i(z);
-                self.reg.set_r8i(y, v);
+                let v = self.reg.r8(z);
+                self.reg.set_r8(y, v);
                 cyc += 4;
             },
         //--- block 2: 8-bit ALU instructions
@@ -808,12 +814,14 @@ impl<'a> CPU<'a> {
         self.reg.set_pc(pc - 1);
     }
 
+    #[inline(always)]
     pub fn push(&mut self, val: RegT) {
         let addr = (self.reg.sp() - 2) & 0xFFFF;
         self.reg.set_sp(addr);
         self.mem.w16(addr, val);
     }
 
+    #[inline(always)]
     pub fn pop(&mut self) -> RegT {
         let addr = self.reg.sp();
         let val = self.mem.r16(addr);
@@ -821,6 +829,7 @@ impl<'a> CPU<'a> {
         val
     }
 
+    #[inline(always)]
     pub fn rst(&mut self, val: RegT) {
         let pc = self.reg.pc();
         self.push(pc);
@@ -828,6 +837,7 @@ impl<'a> CPU<'a> {
         self.reg.set_wz(val);
     }
 
+    #[inline(always)]
     pub fn alu8(&mut self, alu: usize, val: RegT) {
         match alu {
             0 => self.add8(val),
@@ -842,6 +852,7 @@ impl<'a> CPU<'a> {
         }
     }
 
+    #[inline(always)]
     fn flags_add(acc: RegT, add: RegT, res: RegT) -> RegT {
         (if (res & 0xFF)==0 { ZF } else { res & SF }) |
         (res & (YF|XF)) |
@@ -850,6 +861,7 @@ impl<'a> CPU<'a> {
         ((((acc^add^0x80) & (add^res))>>5) & VF)
     }
 
+    #[inline(always)]
     fn flags_sub(acc: RegT, sub: RegT, res: RegT) -> RegT {
         NF | 
         (if (res & 0xFF)==0 { ZF } else { res & SF }) |
@@ -859,6 +871,7 @@ impl<'a> CPU<'a> {
         ((((acc^sub) & (res^acc))>>5) & VF)
     }
 
+    #[inline(always)]
     fn flags_cp(acc: RegT, sub: RegT, res: RegT) -> RegT {
         // the only difference to flags_sub() is that the 
         // 2 undocumented flag bits X and Y are taken from the
@@ -871,6 +884,7 @@ impl<'a> CPU<'a> {
         ((((acc^sub) & (res^acc))>>5) & VF)
     }
 
+    #[inline(always)]
     fn flags_szp(val: RegT) -> RegT {
         let v = val & 0xFF;
         (if (v.count_ones()&1)==0 { PF } else { 0 }) |
@@ -878,12 +892,14 @@ impl<'a> CPU<'a> {
         (v & (YF|XF))
     }
 
+    #[inline(always)]
     fn flags_sziff2(val: RegT, iff2: bool) -> RegT {
         (if (val & 0xFF)==0 {ZF} else {val & SF}) |
         (val & (YF|XF)) |
         if iff2 {PF} else {0}
     }
 
+    #[inline(always)]
     pub fn add8(&mut self, add: RegT) {
         let acc = self.reg.a();
         let res = acc + add;
@@ -891,6 +907,7 @@ impl<'a> CPU<'a> {
         self.reg.set_a(res);
     }
 
+    #[inline(always)]
     pub fn adc8(&mut self, add: RegT) {
         let acc = self.reg.a();
         let res = acc + add + (self.reg.f() & CF);
@@ -898,6 +915,7 @@ impl<'a> CPU<'a> {
         self.reg.set_a(res);
     }
 
+    #[inline(always)]
     pub fn sub8(&mut self, sub: RegT) {
         let acc = self.reg.a();
         let res = acc - sub;
@@ -905,6 +923,7 @@ impl<'a> CPU<'a> {
         self.reg.set_a(res);
     }
 
+    #[inline(always)]
     pub fn sbc8(&mut self, sub: RegT) {
         let acc = self.reg.a();
         let res = acc - sub - (self.reg.f() & CF);
@@ -912,36 +931,42 @@ impl<'a> CPU<'a> {
         self.reg.set_a(res);
     }
 
+    #[inline(always)]
     pub fn cp8(&mut self, sub: RegT) {
         let acc = self.reg.a();
         let res = acc - sub;
         self.reg.set_f(CPU::flags_cp(acc, sub, res));
     }
 
+    #[inline(always)]
     pub fn neg8(&mut self) {
         let sub = self.reg.a();
         self.reg.set_a(0);
         self.sub8(sub);
     }
 
+    #[inline(always)]
     pub fn and8(&mut self, val: RegT) {
         let res = self.reg.a() & val;
         self.reg.set_a(res);
         self.reg.set_f(CPU::flags_szp(res) | HF);
     }
 
+    #[inline(always)]
     pub fn or8(&mut self, val: RegT) {
         let res = self.reg.a() | val;
         self.reg.set_a(res);
         self.reg.set_f(CPU::flags_szp(res));
     }
 
+    #[inline(always)]
     pub fn xor8(&mut self, val: RegT) {
         let res = self.reg.a() ^ val;
         self.reg.set_a(res);
         self.reg.set_f(CPU::flags_szp(res));
     }
 
+    #[inline(always)]
     pub fn inc8(&mut self, val: RegT) -> RegT {
         let res = (val + 1) & 0xFF;
         let f = (if res==0 {ZF} else {res & SF}) |
@@ -953,6 +978,7 @@ impl<'a> CPU<'a> {
         res
     }
 
+    #[inline(always)]
     pub fn dec8(&mut self, val: RegT) -> RegT {
         let res = (val - 1) & 0xFF;
         let f = NF | 
@@ -965,6 +991,7 @@ impl<'a> CPU<'a> {
         res
     }
 
+    #[inline(always)]
     pub fn rot(&mut self, op: usize, val: RegT) -> RegT {
         match op {
             0 => self.rlc8(val),
@@ -979,12 +1006,14 @@ impl<'a> CPU<'a> {
         }
     }
 
+    #[inline(always)]
     pub fn rlc8(&mut self, val: RegT) -> RegT {
         let res = (val<<1 | val>>7) & 0xFF;
         self.reg.set_f(CPU::flags_szp(res) | ((val>>7) & CF));
         res
     }
 
+    #[inline(always)]
     pub fn rlca8(&mut self) {
         let acc = self.reg.a();
         let res = (acc<<1 | acc>>7) & 0xFF;
@@ -993,12 +1022,14 @@ impl<'a> CPU<'a> {
         self.reg.set_a(res);
     }
 
+    #[inline(always)]
     pub fn rrc8(&mut self, val: RegT) -> RegT {
         let res = (val>>1 | val<<7) & 0xFF;
         self.reg.set_f(CPU::flags_szp(res) | (val & CF));
         res
     }
 
+    #[inline(always)]
     pub fn rrca8(&mut self) {
         let acc = self.reg.a();
         let res = (acc>>1 | acc<<7) & 0xFF;
@@ -1007,12 +1038,14 @@ impl<'a> CPU<'a> {
         self.reg.set_a(res);
     }
 
+    #[inline(always)]
     pub fn rl8(&mut self, val: RegT) -> RegT {
         let res = (val<<1 | (self.reg.f() & CF)) & 0xFF;
         self.reg.set_f(CPU::flags_szp(res) | ((val>>7) & CF));
         res
     }
 
+    #[inline(always)]
     pub fn rla8(&mut self) {
         let acc = self.reg.a();
         let f = self.reg.f();
@@ -1021,12 +1054,14 @@ impl<'a> CPU<'a> {
         self.reg.set_a(res);
     }
 
+    #[inline(always)]
     pub fn rr8(&mut self, val: RegT) -> RegT {
         let res = (val>>1 | (self.reg.f() & CF)<<7) & 0xFF;
         self.reg.set_f(CPU::flags_szp(res) | (val & CF));
         res
     }
 
+    #[inline(always)]
     pub fn rra8(&mut self) {
         let acc = self.reg.a();
         let f = self.reg.f();
@@ -1035,12 +1070,14 @@ impl<'a> CPU<'a> {
         self.reg.set_a(res);
     }
 
+    #[inline(always)]
     pub fn sla8(&mut self, val: RegT) -> RegT {
         let res = (val<<1) & 0xFF;
         self.reg.set_f(CPU::flags_szp(res) | (val>>7 & CF));
         res
     }
 
+    #[inline(always)]
     pub fn sll8(&mut self, val: RegT) -> RegT {
         // undocumented, sll8 is identical with sla8, but shifts a 1 into LSB
         let res = (val<<1 | 1) & 0xFF;
@@ -1048,18 +1085,21 @@ impl<'a> CPU<'a> {
         res
     }
 
+    #[inline(always)]
     pub fn sra8(&mut self, val: RegT) -> RegT {
         let res = (val>>1 | (val & 0x80)) & 0xFF;
         self.reg.set_f(CPU::flags_szp(res) | (val & CF));
         res
     }
 
+    #[inline(always)]
     pub fn srl8(&mut self, val: RegT) -> RegT {
         let res = val>>1 & 0xFF;
         self.reg.set_f(CPU::flags_szp(res) | (val & CF));
         res
     }
     
+    #[inline(always)]
     pub fn rld(&mut self) {
         let addr = self.reg.hl();
         let v = self.mem.r8(addr);
@@ -1073,6 +1113,7 @@ impl<'a> CPU<'a> {
         self.reg.set_f(f);
     }
 
+    #[inline(always)]
     pub fn rrd(&mut self) {
         let addr = self.reg.hl();
         let v = self.mem.r8(addr);
@@ -1086,6 +1127,7 @@ impl<'a> CPU<'a> {
         self.reg.set_f(f);
     }
 
+    #[inline(always)]
     pub fn bit(&mut self, val: RegT, mask: RegT) {
         let res = val & mask;
         let f = HF | (self.reg.f() & CF) |
@@ -1094,6 +1136,7 @@ impl<'a> CPU<'a> {
         self.reg.set_f(f)
     }
 
+    #[inline(always)]
     pub fn ibit(&mut self, val: RegT, mask: RegT) {
         // special version of the BIT instruction for 
         // (HL), (IX+d), (IY+d) to set the undocumented XF|YF flags
@@ -1105,6 +1148,7 @@ impl<'a> CPU<'a> {
         self.reg.set_f(f)
     }
 
+    #[inline(always)]
     pub fn add16(&mut self, acc: RegT, add: RegT) -> RegT {
         self.reg.set_wz(acc + 1);
         let res = acc + add;
@@ -1115,6 +1159,7 @@ impl<'a> CPU<'a> {
         res & 0xFFFF
     }
     
+    #[inline(always)]
     pub fn adc16(&mut self, acc: RegT, add: RegT) -> RegT {
         self.reg.set_wz(acc + 1);
         let res = acc + add + (self.reg.f() & CF);
@@ -1126,6 +1171,7 @@ impl<'a> CPU<'a> {
         res & 0xFFFF
     }
 
+    #[inline(always)]
     pub fn sbc16(&mut self, acc: RegT, sub: RegT) -> RegT {
         self.reg.set_wz(acc + 1);
         let res = acc - sub - (self.reg.f() & CF);
@@ -1137,6 +1183,7 @@ impl<'a> CPU<'a> {
         res & 0xFFFF
     }
 
+    #[inline(always)]
     pub fn djnz(&mut self) -> i32 {
         let b = (self.reg.b() - 1) & 0xFF;
         self.reg.set_b(b);
@@ -1155,6 +1202,7 @@ impl<'a> CPU<'a> {
         }
     }
 
+    #[inline(always)]
     pub fn daa(&mut self) {
         let a = self.reg.a();
         let mut val = a;
@@ -1182,6 +1230,7 @@ impl<'a> CPU<'a> {
         self.reg.set_a(val);
     }
 
+    #[inline(always)]
     pub fn cpl(&mut self) {
         let f = self.reg.f();
         let a = self.reg.a() ^ 0xFF;
@@ -1189,18 +1238,21 @@ impl<'a> CPU<'a> {
         self.reg.set_a(a);
     }
 
+    #[inline(always)]
     pub fn scf(&mut self) {
         let f = self.reg.f();
         let a = self.reg.a();
         self.reg.set_f((f & (SF|ZF|YF|XF|PF)) | CF | (a & (YF|XF)));
     }
 
+    #[inline(always)]
     pub fn ccf(&mut self) {
         let f = self.reg.f();
         let a = self.reg.a();
         self.reg.set_f(((f & (SF|ZF|YF|XF|PF|CF)) | ((f & CF)<<4) | (a & (YF|XF))) ^ CF);
     }
 
+    #[inline(always)]
     pub fn ret(&mut self) -> i32 {
         let sp = self.reg.sp();
         let wz = self.mem.r16(sp);
@@ -1210,6 +1262,7 @@ impl<'a> CPU<'a> {
         10
     }
 
+    #[inline(always)]
     pub fn call(&mut self) -> i32 {
         let wz = self.imm16();
         let sp = (self.reg.sp() - 2) & 0xFFFF;
@@ -1220,6 +1273,7 @@ impl<'a> CPU<'a> {
         17 
     }
 
+    #[inline(always)]
     pub fn retcc(&mut self, y: usize) -> i32 {
         if self.cc(y) {
             self.ret() + 1
@@ -1229,6 +1283,7 @@ impl<'a> CPU<'a> {
         }
     }
 
+    #[inline(always)]
     pub fn callcc(&mut self, y: usize) -> i32 {
         if self.cc(y) {
             self.call()
@@ -1240,6 +1295,7 @@ impl<'a> CPU<'a> {
         }               
     }
 
+    #[inline(always)]
     pub fn ldi(&mut self) {
         let hl = self.reg.hl();
         let de = self.reg.de();
@@ -1257,6 +1313,7 @@ impl<'a> CPU<'a> {
         self.reg.set_f(f);
     }
 
+    #[inline(always)]
     pub fn ldd(&mut self) {
         let hl = self.reg.hl();
         let de = self.reg.de();
@@ -1274,6 +1331,7 @@ impl<'a> CPU<'a> {
         self.reg.set_f(f);
     }
 
+    #[inline(always)]
     pub fn ldir(&mut self) -> i32 {
         self.ldi();
         if (self.reg.f() & VF) != 0 {
@@ -1287,6 +1345,7 @@ impl<'a> CPU<'a> {
         }
     }
 
+    #[inline(always)]
     pub fn lddr(&mut self) -> i32 {
         self.ldd();
         if (self.reg.f() & VF) != 0 {
@@ -1300,6 +1359,7 @@ impl<'a> CPU<'a> {
         }
     }
 
+    #[inline(always)]
     pub fn cpi(&mut self) {
         let wz = self.reg.wz();
         self.reg.set_wz(wz + 1);
@@ -1308,19 +1368,20 @@ impl<'a> CPU<'a> {
         let bc = (self.reg.bc() - 1) & 0xFFFF;
         self.reg.set_bc(bc);
         let a = self.reg.a();
-        let mut v = (a - self.mem.r8(hl)) & 0xFF;
+        let mut v = a - self.mem.r8(hl);
         let mut f = NF | (self.reg.f() & CF) |
             (if v==0 {ZF} else {v & SF}) |
             (if (v & 0xF)>(a & 0xF) {HF} else {0}) |
             (if bc != 0 {VF} else {0});
         if (f & VF) != 0 {
-            v = (v - 1) & 0xFF;
+            v -= 1;
         }
         if (v & 0x02) != 0 { f |= YF };
         if (v & 0x08) != 0 { f |= XF };
         self.reg.set_f(f);
     }
 
+    #[inline(always)]
     pub fn cpd(&mut self) {
         let wz = self.reg.wz();
         self.reg.set_wz(wz - 1);
@@ -1329,24 +1390,25 @@ impl<'a> CPU<'a> {
         let bc = (self.reg.bc() - 1) & 0xFFFF;
         self.reg.set_bc(bc);
         let a = self.reg.a();
-        let mut v = (a - self.mem.r8(hl)) & 0xFF;
+        let mut v = a - self.mem.r8(hl);
         let mut f = NF | (self.reg.f() & CF) |
             (if v==0 {ZF} else {v & SF}) |
             (if (v & 0xF)>(a & 0xF) {HF} else {0}) |
             (if bc != 0 {VF} else {0});
         if (f & VF) != 0 {
-            v = (v - 1) & 0xFF;
+            v -= 1;
         }
         if (v & 0x02) != 0 { f |= YF };
         if (v & 0x08) != 0 { f |= XF };
         self.reg.set_f(f);
     }
 
+    #[inline(always)]
     pub fn cpir(&mut self) -> i32 {
         self.cpi();
         if (self.reg.f() & (VF|ZF)) == VF {
             let pc = self.reg.pc();
-            self.reg.set_pc(pc - 1);
+            self.reg.set_pc(pc - 2);
             self.reg.set_wz(pc + 1);
             21
         }
@@ -1355,6 +1417,7 @@ impl<'a> CPU<'a> {
         }
     }
 
+    #[inline(always)]
     pub fn cpdr(&mut self) -> i32 {
         self.cpd();
         if (self.reg.f() & (VF|ZF)) == VF {
@@ -1368,14 +1431,17 @@ impl<'a> CPU<'a> {
         }
     }
 
+    #[inline(always)]
     pub fn inp(&mut self, port: RegT) -> RegT {
         (self.in_fn)(port) & 0xFF 
     }
 
+    #[inline(always)]
     pub fn outp(&mut self, port: RegT, val: RegT) {
         (self.out_fn)(port, val)
     }
 
+    #[inline(always)]
     fn ini_ind_flags(&self, val: RegT, add: RegT) -> RegT {
         let b = self.reg.b();
         let c = self.reg.c();
@@ -1386,6 +1452,7 @@ impl<'a> CPU<'a> {
         (CPU::flags_szp((t & 0x07) ^ b) & PF)
     }
 
+    #[inline(always)]
     fn outi_outd_flags(&self, val: RegT) -> RegT {
         let b = self.reg.b();
         let l = self.reg.l();
@@ -1396,6 +1463,7 @@ impl<'a> CPU<'a> {
         (CPU::flags_szp((t & 0x07) ^ b) & PF)
     }
 
+    #[inline(always)]
     pub fn ini(&mut self) {
         let bc = self.reg.bc();
         let io_val = self.inp(bc);
@@ -1409,6 +1477,7 @@ impl<'a> CPU<'a> {
         self.reg.set_f(f);
     }
 
+    #[inline(always)]
     pub fn ind(&mut self) {
         let bc = self.reg.bc();
         let io_val = self.inp(bc);
@@ -1422,6 +1491,7 @@ impl<'a> CPU<'a> {
         self.reg.set_f(f);
     }
 
+    #[inline(always)]
     pub fn inir(&mut self) -> i32 {
         self.ini();
         if self.reg.b() != 0 {
@@ -1434,6 +1504,7 @@ impl<'a> CPU<'a> {
         }
     }
 
+    #[inline(always)]
     pub fn indr(&mut self) -> i32 {
         self.ind();
         if self.reg.b() != 0 {
@@ -1446,6 +1517,7 @@ impl<'a> CPU<'a> {
         }
     }
 
+    #[inline(always)]
     pub fn outi(&mut self) {
         let hl = self.reg.hl();
         let io_val = self.mem.r8(hl);
@@ -1459,6 +1531,7 @@ impl<'a> CPU<'a> {
         self.reg.set_f(f);
     }
 
+    #[inline(always)]
     pub fn outd(&mut self) {
         let hl = self.reg.hl();
         let io_val = self.mem.r8(hl);
@@ -1467,11 +1540,12 @@ impl<'a> CPU<'a> {
         self.reg.set_b(b - 1);
         let bc = self.reg.bc();
         self.outp(bc, io_val);
-        self.reg.set_bc(bc - 1);
+        self.reg.set_wz(bc - 1);
         let f = self.outi_outd_flags(io_val);
         self.reg.set_f(f);
     }
 
+    #[inline(always)]
     pub fn otir(&mut self) -> i32 {
         self.outi();
         if self.reg.b() != 0 {
@@ -1484,6 +1558,7 @@ impl<'a> CPU<'a> {
         }
     }
 
+    #[inline(always)]
     pub fn otdr(&mut self) -> i32 {
         self.outd();
         if self.reg.b() != 0 {
