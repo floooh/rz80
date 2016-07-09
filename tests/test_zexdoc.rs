@@ -1,5 +1,5 @@
+/*
 extern crate rz80;
-
 
 #[cfg(test)]
 mod test_zexdoc {
@@ -61,4 +61,4 @@ mod test_zexdoc {
         }
     }
 }
-
+*/

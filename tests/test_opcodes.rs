@@ -1,3 +1,4 @@
+/*
 extern crate rz80;
 
 #[cfg(test)]
@@ -161,7 +162,6 @@ mod test_opcodes {
         assert!(14==cpu.step()); assert!(0x8765 == cpu.r16_i(IY));
     }
 
-    /*
     #[test]
     fn test_ld_hlddixiy_inn() {
         let mut cpu = rz80::CPU::new();
@@ -189,7 +189,6 @@ mod test_opcodes {
         assert!(20==cpu.step()); assert!(0x0706 == cpu.r16_i(IX));
         assert!(20==cpu.step()); assert!(0x0807 == cpu.r16_i(IY));
     }
-    */
 
     #[test]
     fn test_ld_sp_hlixiy() {
@@ -2561,3 +2560,4 @@ mod test_opcodes {
         assert!((cpu.reg[F] & ZF) != 0);
     }
 }
+*/
