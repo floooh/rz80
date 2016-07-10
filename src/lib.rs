@@ -2,7 +2,7 @@
 /// to prevent excessive type casting
 pub type RegT = i64;
 
-mod registers;
+pub mod registers;
 pub mod memory;
 pub mod cpu;
 

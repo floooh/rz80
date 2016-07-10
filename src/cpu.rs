@@ -2,78 +2,6 @@ use RegT;
 use memory::Memory;
 use registers::Registers;
 
-use registers::CF as CF;
-use registers::NF as NF;
-use registers::VF as VF;
-use registers::PF as PF;
-use registers::XF as XF;
-use registers::HF as HF;
-use registers::YF as YF;
-use registers::ZF as ZF;
-use registers::SF as SF;
-
-use registers::BC as BC;
-use registers::DE as DE;
-use registers::HL as HL;
-use registers::AF as AF;
-use registers::WZ as WZ;
-use registers::BC_ as BC_;
-use registers::DE_ as DE_;
-use registers::HL_ as HL_;
-use registers::AF_ as AF_;
-use registers::WZ_ as WZ_;
-
-fn canthappen() {
-    panic!("Can't happen!");
-}
-
-#[inline(always)]
-fn flags_add(acc: RegT, add: RegT, res: RegT) -> RegT {
-    (if (res & 0xFF)==0 { ZF } else { res & SF }) |
-    (res & (YF|XF)) |
-    ((res>>8) & CF) |            
-    ((acc^add^res) & HF) |
-    ((((acc^add^0x80) & (add^res))>>5) & VF)
-}
-
-#[inline(always)]
-fn flags_sub(acc: RegT, sub: RegT, res: RegT) -> RegT {
-    NF | 
-    (if (res & 0xFF)==0 { ZF } else { res & SF }) |
-    (res & (YF|XF)) |
-    ((res>>8) & CF) |            
-    ((acc^sub^res) & HF) |
-    ((((acc^sub) & (res^acc))>>5) & VF)
-}
-
-#[inline(always)]
-fn flags_cp(acc: RegT, sub: RegT, res: RegT) -> RegT {
-    // the only difference to flags_sub() is that the 
-    // 2 undocumented flag bits X and Y are taken from the
-    // sub-value, not the result
-    NF | 
-    (if (res & 0xFF)==0 { ZF } else { res & SF }) |
-    (sub & (YF|XF)) |
-    ((res>>8) & CF) |            
-    ((acc^sub^res) & HF) |
-    ((((acc^sub) & (res^acc))>>5) & VF)
-}
-
-#[inline(always)]
-fn flags_szp(val: RegT) -> RegT {
-    let v = val & 0xFF;
-    (if (v.count_ones()&1)==0 { PF } else { 0 }) |
-    (if v==0 { ZF } else { v & SF }) |
-    (v & (YF|XF))
-}
-
-#[inline(always)]
-fn flags_sziff2(val: RegT, iff2: bool) -> RegT {
-    (if (val & 0xFF)==0 {ZF} else {val & SF}) |
-    (val & (YF|XF)) |
-    if iff2 {PF} else {0}
-}
-
 /// the Z80 CPU state
 pub struct CPU<I, O>
     where I: FnMut(RegT) -> RegT,
@@ -86,17 +14,84 @@ pub struct CPU<I, O>
     pub invalid_op: bool,
     enable_interrupt: bool,
 
-    pub in_fn : I,
-    pub out_fn : O,
+    in_fn : I,
+    out_fn : O,
 
     pub mem : Memory,
 }
+
+fn canthappen() -> ! {
+    panic!("Can't happen!");
+}
+
+use registers::CF as CF;
+use registers::NF as NF;
+use registers::VF as VF;
+use registers::PF as PF;
+use registers::XF as XF;
+use registers::HF as HF;
+use registers::YF as YF;
+use registers::ZF as ZF;
+use registers::SF as SF;
+
+fn flags_add(acc: RegT, add: RegT, res: RegT) -> RegT {
+    (if (res & 0xFF)==0 { ZF } else { res & SF }) |
+    (res & (YF|XF)) |
+    ((res>>8) & CF) |            
+    ((acc^add^res) & HF) |
+    ((((acc^add^0x80) & (add^res))>>5) & VF)
+}
+
+fn flags_sub(acc: RegT, sub: RegT, res: RegT) -> RegT {
+    NF | 
+    (if (res & 0xFF)==0 { ZF } else { res & SF }) |
+    (res & (YF|XF)) |
+    ((res>>8) & CF) |            
+    ((acc^sub^res) & HF) |
+    ((((acc^sub) & (res^acc))>>5) & VF)
+}
+
+fn flags_cp(acc: RegT, sub: RegT, res: RegT) -> RegT {
+    // the only difference to flags_sub() is that the 
+    // 2 undocumented flag bits X and Y are taken from the
+    // sub-value, not the result
+    NF | 
+    (if (res & 0xFF)==0 { ZF } else { res & SF }) |
+    (sub & (YF|XF)) |
+    ((res>>8) & CF) |            
+    ((acc^sub^res) & HF) |
+    ((((acc^sub) & (res^acc))>>5) & VF)
+}
+
+fn flags_szp(val: RegT) -> RegT {
+    let v = val & 0xFF;
+    (if (v.count_ones()&1)==0 { PF } else { 0 }) |
+    (if v==0 { ZF } else { v & SF }) |
+    (v & (YF|XF))
+}
+
+fn flags_sziff2(val: RegT, iff2: bool) -> RegT {
+    (if (val & 0xFF)==0 {ZF} else {val & SF}) |
+    (val & (YF|XF)) |
+    if iff2 {PF} else {0}
+}
+
+use registers::BC as BC;
+use registers::DE as DE;
+use registers::HL as HL;
+use registers::AF as AF;
+use registers::WZ as WZ;
+use registers::BC_ as BC_;
+use registers::DE_ as DE_;
+use registers::HL_ as HL_;
+use registers::AF_ as AF_;
+use registers::WZ_ as WZ_;
 
 impl<I, O> CPU<I, O> 
     where I: FnMut(RegT) -> RegT,
           O: FnMut(RegT, RegT) {
 
-    /// initialize a new Z80 CPU object
+    /// initialize a new Z80 CPU object with input/output callbacks
     pub fn new(in_func: I, out_func: O) -> CPU<I,O> {
         CPU {
             reg: Registers::new(),
@@ -223,7 +218,7 @@ impl<I, O> CPU<I, O>
     ///
     /// returns number of cycles the instruction takes
     pub fn do_op(&mut self, ext: bool) -> i32 {
-        let (mut cyc, ext_cyc) = if ext {(4,8)} else {(0,0)};
+        let (cyc, ext_cyc) = if ext {(4,8)} else {(0,0)};
         let op = self.fetch_op();
 
         // split instruction byte into bit groups
@@ -232,12 +227,12 @@ impl<I, O> CPU<I, O>
         let z = (op & 7) as usize;
         let p = y>>1;
         let q = y & 1;
-        match (x, y, z) {
+        cyc + match (x, y, z) {
         //--- block 1: 8-bit loads
             // special case LD (HL),(HL): HALT
             (1, 6, 6) => {
                 self.halt(); 
-                cyc += 4;
+                4
             },
             // LD (HL),r; LD (IX+d),r; LD (IY+d),r
             // NOTE: this always loads from H,L, never IXH, ...
@@ -245,7 +240,7 @@ impl<I, O> CPU<I, O>
                 let a = self.addr(ext);
                 let v = self.reg.r8i(z);
                 self.mem.w8(a, v);
-                cyc += 7 + ext_cyc;
+                7 + ext_cyc
             },
             // LD r,(HL); LD r,(IX+d); LD r,(IY+d)
             // NOTE: this always loads to H,L, never IXH,...
@@ -253,43 +248,44 @@ impl<I, O> CPU<I, O>
                 let a = self.addr(ext);
                 let v = self.mem.r8(a);
                 self.reg.set_r8i(y, v);
-                cyc += 7 + ext_cyc; 
+                7 + ext_cyc 
             },
             // LD r,s
             (1, _, _) => {
                 let v = self.reg.r8(z);
                 self.reg.set_r8(y, v);
-                cyc += 4;
+                4
             },
         //--- block 2: 8-bit ALU instructions
             // ALU (HL); ALU (IX+d); ALU (IY+d)
             (2, _, _) => {
-                let val = if z == 6 {
+                if z == 6 {
                     // ALU (HL); ALU (IX+d); ALU (IY+d)
-                    cyc += 7 + ext_cyc;
                     let a = self.addr(ext);
-                    self.mem.r8(a)
+                    let val = self.mem.r8(a);
+                    self.alu8(y, val);
+                    7 + ext_cyc
                 }
                 else {
                     // ALU r
-                    cyc += 4;
-                    self.reg.r8(z)
-                };
-                self.alu8(y, val);
+                    let val = self.reg.r8(z);
+                    self.alu8(y, val);
+                    4
+                }
             },
         //--- block 0: misc ops
             // NOP
             (0, 0, 0) => { 
-                cyc += 4 
+                4 
             },
             // EX AF,AF'
             (0, 1, 0) => { 
                 self.reg.swap(AF, AF_); 
-                cyc += 4; 
+                4 
             },
             // DJNZ
             (0, 2, 0) => { 
-                cyc += self.djnz(); 
+                self.djnz() 
             },
             // JR d
             (0, 3, 0) => {
@@ -297,7 +293,7 @@ impl<I, O> CPU<I, O>
                 let wz = pc + self.mem.rs8(pc) + 1;
                 self.reg.set_pc(wz);
                 self.reg.set_wz(wz);
-                cyc += 12;
+                12
             },
             // JR cc
             (0, _, 0) => {
@@ -306,11 +302,11 @@ impl<I, O> CPU<I, O>
                     let wz = pc + self.mem.rs8(pc) + 1;
                     self.reg.set_pc(wz);
                     self.reg.set_wz(wz);
-                    cyc += 12;
+                    12
                 }
                 else {
                     self.reg.set_pc(pc + 1);
-                    cyc += 7;                    
+                    7                    
                 }
             }
             // 16-bit immediate loads and 16-bit ADD
@@ -319,7 +315,7 @@ impl<I, O> CPU<I, O>
                     // LD rr,nn (inkl IX,IY)
                     let val = self.imm16();
                     self.reg.set_r16sp(p, val);
-                    cyc += 10;
+                    10
                 }
                 else {
                     // ADD HL,rr; ADD IX,rr; ADD IY,rr
@@ -327,7 +323,7 @@ impl<I, O> CPU<I, O>
                     let val = self.reg.r16sp(p);
                     let res = self.add16(acc, val);
                     self.reg.set_r16sp(2, res);
-                    cyc += 11;
+                    11
                 }
             },
             (0, _, 2) => {
@@ -339,7 +335,7 @@ impl<I, O> CPU<I, O>
                         let v = self.reg.r16sp(2);
                         self.mem.w16(addr, v);
                         self.reg.set_wz(addr + 1);
-                        cyc += 16;
+                        16
                     },
                     // LD (nn),A
                     (0, 3) => {
@@ -347,7 +343,7 @@ impl<I, O> CPU<I, O>
                         let a = self.reg.a();
                         self.mem.w8(addr, a);
                         self.reg.set_wz(addr + 1);
-                        cyc += 13;
+                        13
                     }
                     // LD (BC),A; LD (DE),A,; LD (nn),A
                     (0, _) => {
@@ -355,7 +351,7 @@ impl<I, O> CPU<I, O>
                         let a = self.reg.a();
                         self.mem.w8(addr, a);
                         self.reg.set_wz(a<<8 | ((addr+1) & 0xFF));
-                        cyc += 7;
+                        7
                     },
                     // LD HL,(nn); LD IX,(nn); LD IY,(nn)
                     (1, 2) => {
@@ -363,7 +359,7 @@ impl<I, O> CPU<I, O>
                         let val  = self.mem.r16(addr);
                         self.reg.set_r16sp(2, val);
                         self.reg.set_wz(addr + 1);
-                        cyc += 16;
+                        16
                     },
                     // LD A,(nn)
                     (1, 3) => {
@@ -371,7 +367,7 @@ impl<I, O> CPU<I, O>
                         let val = self.mem.r8(addr);
                         self.reg.set_a(val);
                         self.reg.set_wz(addr + 1);
-                        cyc += 13;
+                        13
                     }
                     // LD A,(BC); LD A,(DE)
                     (1, _) => {
@@ -379,16 +375,16 @@ impl<I, O> CPU<I, O>
                         let val = self.mem.r8(addr);
                         self.reg.set_a(val);
                         self.reg.set_wz(addr + 1);
-                        cyc += 7;
+                        7
                     },
-                    (_,_) => { }
+                    (_,_) => canthappen()
                 }
             },
             (0, _, 3) => {
                 // 16-bit INC/DEC
                 let val = self.reg.r16sp(p) + if q==0 {1} else {-1};
                 self.reg.set_r16sp(p, val);
-                cyc += 6
+                6
             },
             // INC (HL); INC (IX+d); INC (IY+d)
             (0, 6, 4) => {
@@ -396,14 +392,14 @@ impl<I, O> CPU<I, O>
                 let v = self.mem.r8(addr);
                 let w = self.inc8(v);
                 self.mem.w8(addr, w);
-                cyc += 11 + ext_cyc;
+                11 + ext_cyc
             },
             // INC r
             (0, _, 4) => {
                 let v = self.reg.r8(y);
                 let w = self.inc8(v);
                 self.reg.set_r8(y, w);
-                cyc += 4;
+                4
             },
             // DEC (HL); DEC (IX+d); DEC (IY+d)
             (0, 6, 5) => {
@@ -411,14 +407,14 @@ impl<I, O> CPU<I, O>
                 let v = self.mem.r8(addr);
                 let w = self.dec8(v);
                 self.mem.w8(addr, w);
-                cyc += 11 + ext_cyc;
+                11 + ext_cyc
             },
             // DEC r
             (0, _, 5) => {
                 let v = self.reg.r8(y);
                 let w = self.dec8(v);
                 self.reg.set_r8(y, w);
-                cyc += 4;
+                4
             },
             // LD r,n; LD (HL),n; LD (IX+d),n; LD (IY+d),n
             (0, _, 6) => {
@@ -427,13 +423,13 @@ impl<I, O> CPU<I, O>
                     let addr = self.addr(ext);
                     let v = self.imm8();
                     self.mem.w8(addr, v);
-                    cyc += if ext { 15 } else { 10 };
+                    if ext { 15 } else { 10 }
                 }
                 else {
                     // LD r,n
                     let v = self.imm8();
                     self.reg.set_r8(y, v);
-                    cyc += 7;
+                    7
                 }
             },
             // misc ops on A and F
@@ -449,12 +445,12 @@ impl<I, O> CPU<I, O>
                     7 => self.ccf(),
                     _ => canthappen()
                 }
-                cyc += 4;
+                4
             }
         //--- block 3: misc and prefixed ops
             (3, _, 0) => { 
                 // RET cc
-                cyc += self.retcc(y); 
+                self.retcc(y) 
             }
             (3, _, 1) => {
                 match (q,p) {
@@ -462,11 +458,11 @@ impl<I, O> CPU<I, O>
                         // POP BC,DE,HL,IX,IY
                         let val = self.pop();
                         self.reg.set_r16af(p, val);
-                        cyc += 10;
+                        10
                     },
                     (1, 0) => {
                         // RET
-                        cyc += self.ret();
+                        self.ret()
                     },
                     (1, 1) => {
                         // EXX
@@ -474,22 +470,22 @@ impl<I, O> CPU<I, O>
                         self.reg.swap(DE, DE_);
                         self.reg.swap(HL, HL_);
                         self.reg.swap(WZ, WZ_);
-                        cyc += 4;
+                        4
                     },
                     (1, 2) => {
                         // JP HL; JP IX; JP IY
                         let v = self.reg.r16sp(2);
                         self.reg.set_pc(v);
-                        cyc += 4;
+                        4
                     },
                     (1, 3) => {
                         // LD SP,HL, LD SP,IX; LD SP,IY
                         let v = self.reg.r16sp(2);
                         self.reg.set_sp(v);
-                        cyc += 6;
+                        6
                     },
                     (_, _) => {
-                        canthappen();
+                        canthappen()
                     }
                 }
             },
@@ -500,7 +496,7 @@ impl<I, O> CPU<I, O>
                 if self.cc(y) {
                     self.reg.set_pc(nn);
                 }
-                cyc += 10;
+                10
             },
             (3, _, 3) => {
                 // misc ops
@@ -510,24 +506,24 @@ impl<I, O> CPU<I, O>
                         let nn = self.imm16();
                         self.reg.set_wz(nn);
                         self.reg.set_pc(nn);
-                        cyc += 10;
+                        10
                     },
                     1 => {
-                        cyc += self.do_cb_op(ext);
+                        self.do_cb_op(ext)
                     },
                     2 => {
                         // OUT (n),A
                         let a = self.reg.a();
                         let port = (a<<8 | self.imm8()) & 0xFFFF;
                         self.outp(port, a);
-                        cyc += 11;
+                        11
                     },
                     3 => {
                         // IN A,(n)
                         let port = (self.reg.a()<<8 | self.imm8()) & 0xFFFF;
                         let v = self.inp(port);
                         self.reg.set_a(v);
-                        cyc += 11;
+                        11
                     },
                     4 => {
                         // EX (SP),HL; EX (SP),IX; EX (SP),IY
@@ -537,29 +533,30 @@ impl<I, O> CPU<I, O>
                         self.mem.w16(sp, v_reg);
                         self.reg.set_wz(v_mem);
                         self.reg.set_r16sp(2, v_mem);
-                        cyc += 19;
+                        19
                     },
                     5 => {
                         // EX DE,HL
                         self.reg.swap(DE, HL);
-                        cyc += 4;
+                        4
                     },
                     6 => {
                         // DI
                         self.iff1 = false; 
                         self.iff2 = false;
-                        cyc += 4;
+                        4
                     },
                     7 => {
                         // EI
                         self.enable_interrupt = true;
+                        4
                     },
                     _ => canthappen()
                 }
             },
             (3, _, 4) => {
                 // CALL cc
-                cyc += self.callcc(y);
+                self.callcc(y)
             },
             (3, _, 5) => {
                 match (q, p) {
@@ -567,27 +564,29 @@ impl<I, O> CPU<I, O>
                         // PUSH BC,DE,HL,IX,IY,AF
                         let v = self.reg.r16af(p);
                         self.push(v);
-                        cyc += 11;
+                        11
                     },
                     (1, 0) => {
                         // CALL nn
-                        cyc += self.call();
+                        self.call()
                     },
                     (1, 1) => {
                         // DD prefix instructions
                         self.reg.patch_ix();
-                        cyc += self.do_op(true);
+                        let cycles = self.do_op(true);
                         self.reg.unpatch();
+                        cycles
                     },
                     (1, 2) => {
                         // ED prefix instructions
-                        cyc += self.do_ed_op();
+                        self.do_ed_op()
                     },
                     (1, 3) => {
                         // FD prefix instructions
                         self.reg.patch_iy();
-                        cyc += self.do_op(true); 
+                        let cycles = self.do_op(true); 
                         self.reg.unpatch();
+                        cycles
                     },
                     (_, _) => canthappen()
                 }
@@ -596,21 +595,18 @@ impl<I, O> CPU<I, O>
             (3, _, 6) => {
                 let val = self.imm8();
                 self.alu8(y, val);
-                cyc += 7;
+                7
             },
             // RST
             (3, _, 7) => {
                 self.rst((y * 8) as RegT);
-                cyc += 11;
+                11
             },
             // not implemented
             _ => {
                 panic!("Invalid instruction!");
             }
         }
-
-        // return resulting number of CPU cycles taken
-        cyc
     }
 
     /// fetch and execute ED prefix instruction
@@ -747,13 +743,13 @@ impl<I, O> CPU<I, O>
     fn do_cb_op(&mut self, ext: bool) -> i32 {
         let d = if ext {self.d()} else {0};
         let op = self.fetch_op();
-        let mut cyc = if ext {4} else {0};
+        let cyc = if ext {4} else {0};
 
         // split instruction byte into bit groups
         let x = op>>6;
         let y = (op>>3 & 7) as usize;
         let z = (op & 7) as usize;
-        match x {
+        cyc + match x {
             0 => {
                 // rotates and shifts
                 if z == 6 {
@@ -762,7 +758,7 @@ impl<I, O> CPU<I, O>
                     let v = self.mem.r8(a);
                     let w = self.rot(y, v);
                     self.mem.w8(a, w);
-                    cyc += 15;
+                    15
                 }
                 else if ext {
                     // undocumented: ROT (IX+d), (IY+d),r 
@@ -772,14 +768,14 @@ impl<I, O> CPU<I, O>
                     let w = self.rot(y, v);
                     self.reg.set_r8i(z, w);
                     self.mem.w8(a, w);
-                    cyc += 15;
+                    15
                 }
                 else {   
                     // ROT r
                     let v = self.reg.r8i(z);
                     let w = self.rot(y, v);
                     self.reg.set_r8i(z, w);
-                    cyc += 8;
+                    8
                 }
             },
             1 => {
@@ -789,13 +785,13 @@ impl<I, O> CPU<I, O>
                     let a = self.addr_d(d, ext);
                     let v = self.mem.r8(a);
                     self.ibit(v, 1<<y);
-                    cyc += 12;
+                    12
                 }
                 else {
                     // BIT n,r
                     let v = self.reg.r8i(z);
                     self.bit(v, 1<<y);
-                    cyc += 8;
+                    8
                 }
             },
             2 => {
@@ -805,7 +801,7 @@ impl<I, O> CPU<I, O>
                     let a = self.addr_d(d, ext);
                     let v = self.mem.r8(a) & !(1<<y);
                     self.mem.w8(a, v);
-                    cyc += 15;
+                    15
                 }
                 else if ext {
                     // RES n,(IX+d),r; RES n,(IY+d),r
@@ -814,13 +810,13 @@ impl<I, O> CPU<I, O>
                     let v = self.mem.r8(a) & !(1<<y);
                     self.reg.set_r8i(z, v);
                     self.mem.w8(a, v);
-                    cyc += 15;
+                    15
                 }
                 else {
                     // RES n,r
                     let v = self.reg.r8i(z) & !(1<<y);
                     self.reg.set_r8i(z, v);
-                    cyc += 8;
+                    8
                 }
             },
             3 => {
@@ -830,7 +826,7 @@ impl<I, O> CPU<I, O>
                     let a = self.addr_d(d, ext);
                     let v = self.mem.r8(a) | 1<<y;
                     self.mem.w8(a, v);
-                    cyc += 15;
+                    15
                 }
                 else if ext {
                     // SET n,(IX+d),r; SET n,(IY+d),r
@@ -839,20 +835,17 @@ impl<I, O> CPU<I, O>
                     let v = self.mem.r8(a) | 1<<y;
                     self.reg.set_r8i(z, v);
                     self.mem.w8(a, v);
-                    cyc += 15;
+                    15
                 }
                 else {
                     // SET n,r
                     let v = self.reg.r8i(z) | 1<<y;
                     self.reg.set_r8i(z, v);
-                    cyc += 8;
+                    8
                 }
             },
-            _ => {
-                panic!("FIXME!")
-            }
+            _ => canthappen() 
         }
-        cyc
     }
 
     pub fn halt(&mut self) {

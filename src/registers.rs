@@ -1,8 +1,5 @@
-#![allow(dead_code)]
-
 use RegT;
 
-/// Z80 status flags
 pub const CF : RegT = 1<<0;      // carry flag
 pub const NF : RegT = 1<<1;      // add/subtract flag
 pub const VF : RegT = 1<<2;      // parity/overflow flag
