@@ -138,7 +138,7 @@ impl<I, O> CPU<I, O>
             self.iff2 = true;
             self.enable_interrupt = false
         }
-        return self.do_op(false);
+        self.do_op(false)
     }
 
     /// load 8-bit unsigned immediate operand and increment PC
