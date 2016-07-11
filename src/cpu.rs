@@ -126,7 +126,7 @@ impl<I, O> CPU<I, O>
     }
 
     /// decode and execute one instruction
-    pub fn step(&mut self) -> i32 {
+    pub fn step(&mut self) -> i64 {
         self.invalid_op = false;
         if self.enable_interrupt {
             self.iff1 = true;
@@ -217,7 +217,7 @@ impl<I, O> CPU<I, O>
     /// * 'd'   - the d in (IX+d), (IY+d), 0 if m is HL
     ///
     /// returns number of cycles the instruction takes
-    pub fn do_op(&mut self, ext: bool) -> i32 {
+    pub fn do_op(&mut self, ext: bool) -> i64 {
         let (cyc, ext_cyc) = if ext {(4,8)} else {(0,0)};
         let op = self.fetch_op();
 
@@ -610,7 +610,7 @@ impl<I, O> CPU<I, O>
     }
 
     /// fetch and execute ED prefix instruction
-    fn do_ed_op(&mut self) -> i32 {
+    fn do_ed_op(&mut self) -> i64 {
         let op = self.fetch_op();
 
         // split instruction byte into bit groups
@@ -740,7 +740,7 @@ impl<I, O> CPU<I, O>
     }
 
     /// fetch and execute CB prefix instruction
-    fn do_cb_op(&mut self, ext: bool) -> i32 {
+    fn do_cb_op(&mut self, ext: bool) -> i64 {
         let d = if ext {self.d()} else {0};
         let op = self.fetch_op();
         let cyc = if ext {4} else {0};
@@ -1177,7 +1177,7 @@ impl<I, O> CPU<I, O>
     }
 
     #[inline(always)]
-    pub fn djnz(&mut self) -> i32 {
+    pub fn djnz(&mut self) -> i64 {
         let b = (self.reg.b() - 1) & 0xFF;
         self.reg.set_b(b);
         if b > 0 {
@@ -1246,7 +1246,7 @@ impl<I, O> CPU<I, O>
     }
 
     #[inline(always)]
-    pub fn ret(&mut self) -> i32 {
+    pub fn ret(&mut self) -> i64 {
         let sp = self.reg.sp();
         let wz = self.mem.r16(sp);
         self.reg.set_wz(wz);
@@ -1256,7 +1256,7 @@ impl<I, O> CPU<I, O>
     }
 
     #[inline(always)]
-    pub fn call(&mut self) -> i32 {
+    pub fn call(&mut self) -> i64 {
         let wz = self.imm16();
         let sp = (self.reg.sp() - 2) & 0xFFFF;
         self.mem.w16(sp, self.reg.pc());
@@ -1267,7 +1267,7 @@ impl<I, O> CPU<I, O>
     }
 
     #[inline(always)]
-    pub fn retcc(&mut self, y: usize) -> i32 {
+    pub fn retcc(&mut self, y: usize) -> i64 {
         if self.cc(y) {
             self.ret() + 1
         }
@@ -1277,7 +1277,7 @@ impl<I, O> CPU<I, O>
     }
 
     #[inline(always)]
-    pub fn callcc(&mut self, y: usize) -> i32 {
+    pub fn callcc(&mut self, y: usize) -> i64 {
         if self.cc(y) {
             self.call()
         }
@@ -1325,7 +1325,7 @@ impl<I, O> CPU<I, O>
     }
 
     #[inline(always)]
-    pub fn ldir(&mut self) -> i32 {
+    pub fn ldir(&mut self) -> i64 {
         self.ldi();
         if (self.reg.f() & VF) != 0 {
             let pc = self.reg.pc();
@@ -1339,7 +1339,7 @@ impl<I, O> CPU<I, O>
     }
 
     #[inline(always)]
-    pub fn lddr(&mut self) -> i32 {
+    pub fn lddr(&mut self) -> i64 {
         self.ldd();
         if (self.reg.f() & VF) != 0 {
             let pc = self.reg.pc();
@@ -1366,7 +1366,7 @@ impl<I, O> CPU<I, O>
             (if v==0 {ZF} else {v & SF}) |
             (if (v & 0xF)>(a & 0xF) {HF} else {0}) |
             (if bc != 0 {VF} else {0});
-        if (f & VF) != 0 {
+        if (f & HF) != 0 {
             v -= 1;
         }
         if (v & 0x02) != 0 { f |= YF };
@@ -1388,7 +1388,7 @@ impl<I, O> CPU<I, O>
             (if v==0 {ZF} else {v & SF}) |
             (if (v & 0xF)>(a & 0xF) {HF} else {0}) |
             (if bc != 0 {VF} else {0});
-        if (f & VF) != 0 {
+        if (f & HF) != 0 {
             v -= 1;
         }
         if (v & 0x02) != 0 { f |= YF };
@@ -1397,7 +1397,7 @@ impl<I, O> CPU<I, O>
     }
 
     #[inline(always)]
-    pub fn cpir(&mut self) -> i32 {
+    pub fn cpir(&mut self) -> i64 {
         self.cpi();
         if (self.reg.f() & (VF|ZF)) == VF {
             let pc = self.reg.pc();
@@ -1411,7 +1411,7 @@ impl<I, O> CPU<I, O>
     }
 
     #[inline(always)]
-    pub fn cpdr(&mut self) -> i32 {
+    pub fn cpdr(&mut self) -> i64 {
         self.cpd();
         if (self.reg.f() & (VF|ZF)) == VF {
             let pc = self.reg.pc();
@@ -1485,7 +1485,7 @@ impl<I, O> CPU<I, O>
     }
 
     #[inline(always)]
-    pub fn inir(&mut self) -> i32 {
+    pub fn inir(&mut self) -> i64 {
         self.ini();
         if self.reg.b() != 0 {
             let pc = self.reg.pc();
@@ -1498,7 +1498,7 @@ impl<I, O> CPU<I, O>
     }
 
     #[inline(always)]
-    pub fn indr(&mut self) -> i32 {
+    pub fn indr(&mut self) -> i64 {
         self.ind();
         if self.reg.b() != 0 {
             let pc = self.reg.pc();
@@ -1539,7 +1539,7 @@ impl<I, O> CPU<I, O>
     }
 
     #[inline(always)]
-    pub fn otir(&mut self) -> i32 {
+    pub fn otir(&mut self) -> i64 {
         self.outi();
         if self.reg.b() != 0 {
             let pc = self.reg.pc();
@@ -1552,7 +1552,7 @@ impl<I, O> CPU<I, O>
     }
 
     #[inline(always)]
-    pub fn otdr(&mut self) -> i32 {
+    pub fn otdr(&mut self) -> i64 {
         self.outd();
         if self.reg.b() != 0 {
             let pc = self.reg.pc();
