@@ -2,7 +2,7 @@ extern crate rz80;
 extern crate time;
 
 #[cfg(test)]
-mod test_zexdoc {
+mod test_zex {
     use time::PreciseTime;
     use rz80;
     use rz80::RegT;
