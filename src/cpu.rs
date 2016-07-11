@@ -34,6 +34,7 @@ use registers::YF as YF;
 use registers::ZF as ZF;
 use registers::SF as SF;
 
+#[inline(always)]
 fn flags_add(acc: RegT, add: RegT, res: RegT) -> RegT {
     (if (res & 0xFF)==0 { ZF } else { res & SF }) |
     (res & (YF|XF)) |
@@ -42,6 +43,7 @@ fn flags_add(acc: RegT, add: RegT, res: RegT) -> RegT {
     ((((acc^add^0x80) & (add^res))>>5) & VF)
 }
 
+#[inline(always)]
 fn flags_sub(acc: RegT, sub: RegT, res: RegT) -> RegT {
     NF | 
     (if (res & 0xFF)==0 { ZF } else { res & SF }) |
@@ -51,6 +53,7 @@ fn flags_sub(acc: RegT, sub: RegT, res: RegT) -> RegT {
     ((((acc^sub) & (res^acc))>>5) & VF)
 }
 
+#[inline(always)]
 fn flags_cp(acc: RegT, sub: RegT, res: RegT) -> RegT {
     // the only difference to flags_sub() is that the 
     // 2 undocumented flag bits X and Y are taken from the
@@ -63,6 +66,7 @@ fn flags_cp(acc: RegT, sub: RegT, res: RegT) -> RegT {
     ((((acc^sub) & (res^acc))>>5) & VF)
 }
 
+#[inline(always)]
 fn flags_szp(val: RegT) -> RegT {
     let v = val & 0xFF;
     (if (v.count_ones()&1)==0 { PF } else { 0 }) |
@@ -70,6 +74,7 @@ fn flags_szp(val: RegT) -> RegT {
     (v & (YF|XF))
 }
 
+#[inline(always)]
 fn flags_sziff2(val: RegT, iff2: bool) -> RegT {
     (if (val & 0xFF)==0 {ZF} else {val & SF}) |
     (val & (YF|XF)) |
@@ -117,6 +122,7 @@ impl<I, O> CPU<I, O>
     }
 
     /// fetch the next instruction byte from memory
+    #[inline(always)]
     fn fetch_op(&mut self) -> RegT {
         self.reg.r = (self.reg.r & 0x80) | ((self.reg.r+1) & 0x7F);
         let pc = self.reg.pc();

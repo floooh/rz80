@@ -20,22 +20,26 @@ impl Memory {
     }
 
     /// read unsigned byte from 16-bit address
+    #[inline(always)]
     pub fn r8(&self, addr: RegT) -> RegT {
         self.buf[(addr & 0xFFFF) as usize] as RegT
     }
 
     /// read signed byte from 16-bit address
+    #[inline(always)]
     pub fn rs8(&self, addr: RegT) -> RegT {
         let d : i8 = self.buf[(addr & 0xFFFF) as usize] as i8;
         d as RegT
     }
 
     /// write unsigned byte to 16-bit address
+    #[inline(always)]
     pub fn w8(&mut self, addr: RegT, val: RegT) {
         self.buf[(addr & 0xFFFF) as usize] = val as u8;
     }
 
     /// read unsigned word from 16-bit address
+    #[inline(always)]
     pub fn r16(&self, addr: RegT) -> RegT {
         let l = self.r8(addr);
         let h = self.r8(addr + 1);
@@ -43,6 +47,7 @@ impl Memory {
     }
 
     /// write unsigned word to 16-bit address
+    #[inline(always)]
     pub fn w16(&mut self, addr: RegT, val: RegT) {
         let l = val & 0xff;
         let h = (val >> 8) & 0xff;
