@@ -88,7 +88,7 @@ mod test_zex {
         let end = PreciseTime::now();
         let ms = start.to(end).num_milliseconds();
         let mips = (num_ops / ms)/1000;
-        let mhz  = num_cycles / ms;
+        let mhz  = (num_cycles / ms)/1000;
         
         println!("\n\nops: {}, cycles: {}, duration: {}ms", num_ops, num_cycles, ms);
         println!("mips: {}, MHz: {}", mips, mhz);
