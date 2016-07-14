@@ -5,16 +5,12 @@ extern crate time;
 mod test_zex {
     use time::PreciseTime;
     use rz80;
-    use rz80::RegT;
     
     static ZEXDOC: &'static [u8] = include_bytes!("zexdoc.com");
     static ZEXALL: &'static [u8] = include_bytes!("zexall.com");
 
     // emulates a CP/M BDOS call, only what's needed by ZEX
-    fn cpm_bdos<I,O>(cpu: &mut rz80::CPU<I,O>)
-        where I: FnMut(RegT)->RegT,
-              O: FnMut(RegT, RegT) {
-
+    fn cpm_bdos(cpu: &mut rz80::CPU) {
         match cpu.reg.c() {
             2 => {
                 // output a character
@@ -44,13 +40,10 @@ mod test_zex {
         cpu.reg.set_sp(sp + 2);
     }
 
-    fn dummy_in(_: RegT) -> RegT { 0 }
-    fn dummy_out(_: RegT, _: RegT) { }
-
     fn run_test(prog: &[u8]) -> (i64, i64) {
         let mut num_ops = 0;
         let mut num_cycles = 0;
-        let mut cpu = rz80::CPU::new(dummy_in, dummy_out);
+        let mut cpu = rz80::CPU::new();
         cpu.mem.write(0x0100, prog);
         cpu.reg.set_sp(0xF000);
         cpu.reg.set_pc(0x0100);
@@ -74,7 +67,7 @@ mod test_zex {
         let end = PreciseTime::now();
         let ms = start.to(end).num_milliseconds();
         let mips = (num_ops / ms)/1000;
-        let mhz  = num_cycles / ms;
+        let mhz  = (num_cycles / ms)/1000;
         
         println!("\n\nops: {}, cycles: {}, duration: {}ms", num_ops, num_cycles, ms);
         println!("mips: {}, MHz: {}\n\n", mips, mhz);

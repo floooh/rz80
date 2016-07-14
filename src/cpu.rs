@@ -3,10 +3,7 @@ use memory::Memory;
 use registers::Registers;
 
 /// the Z80 CPU state
-pub struct CPU<I, O>
-    where I: FnMut(RegT) -> RegT,
-          O: FnMut(RegT, RegT) {
-
+pub struct CPU<'a> {
     pub reg : Registers,
     pub halt : bool,
     pub iff1: bool,
@@ -14,8 +11,8 @@ pub struct CPU<I, O>
     pub invalid_op: bool,
     enable_interrupt: bool,
 
-    in_fn : I,
-    out_fn : O,
+    in_fn : Option<&'a mut FnMut(RegT)->RegT>,
+    out_fn : Option<&'a mut FnMut(RegT, RegT)>,
 
     pub mem : Memory,
 }
@@ -92,12 +89,10 @@ use registers::HL_ as HL_;
 use registers::AF_ as AF_;
 use registers::WZ_ as WZ_;
 
-impl<I, O> CPU<I, O> 
-    where I: FnMut(RegT) -> RegT,
-          O: FnMut(RegT, RegT) {
+impl<'a> CPU<'a> {
 
     /// initialize a new Z80 CPU object with input/output callbacks
-    pub fn new(in_func: I, out_func: O) -> CPU<I,O> {
+    pub fn new() -> CPU<'a> {
         CPU {
             reg: Registers::new(),
             halt: false,
@@ -105,12 +100,22 @@ impl<I, O> CPU<I, O>
             iff2: false,
             invalid_op: false,
             enable_interrupt: false,
-            in_fn : in_func,
-            out_fn : out_func,
-            mem: Memory::new(),
-
+            in_fn : None, 
+            out_fn : None,
+            mem: Memory::new()
         }
     }
+
+    /// set optional input callback
+    pub fn set_in_fn(&mut self, f: &'a mut FnMut(RegT)->RegT) {
+        self.in_fn = Some(f);
+    }
+
+    /// set optional output callback
+    pub fn set_out_fn(&mut self, f: &'a mut FnMut(RegT, RegT)) {
+        self.out_fn = Some(f);
+    }
+
     /// reset the cpu
     pub fn reset(&mut self) {
         self.reg.reset();
@@ -1432,12 +1437,18 @@ impl<I, O> CPU<I, O>
 
     #[inline(always)]
     pub fn inp(&mut self, port: RegT) -> RegT {
-        (self.in_fn)(port) & 0xFF 
+        match self.in_fn {
+            Some(ref mut f) => f(port) & 0xFF,
+            None => 0,
+        }
     }
 
     #[inline(always)]
     pub fn outp(&mut self, port: RegT, val: RegT) {
-        (self.out_fn)(port, val)
+        match self.out_fn {
+            Some(ref mut f) => f(port, val),
+            None => {},
+        }
     }
 
     #[inline(always)]
@@ -1586,12 +1597,9 @@ mod tests {
     use registers::ZF as ZF;
     use registers::SF as SF;
 
-    fn in_fn(_: RegT) -> RegT { 0 }
-    fn out_fn(_: RegT, _: RegT) { }
-
     #[test]
     fn reset() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         cpu.reg.set_pc(0x1234);
         cpu.reg.set_wz(1234);
         cpu.reg.im = 45;
@@ -1613,7 +1621,7 @@ mod tests {
 
     #[test]
     fn reg16_rw() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         cpu.reg.set_bc(0x1234);
         cpu.reg.set_de(0x5678);
         cpu.reg.set_hl(0x1357);
@@ -1633,7 +1641,7 @@ mod tests {
 
     #[test]
     fn halt() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         cpu.reg.set_pc(0x1234);
         cpu.halt();
         assert!(cpu.halt);
@@ -1642,7 +1650,7 @@ mod tests {
 
     #[test]
     fn rst() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         cpu.reg.set_pc(0x123);
         cpu.reg.set_sp(0x100);
         cpu.rst(0x38);
@@ -1654,20 +1662,20 @@ mod tests {
 
     #[test]
     fn push() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         cpu.reg.set_sp(0x100);
         cpu.push(0x1234);
         assert!(0xFE == cpu.reg.sp());
         assert!(cpu.mem.r16(cpu.reg.sp()) == 0x1234);
     }
 
-    fn test_flags<I:FnMut(RegT)->RegT,O:FnMut(RegT,RegT)>(cpu: &CPU<I,O>, expected: RegT) -> bool {
+    fn test_flags(cpu: &CPU, expected: RegT) -> bool {
         (cpu.reg.f() & !(XF|YF)) == expected
     }
 
     #[test]
     fn add8() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         cpu.reg.set_a(0xF);
         cpu.add8(0xF);
         assert!(0x1E == cpu.reg.a());
@@ -1686,7 +1694,7 @@ mod tests {
 
     #[test]
     fn adc8() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         cpu.reg.set_a(0x00);
         cpu.adc8(0x00);
         assert!(0x00 == cpu.reg.a());
@@ -1707,7 +1715,7 @@ mod tests {
 
     #[test]
     fn sub8() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         cpu.reg.set_a(0x04);
         cpu.sub8(0x04);
         assert!(0x00 == cpu.reg.a());
@@ -1725,7 +1733,7 @@ mod tests {
 
     #[test]
     fn sbc8() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         cpu.reg.set_a(0x04);
         cpu.sbc8(0x04);
         assert!(0x00 == cpu.reg.a());
@@ -1740,7 +1748,7 @@ mod tests {
 
     #[test]
     fn cp8() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         cpu.reg.set_a(0x04);
         cpu.cp8(0x04);
         assert!(test_flags(&cpu, ZF|NF)); 
@@ -1754,7 +1762,7 @@ mod tests {
 
     #[test]
     fn neg8() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         cpu.reg.set_a(0x01);
         cpu.neg8();
         assert!(0xFF == cpu.reg.a());
@@ -1771,7 +1779,7 @@ mod tests {
 
     #[test]
     fn and8() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         cpu.reg.set_a(0xFF); cpu.and8(0x01);
         assert!(0x01 == cpu.reg.a()); assert!(test_flags(&cpu, HF));
         cpu.reg.set_a(0xFF); cpu.and8(0xAA);
@@ -1782,7 +1790,7 @@ mod tests {
 
     #[test]
     fn or8() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         cpu.reg.set_a(0x00); 
         cpu.or8(0x00);
         assert!(0x00 == cpu.reg.a()); assert!(test_flags(&cpu, ZF|PF));
@@ -1794,7 +1802,7 @@ mod tests {
 
     #[test]
     fn xor8() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         cpu.reg.set_a(0x00);
         cpu.xor8(0x00);
         assert!(0x00 == cpu.reg.a()); assert!(test_flags(&cpu, ZF|PF));
@@ -1806,7 +1814,7 @@ mod tests {
 
     #[test]
     fn inc8_dec8() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         let a = cpu.inc8(0x00);
         assert!(0x01 == a); assert!(test_flags(&cpu, 0));
         let b = cpu.dec8(a);
@@ -1825,7 +1833,7 @@ mod tests {
 
     #[test]
     fn rlc8_rrc8() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         let a = cpu.rrc8(0x01);
         assert!(0x80 == a); assert!(test_flags(&cpu, SF|CF));
         let b = cpu.rlc8(a);
@@ -1842,7 +1850,7 @@ mod tests {
 
     #[test]
     fn rlca8_rrca8() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         cpu.reg.set_f(0xFF);
         cpu.reg.set_a(0xA0);
         cpu.rlca8();
@@ -1857,7 +1865,7 @@ mod tests {
 
     #[test]
     fn rl8_rr8() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         let a = cpu.rr8(0x01);
         assert!(0x00 == a); assert!(test_flags(&cpu, ZF|PF|CF));
         let b = cpu.rl8(a);
@@ -1875,7 +1883,7 @@ mod tests {
 
     #[test]
     fn rla8_rra8() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         cpu.reg.set_f(0xFF);
         cpu.reg.set_a(0xA0);
         cpu.rla8();
@@ -1890,7 +1898,7 @@ mod tests {
 
     #[test]
     fn sla8() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         let a = cpu.sla8(0x01);
         assert!(0x02 == a); assert!(test_flags(&cpu, 0));
         let b = cpu.sla8(0x80);
@@ -1905,7 +1913,7 @@ mod tests {
 
     #[test]
     fn sra8() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         let a = cpu.sra8(0x01);
         assert!(0x00 == a); assert!(test_flags(&cpu, ZF|PF|CF));
         let b = cpu.sra8(0x80);
@@ -1918,7 +1926,7 @@ mod tests {
 
     #[test]
     fn srl8() {
-        let mut cpu = CPU::new(in_fn, out_fn);
+        let mut cpu = CPU::new();
         let a = cpu.srl8(0x01);
         assert!(0x00 == a); assert!(test_flags(&cpu, ZF|PF|CF));
         let b = cpu.srl8(0x80);
@@ -1933,22 +1941,24 @@ mod tests {
 
     #[test]
     fn inp() {
-        let in_func = |port| {
+        let mut in_func = &mut |port| {
             assert!(port == 0x1234);
             port & 0xFF 
         };
-        let mut cpu = CPU::new(in_func, out_fn);
+        let mut cpu = CPU::new();
+        cpu.set_in_fn(in_func);
         let i = cpu.inp(0x1234);
         assert!(i == 0x34);
     }
 
     #[test]
     fn outp() {
-        let out_func = |port, val| {
+        let mut out_func = |port, val| {
             assert!(port == 0x1234);
             assert!(val == 12);
         };
-        let mut cpu = CPU::new(in_fn, out_func);
+        let mut cpu = CPU::new();
+        cpu.set_out_fn(&mut out_func);
         cpu.outp(0x1234, 12);
     }
 }
