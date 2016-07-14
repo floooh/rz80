@@ -24,10 +24,10 @@ mod test_zex {
                 // output a string
                 let mut addr = cpu.reg.de();
                 loop {
-                    let c = cpu.mem.r8(addr) as u8 as char;
+                    let c = cpu.mem.r8(addr) as u8;
                     addr = (addr + 1) & 0xFFFF;
-                    if c != '$' {
-                        print!("{}", c);
+                    if c != b'$' {
+                        print!("{}", c as char);
                     }
                     else {
                         break;
