@@ -184,7 +184,7 @@ impl<'a> CPU<'a> {
             addr
         }
         else {
-            self.reg.r16sp(2)
+            self.reg.hl()
         }
     }
 
@@ -198,7 +198,7 @@ impl<'a> CPU<'a> {
             addr
         }
         else {
-            self.reg.r16sp(2)
+            self.reg.hl()
         }
     }
 
