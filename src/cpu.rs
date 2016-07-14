@@ -236,8 +236,6 @@ impl<'a> CPU<'a> {
         let x = op>>6;
         let y = (op>>3 & 7) as usize;
         let z = (op & 7) as usize;
-        let p = y>>1;
-        let q = y & 1;
         cyc + match (x, y, z) {
         //--- block 1: 8-bit loads
             // special case LD (HL),(HL): HALT
@@ -322,6 +320,8 @@ impl<'a> CPU<'a> {
             }
             // 16-bit immediate loads and 16-bit ADD
             (0, _, 1) => {
+                let p = y>>1;
+                let q = y & 1;
                 if q == 0 {
                     // LD rr,nn (inkl IX,IY)
                     let val = self.imm16();
@@ -339,6 +339,8 @@ impl<'a> CPU<'a> {
             },
             (0, _, 2) => {
                 // indirect loads
+                let p = y>>1;
+                let q = y & 1;
                 match (q, p) {
                     // LD (nn),HL; LD (nn),IX; LD (nn),IY
                     (0, 2) => {
@@ -393,6 +395,8 @@ impl<'a> CPU<'a> {
             },
             (0, _, 3) => {
                 // 16-bit INC/DEC
+                let p = y>>1;
+                let q = y & 1;
                 let val = self.reg.r16sp(p) + if q==0 {1} else {-1};
                 self.reg.set_r16sp(p, val);
                 6
@@ -464,6 +468,8 @@ impl<'a> CPU<'a> {
                 self.retcc(y) 
             }
             (3, _, 1) => {
+                let p = y>>1;
+                let q = y & 1;
                 match (q,p) {
                     (0, _) => {
                         // POP BC,DE,HL,IX,IY
@@ -570,6 +576,8 @@ impl<'a> CPU<'a> {
                 self.callcc(y)
             },
             (3, _, 5) => {
+                let p = y>>1;
+                let q = y & 1;
                 match (q, p) {
                     (0, _) => {
                         // PUSH BC,DE,HL,IX,IY,AF
@@ -628,8 +636,6 @@ impl<'a> CPU<'a> {
         let x = op>>6;
         let y = (op>>3 & 7) as usize;
         let z = (op & 7) as usize;
-        let p = y>>1;
-        let q = y & 1;
         match (x, y, z) {
             // block instructions
             (2, 4, 0) => { self.ldi(); 16 },
@@ -682,6 +688,8 @@ impl<'a> CPU<'a> {
             },
             (1, _, 2) => {
                 // SBC/ADC HL,rr
+                let p = y>>1;
+                let q = y & 1;
                 let acc = self.reg.hl();
                 let val = self.reg.r16sp(p);
                 let res = if q == 0 {
@@ -695,6 +703,8 @@ impl<'a> CPU<'a> {
             },
             (1, _, 3) => {
                 // 16-bit immediate address load/store
+                let p = y>>1;
+                let q = y & 1;
                 let nn = self.imm16();
                 if q == 0 {
                     // LD (nn),rr
