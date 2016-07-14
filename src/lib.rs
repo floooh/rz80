@@ -1,6 +1,6 @@
 /// type aliases for 8- and 16-bit registers
 /// to prevent excessive type casting
-pub type RegT = i64;
+pub type RegT = i32;
 
 pub mod registers;
 pub mod memory;
