@@ -1,19 +1,16 @@
 use RegT;
 use memory::Memory;
 use registers::Registers;
+use bus::Bus;
 
 /// the Z80 CPU state
-pub struct CPU<'a> {
+pub struct CPU {
     pub reg : Registers,
     pub halt : bool,
     pub iff1: bool,
     pub iff2: bool,
     pub invalid_op: bool,
     enable_interrupt: bool,
-
-    in_fn : Option<&'a mut FnMut(RegT)->RegT>,
-    out_fn : Option<&'a mut FnMut(RegT, RegT)>,
-
     pub mem : Memory,
 }
 
@@ -89,10 +86,10 @@ use registers::HL_ as HL_;
 use registers::AF_ as AF_;
 use registers::WZ_ as WZ_;
 
-impl<'a> CPU<'a> {
+impl CPU {
 
     /// initialize a new Z80 CPU object with input/output callbacks
-    pub fn new() -> CPU<'a> {
+    pub fn new() -> CPU {
         CPU {
             reg: Registers::new(),
             halt: false,
@@ -100,20 +97,8 @@ impl<'a> CPU<'a> {
             iff2: false,
             invalid_op: false,
             enable_interrupt: false,
-            in_fn : None, 
-            out_fn : None,
             mem: Memory::new()
         }
-    }
-
-    /// set optional input callback
-    pub fn set_in_fn(&mut self, f: &'a mut FnMut(RegT)->RegT) {
-        self.in_fn = Some(f);
-    }
-
-    /// set optional output callback
-    pub fn set_out_fn(&mut self, f: &'a mut FnMut(RegT, RegT)) {
-        self.out_fn = Some(f);
     }
 
     /// reset the cpu
@@ -137,14 +122,14 @@ impl<'a> CPU<'a> {
     }
 
     /// decode and execute one instruction
-    pub fn step(&mut self) -> i64 {
+    pub fn step(&mut self, bus: &mut Bus) -> i64 {
         self.invalid_op = false;
         if self.enable_interrupt {
             self.iff1 = true;
             self.iff2 = true;
             self.enable_interrupt = false
         }
-        self.do_op(false)
+        self.do_op(bus, false)
     }
 
     /// load 8-bit unsigned immediate operand and increment PC
@@ -228,7 +213,7 @@ impl<'a> CPU<'a> {
     /// * 'd'   - the d in (IX+d), (IY+d), 0 if m is HL
     ///
     /// returns number of cycles the instruction takes
-    pub fn do_op(&mut self, ext: bool) -> i64 {
+    pub fn do_op(&mut self, bus: &mut Bus, ext: bool) -> i64 {
         let (cyc, ext_cyc) = if ext {(4,8)} else {(0,0)};
         let op = self.fetch_op();
 
@@ -532,13 +517,13 @@ impl<'a> CPU<'a> {
                         // OUT (n),A
                         let a = self.reg.a();
                         let port = (a<<8 | self.imm8()) & 0xFFFF;
-                        self.outp(port, a);
+                        self.outp(bus, port, a);
                         11
                     },
                     3 => {
                         // IN A,(n)
                         let port = (self.reg.a()<<8 | self.imm8()) & 0xFFFF;
-                        let v = self.inp(port);
+                        let v = self.inp(bus, port);
                         self.reg.set_a(v);
                         11
                     },
@@ -592,18 +577,18 @@ impl<'a> CPU<'a> {
                     (1, 1) => {
                         // DD prefix instructions
                         self.reg.patch_ix();
-                        let cycles = self.do_op(true);
+                        let cycles = self.do_op(bus, true);
                         self.reg.unpatch();
                         cycles
                     },
                     (1, 2) => {
                         // ED prefix instructions
-                        self.do_ed_op()
+                        self.do_ed_op(bus)
                     },
                     (1, 3) => {
                         // FD prefix instructions
                         self.reg.patch_iy();
-                        let cycles = self.do_op(true); 
+                        let cycles = self.do_op(bus, true); 
                         self.reg.unpatch();
                         cycles
                     },
@@ -629,7 +614,7 @@ impl<'a> CPU<'a> {
     }
 
     /// fetch and execute ED prefix instruction
-    fn do_ed_op(&mut self) -> i64 {
+    fn do_ed_op(&mut self, bus: &mut Bus) -> i64 {
         let op = self.fetch_op();
 
         // split instruction byte into bit groups
@@ -646,20 +631,20 @@ impl<'a> CPU<'a> {
             (2, 5, 1) => { self.cpd(); 16 },
             (2, 6, 1) => { self.cpir() },
             (2, 7, 1) => { self.cpdr() },
-            (2, 4, 2) => { self.ini(); 16 },
-            (2, 5, 2) => { self.ind(); 16 },
-            (2, 6, 2) => { self.inir() },
-            (2, 7, 2) => { self.indr() },
-            (2, 4, 3) => { self.outi(); 16 },
-            (2, 5, 3) => { self.outd(); 16 },
-            (2, 6, 3) => { self.otir() },
-            (2, 7, 3) => { self.otdr() },
+            (2, 4, 2) => { self.ini(bus); 16 },
+            (2, 5, 2) => { self.ind(bus); 16 },
+            (2, 6, 2) => { self.inir(bus) },
+            (2, 7, 2) => { self.indr(bus) },
+            (2, 4, 3) => { self.outi(bus); 16 },
+            (2, 5, 3) => { self.outd(bus); 16 },
+            (2, 6, 3) => { self.otir(bus) },
+            (2, 7, 3) => { self.otdr(bus) },
 
             (1, 6, 0) => { 
                 // IN F,(C) (undocumented special case, only alter flags,
                 // don't store result)
                 let bc = self.reg.bc();
-                let v = self.inp(bc);
+                let v = self.inp(bus, bc);
                 let f = flags_szp(v) | (self.reg.f() & CF);
                 self.reg.set_f(f);
                 12
@@ -667,7 +652,7 @@ impl<'a> CPU<'a> {
             (1, _, 0) => {
                 // IN r,(C)
                 let bc = self.reg.bc();
-                let v = self.inp(bc);
+                let v = self.inp(bus, bc);
                 self.reg.set_r8(y, v);
                 let f = flags_szp(v) | (self.reg.f() & CF);
                 self.reg.set_f(f);
@@ -676,14 +661,14 @@ impl<'a> CPU<'a> {
             (1, 6, 1) => {
                 // OUT (C),F (undocumented special case, always output 0)
                 let bc = self.reg.bc();
-                self.outp(bc, 0);
+                self.outp(bus, bc, 0);
                 12
             },
             (1, _, 1) => {
                 // OUT (C),r
                 let bc = self.reg.bc();
                 let v = self.reg.r8(y);
-                self.outp(bc, v);
+                self.outp(bus, bc, v);
                 12
             },
             (1, _, 2) => {
@@ -1446,19 +1431,13 @@ impl<'a> CPU<'a> {
     }
 
     #[inline(always)]
-    pub fn inp(&mut self, port: RegT) -> RegT {
-        match self.in_fn {
-            Some(ref mut f) => f(port) & 0xFF,
-            None => 0,
-        }
+    pub fn inp(&mut self, bus: &mut Bus, port: RegT) -> RegT {
+        bus.inp(port) & 0xFF
     }
 
     #[inline(always)]
-    pub fn outp(&mut self, port: RegT, val: RegT) {
-        match self.out_fn {
-            Some(ref mut f) => f(port, val),
-            None => {},
-        }
+    pub fn outp(&mut self, bus: &mut Bus, port: RegT, val: RegT) {
+        bus.outp(port, val);
     }
 
     #[inline(always)]
@@ -1484,9 +1463,9 @@ impl<'a> CPU<'a> {
     }
 
     #[inline(always)]
-    pub fn ini(&mut self) {
+    pub fn ini(&mut self, bus: &mut Bus) {
         let bc = self.reg.bc();
-        let io_val = self.inp(bc);
+        let io_val = self.inp(bus, bc);
         self.reg.set_wz(bc + 1);
         let b = self.reg.b();
         self.reg.set_b(b - 1);
@@ -1498,9 +1477,9 @@ impl<'a> CPU<'a> {
     }
 
     #[inline(always)]
-    pub fn ind(&mut self) {
+    pub fn ind(&mut self, bus: &mut Bus) {
         let bc = self.reg.bc();
-        let io_val = self.inp(bc);
+        let io_val = self.inp(bus, bc);
         self.reg.set_wz(bc - 1);
         let b = self.reg.b();
         self.reg.set_b(b - 1);
@@ -1512,8 +1491,8 @@ impl<'a> CPU<'a> {
     }
 
     #[inline(always)]
-    pub fn inir(&mut self) -> i64 {
-        self.ini();
+    pub fn inir(&mut self, bus: &mut Bus) -> i64 {
+        self.ini(bus);
         if self.reg.b() != 0 {
             let pc = self.reg.pc();
             self.reg.set_pc(pc - 2);
@@ -1525,8 +1504,8 @@ impl<'a> CPU<'a> {
     }
 
     #[inline(always)]
-    pub fn indr(&mut self) -> i64 {
-        self.ind();
+    pub fn indr(&mut self, bus: &mut Bus) -> i64 {
+        self.ind(bus);
         if self.reg.b() != 0 {
             let pc = self.reg.pc();
             self.reg.set_pc(pc - 2);
@@ -1538,36 +1517,36 @@ impl<'a> CPU<'a> {
     }
 
     #[inline(always)]
-    pub fn outi(&mut self) {
+    pub fn outi(&mut self, bus: &mut Bus) {
         let hl = self.reg.hl();
         let io_val = self.mem.r8(hl);
         self.reg.set_hl(hl + 1);
         let b = self.reg.b();
         self.reg.set_b(b - 1);
         let bc = self.reg.bc();
-        self.outp(bc, io_val);
+        self.outp(bus, bc, io_val);
         self.reg.set_wz(bc + 1);
         let f = self.outi_outd_flags(io_val);
         self.reg.set_f(f);
     }
 
     #[inline(always)]
-    pub fn outd(&mut self) {
+    pub fn outd(&mut self, bus: &mut Bus) {
         let hl = self.reg.hl();
         let io_val = self.mem.r8(hl);
         self.reg.set_hl(hl - 1);
         let b = self.reg.b();
         self.reg.set_b(b - 1);
         let bc = self.reg.bc();
-        self.outp(bc, io_val);
+        self.outp(bus, bc, io_val);
         self.reg.set_wz(bc - 1);
         let f = self.outi_outd_flags(io_val);
         self.reg.set_f(f);
     }
 
     #[inline(always)]
-    pub fn otir(&mut self) -> i64 {
-        self.outi();
+    pub fn otir(&mut self, bus: &mut Bus) -> i64 {
+        self.outi(bus);
         if self.reg.b() != 0 {
             let pc = self.reg.pc();
             self.reg.set_pc(pc - 2);
@@ -1579,8 +1558,8 @@ impl<'a> CPU<'a> {
     }
 
     #[inline(always)]
-    pub fn otdr(&mut self) -> i64 {
-        self.outd();
+    pub fn otdr(&mut self, bus: &mut Bus) -> i64 {
+        self.outd(bus);
         if self.reg.b() != 0 {
             let pc = self.reg.pc();
             self.reg.set_pc(pc - 2);
@@ -1592,11 +1571,13 @@ impl<'a> CPU<'a> {
     }
 }
 
+//------------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
 
     use super::*;
     use RegT;
+    use Bus;
     use registers::CF as CF;
     use registers::NF as NF;
     use registers::VF as VF;
@@ -1949,27 +1930,31 @@ mod tests {
         assert!(0x3F == e); assert!(test_flags(&cpu, PF|CF));
     }
 
+    struct TestBus { }
+    impl Bus for TestBus {
+        fn inp(&mut self, port: RegT) -> RegT {
+            assert!(port == 0x1234);
+            port & 0xFF
+        }
+        fn outp(&mut self, port: RegT, val: RegT) {
+            assert!(port == 0x1234);
+            assert!(val == 12)
+        }
+    }
+
     #[test]
     fn inp() {
-        let mut in_func = &mut |port| {
-            assert!(port == 0x1234);
-            port & 0xFF 
-        };
         let mut cpu = CPU::new();
-        cpu.set_in_fn(in_func);
-        let i = cpu.inp(0x1234);
+        let mut bus = TestBus { };
+        let i = cpu.inp(&mut bus, 0x1234);
         assert!(i == 0x34);
     }
 
     #[test]
     fn outp() {
-        let mut out_func = |port, val| {
-            assert!(port == 0x1234);
-            assert!(val == 12);
-        };
         let mut cpu = CPU::new();
-        cpu.set_out_fn(&mut out_func);
-        cpu.outp(0x1234, 12);
+        let mut bus = TestBus { };
+        cpu.outp(&mut bus, 0x1234, 12);
     }
 }
 

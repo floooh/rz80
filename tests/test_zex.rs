@@ -9,6 +9,9 @@ mod test_zex {
     static ZEXDOC: &'static [u8] = include_bytes!("zexdoc.com");
     static ZEXALL: &'static [u8] = include_bytes!("zexall.com");
 
+    struct DummyBus { }
+    impl rz80::Bus for DummyBus { }
+
     // emulates a CP/M BDOS call, only what's needed by ZEX
     fn cpm_bdos(cpu: &mut rz80::CPU) {
         match cpu.reg.c() {
@@ -44,12 +47,13 @@ mod test_zex {
         let mut num_ops = 0;
         let mut num_cycles = 0;
         let mut cpu = rz80::CPU::new();
+        let mut bus = DummyBus { };
         cpu.mem.write(0x0100, prog);
         cpu.reg.set_sp(0xF000);
         cpu.reg.set_pc(0x0100);
         loop {
             num_ops += 1;
-            num_cycles += cpu.step();
+            num_cycles += cpu.step(&mut bus);
             match cpu.reg.pc() {
                 0x0005 => { cpm_bdos(&mut cpu); },  // emulated CP/M BDOS call
                 0x0000 => { break; },
@@ -96,4 +100,3 @@ mod test_zex {
         test_zexall();
     }
 }
-
