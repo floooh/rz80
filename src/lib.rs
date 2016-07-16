@@ -1,16 +1,16 @@
-/// type aliases for 8- and 16-bit registers
-/// to prevent excessive type casting
 pub type RegT = i32;
 
 pub mod registers;
 pub mod memory;
-pub mod cpu;
 pub mod bus;
+pub mod cpu;
+pub mod pio;
 
 pub use registers::Registers as Registers;
 pub use memory::Memory as Memory;
 pub use cpu::CPU as CPU;
 pub use bus::Bus as Bus;
+pub use pio::PIO as PIO;
 
 pub use registers::CF as CF;
 pub use registers::NF as NF;

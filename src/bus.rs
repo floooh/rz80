@@ -10,7 +10,11 @@ use RegT;
 #[allow(unused_variables)]
 pub trait Bus {
     /// CPU reads from I/O port
-    fn inp(&mut self, port: RegT) -> RegT { 0 }
+    fn cpu_inp(&mut self, port: RegT) -> RegT { 0 }
     /// CPU writes to I/O port
-    fn outp(&mut self, port: RegT, val: RegT) { }
+    fn cpu_outp(&mut self, port: RegT, val: RegT) { }
+    /// PIO output callback
+    fn pio_inp(&mut self, pio: usize, chn: usize, data: RegT) { }
+    /// PIO input callback
+    fn pio_outp(&mut self, pio: usize, chn: usize) -> RegT { 0 }
 }

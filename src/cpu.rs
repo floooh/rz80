@@ -88,7 +88,7 @@ use registers::WZ_ as WZ_;
 
 impl CPU {
 
-    /// initialize a new Z80 CPU object with input/output callbacks
+    /// initialize a new Z80 CPU object
     pub fn new() -> CPU {
         CPU {
             reg: Registers::new(),
@@ -1432,12 +1432,12 @@ impl CPU {
 
     #[inline(always)]
     pub fn inp(&mut self, bus: &mut Bus, port: RegT) -> RegT {
-        bus.inp(port) & 0xFF
+        bus.cpu_inp(port) & 0xFF
     }
 
     #[inline(always)]
     pub fn outp(&mut self, bus: &mut Bus, port: RegT, val: RegT) {
-        bus.outp(port, val);
+        bus.cpu_outp(port, val);
     }
 
     #[inline(always)]
@@ -1932,11 +1932,11 @@ mod tests {
 
     struct TestBus { }
     impl Bus for TestBus {
-        fn inp(&mut self, port: RegT) -> RegT {
+        fn cpu_inp(&mut self, port: RegT) -> RegT {
             assert!(port == 0x1234);
             port & 0xFF
         }
-        fn outp(&mut self, port: RegT, val: RegT) {
+        fn cpu_outp(&mut self, port: RegT, val: RegT) {
             assert!(port == 0x1234);
             assert!(val == 12)
         }

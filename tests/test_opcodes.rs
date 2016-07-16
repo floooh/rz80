@@ -30,10 +30,10 @@ mod test_opcodes {
         }
     }
     impl rz80::Bus for TestBus {
-        fn inp(&mut self, port: RegT) -> RegT {
+        fn cpu_inp(&mut self, port: RegT) -> RegT {
             (port * 2) & 0xFF
         }
-        fn outp(&mut self, port: RegT, val: RegT) {
+        fn cpu_outp(&mut self, port: RegT, val: RegT) {
             self.port = port;
             self.val = val;
         }
