@@ -1,5 +1,6 @@
 #![allow(unused)]
 use RegT;
+use bus::Bus;
 
 pub const A : usize = 0;    // PIO channel A
 pub const B : usize = 1;    // PIO channel B
@@ -33,17 +34,21 @@ struct Channel {
     pub int_vector : u8,
     pub int_control : u8,
     pub bctrl_match : bool,
+    pub rdy : bool,
+    pub stb : bool,
 }
 
 /// the Z80 PIO state
 pub struct PIO {
+    id : usize,     // id of PIO (needed for systems with multiple ids)
     chn : [Channel; NUM_CHANNELS]
 }
 
 impl PIO {
     /// initialize new PIO object
-    pub fn new() -> PIO {
+    pub fn new(id: usize) -> PIO {
         PIO {
+            id: id,
             chn: [
                 Channel {
                     expect:         Expect::Any,
@@ -55,6 +60,8 @@ impl PIO {
                     int_vector:     0,
                     int_control:    0,
                     bctrl_match:    false,
+                    rdy:            false,
+                    stb:            false,
                 }; NUM_CHANNELS
             ]
         }
@@ -70,6 +77,8 @@ impl PIO {
             chn.int_mask  = 0xFF;
             chn.int_control &= !INTCTRL_ENABLE_INT;
             chn.bctrl_match = false;
+            chn.rdy = false;
+            chn.stb = false;
         }
     }
 
@@ -118,9 +127,7 @@ impl PIO {
                     _ if (val & 1) == 0 => {
                         c.int_vector = val as u8;
                     },
-                    _ => {
-                        panic!("Invalid PIO control word!");
-                    }
+                    _ => panic!("Invalid PIO control word!")
                 }
             }
         }
@@ -131,20 +138,91 @@ impl PIO {
         ((self.chn[A].int_control & 0xC0) | (self.chn[B].int_control >> 4)) as RegT
     }
 
+    /// set rdy flag on channel, and call pio_rdy callback on bus if changed
+    fn set_rdy(&mut self, bus: &mut Bus, chn: usize, rdy: bool) {
+        let c = &mut self.chn[chn];
+        if c.rdy != rdy {
+            c.rdy = rdy;
+            bus.pio_rdy(self.id, chn, rdy);
+        }
+    }
+
     /// write data to PIO channel
-    pub fn write_data(&mut self, chn: usize, data: RegT) {
-        // FIXME
+    pub fn write_data(&mut self, bus: &mut Bus, chn: usize, data: RegT) {
+        match self.chn[chn].mode {
+            MODE_OUTPUT => {
+                self.set_rdy(bus, chn, false);
+                self.chn[chn].output = data as u8;
+                bus.pio_outp(self.id, chn, data);
+                self.set_rdy(bus, chn, true);
+            },
+            MODE_INPUT => { 
+                self.chn[chn].output = data as u8;  // not a bug
+            },
+            MODE_BIDIRECTIONAL => {
+                self.set_rdy(bus, chn, false);
+                self.chn[chn].output = data as u8;
+                if !self.chn[chn].stb {
+                    bus.pio_outp(self.id, chn, data);
+                }
+                self.set_rdy(bus, chn, true);
+            },
+            MODE_BITCONTROL => {
+                self.chn[chn].output = data as u8;
+                bus.pio_outp(self.id, chn, data);
+            },
+            _ => panic!("Invalid PIO mode!")
+        }
     }
 
     /// read data from PIO channel
-    pub fn read_data(&self, chn: usize) -> RegT {
-        // FIXME
-        0
+    pub fn read_data(&mut self, bus: &mut Bus, chn: usize) -> RegT {
+        match self.chn[chn].mode {
+            MODE_OUTPUT => {
+                self.chn[chn].output as RegT
+            },
+            MODE_INPUT => {
+                if !self.chn[chn].stb {
+                    self.chn[chn].input = bus.pio_inp(self.id, chn) as u8;
+                }
+                self.set_rdy(bus, chn, false);
+                self.set_rdy(bus, chn, true);
+                self.chn[chn].input as RegT
+            },
+            MODE_BIDIRECTIONAL => {
+                self.set_rdy(bus, chn, false);
+                self.set_rdy(bus, chn, true);
+                self.chn[chn].input as RegT
+            },
+            MODE_BITCONTROL => {
+                self.chn[chn].input = bus.pio_inp(self.id, chn) as u8;
+                let c = self.chn[chn];
+                ((c.input & c.io_select) | (c.output & !c.io_select)) as RegT
+            }
+            _ => panic!("Invalid PIO mode!")
+        }
     }
 
     /// write data from peripheral device into PIO
-    pub fn write(&mut self, chn: usize, data: RegT) {
-        // FIXME
+    pub fn write(&mut self, bus: &mut Bus, chn: usize, data: RegT) {
+        let mut c = self.chn[chn];
+        if c.mode == MODE_BITCONTROL {
+            c.input = data as u8;
+            let mask = !c.int_mask;
+            let val = mask & ((c.input & c.io_select) | (c.output & !c.io_select));
+            let ictrl = c.int_control & 0x60;
+
+            let bmatch = 
+                ((ictrl == 0x00) && (val != mask)) ||
+                ((ictrl == 0x20) && (val != 0)) ||
+                ((ictrl == 0x40) && (val == 0)) ||
+                ((ictrl == 0x60) && (val == mask));
+            
+            if !c.bctrl_match && bmatch && (0 != (c.int_control & INTCTRL_ENABLE_INT)) {
+                bus.pio_int(self.id, chn, c.int_vector as RegT);
+            }
+            c.bctrl_match = bmatch;
+        }
     }
 }
 
@@ -156,7 +234,7 @@ mod tests {
 
     #[test]
     fn reset() {
-        let mut pio = PIO::new();
+        let mut pio = PIO::new(0);
         for chn in pio.chn.iter() {
             assert!(Expect::Any == chn.expect);
             assert!(MODE_OUTPUT == chn.mode);
@@ -207,7 +285,7 @@ mod tests {
 
     #[test]
     fn write_control() {
-        let mut pio = PIO::new();
+        let mut pio = PIO::new(0);
 
         // load interrupt vector (bit 0 == 0)
         pio.write_control(A, 0xE0);

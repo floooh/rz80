@@ -13,8 +13,13 @@ pub trait Bus {
     fn cpu_inp(&mut self, port: RegT) -> RegT { 0 }
     /// CPU writes to I/O port
     fn cpu_outp(&mut self, port: RegT, val: RegT) { }
+
     /// PIO output callback
-    fn pio_inp(&mut self, pio: usize, chn: usize, data: RegT) { }
+    fn pio_outp(&mut self, pio: usize, chn: usize, data: RegT) { }
     /// PIO input callback
-    fn pio_outp(&mut self, pio: usize, chn: usize) -> RegT { 0 }
+    fn pio_inp(&mut self, pio: usize, chn: usize) -> RegT { 0 }
+    /// PIO channel rdy line has changed
+    fn pio_rdy(&mut self, pio: usize, chn: usize, rdy: bool) { }
+    /// PIO interrupt request
+    fn pio_int(&mut self, pio: usize, chn: usize, int_vector: RegT) { }
 }
