@@ -20,7 +20,7 @@ pub const MODE_BITCONTROL      : u8 = 3;
 pub const INTCTRL_ENABLE_INT   : u8 = (1<<7);
 pub const INTCTRL_AND_OR       : u8 = (1<<6);
 pub const INTCTRL_HIGH_LOW     : u8 = (1<<5);
-pub const INTCTRL_MASK_FOLLOWS : u8 = (1<<6);
+pub const INTCTRL_MASK_FOLLOWS : u8 = (1<<4);
 
 #[derive(Clone, Copy)]
 struct Channel {
@@ -204,5 +204,61 @@ mod tests {
         assert!(INTCTRL_MASK_FOLLOWS == pio.chn[A].int_control);
         assert!(INTCTRL_HIGH_LOW == pio.chn[B].int_control);
     }   
+
+    #[test]
+    fn write_control() {
+        let mut pio = PIO::new();
+
+        // load interrupt vector (bit 0 == 0)
+        pio.write_control(A, 0xE0);
+        pio.write_control(B, 0xE2);
+        assert!(0xE0 == pio.chn[A].int_vector);
+        assert!(0xE2 == pio.chn[B].int_vector);
+
+        // set operating modes (0bmmxx1111), where mm
+        // is the mode (00:output, 01:input, 10:bidirectional, 11:bitcontrol)
+        // xx is ignored
+        // bidirectional requires the bit control word to be written next
+        pio.write_control(A, 0b00101111);   // output
+        assert!(MODE_OUTPUT == pio.chn[A].mode);
+        pio.write_control(A, 0b01011111);   // input
+        assert!(MODE_INPUT == pio.chn[A].mode);
+        pio.write_control(A, 0b10111111);   // bidirectional
+        assert!(MODE_BIDIRECTIONAL == pio.chn[A].mode);
+        pio.write_control(A, 0b11001111);   // bitcontrol
+        assert!(MODE_BITCONTROL == pio.chn[A].mode);
+        assert!(Expect::IOSelect == pio.chn[A].expect);
+        pio.write_control(A, 0b10101010);   // write bitcontrol IO mask
+        assert!(0b10101010 == pio.chn[A].io_select);
+        assert!(Expect::Any == pio.chn[A].expect);
+
+        // set interrupt control word
+        // bit 7: interrupt enable/disable
+        // bit 6: logic and/or (bitcontrol mode)
+        // bit 5: high/low (bitcontrol mode)
+        // bit 4: mask follows (bitcontrol mode)
+        // bit 3..0: 0111
+        pio.write_control(A, 0b10100111);
+        assert!(0b10100000 == pio.chn[A].int_control);
+        assert!(Expect::Any == pio.chn[A].expect);
+        assert!(INTCTRL_ENABLE_INT|INTCTRL_HIGH_LOW == 
+                INTCTRL_ENABLE_INT|INTCTRL_HIGH_LOW & pio.chn[A].int_control);
+        pio.write_control(A, 0b00010111);
+        assert!(0b00010000 == pio.chn[A].int_control);
+        assert!(INTCTRL_MASK_FOLLOWS == pio.chn[A].int_control & INTCTRL_MASK_FOLLOWS);
+        assert!(Expect::IntMask == pio.chn[A].expect);
+        pio.write_control(A, 0b01010101);
+        assert!(0b01010101 == pio.chn[A].int_mask);
+        assert!(Expect::Any == pio.chn[A].expect);
+
+        // set interrupt enable bit individually
+        pio.write_control(A, 0b11100111);
+        assert!(0b11100000 == pio.chn[A].int_control);
+        pio.write_control(A, 0b00000011);
+        assert!(0b01100000 == pio.chn[A].int_control);
+        pio.write_control(A, 0b10110011);
+        assert!(0b11100000 == pio.chn[A].int_control);
+        assert!(Expect::Any == pio.chn[A].expect);
+    }
 }
 

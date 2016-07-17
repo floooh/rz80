@@ -5,7 +5,7 @@
             "name": "Debug",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceRoot}/target/debug/test_opcodes-d60ce29fff854fa1",
+            "program": "${workspaceRoot}/target/debug/rz80-e1beb2b189db6167",
             "args": []
         }
     ]

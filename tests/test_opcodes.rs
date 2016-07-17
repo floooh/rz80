@@ -3,8 +3,6 @@ extern crate rz80;
 #[cfg(test)]
 #[allow(unused_imports)]
 mod test_opcodes {
-    use std::cell::Cell;
-    
     use rz80;
     use rz80::RegT as RegT;
     use rz80::CF as CF;
