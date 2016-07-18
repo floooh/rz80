@@ -1,17 +1,17 @@
 use RegT;
 
-const PAGE_SHIFT: usize = 10;       // 1 kByte page size = (1<<10)
-const PAGE_SIZE: usize = (1<<PAGE_SHIFT);
+const PAGE_SHIFT: usize = 10;   // 1 kByte page size = (1<<10)
+const PAGE_SIZE:  usize = (1<<PAGE_SHIFT);
 const PAGE_MASK:  usize = PAGE_SIZE-1;
-const HEAP_SIZE: usize = 512 * PAGE_SIZE;
-const NUM_PAGES: usize = (1<<16) / PAGE_SIZE;
+const HEAP_SIZE:  usize = 512 * PAGE_SIZE;
+const NUM_PAGES:  usize = (1<<16) / PAGE_SIZE;
 const NUM_LAYERS: usize = 4;
 
 #[derive(Clone,Copy)]
 struct Page {
-    pub offset: usize,          // offset into heap
-    pub writable : bool,        // true if the page is writable
-    pub mapped: bool,           // true if currently mapped
+    pub offset: usize,      // offset into heap
+    pub writable: bool,     // true if the page is writable
+    pub mapped: bool,       // true if currently mapped
 }
 
 impl Page {
