@@ -46,7 +46,7 @@ mod test_zex {
     fn run_test(prog: &[u8]) -> (i64, i64) {
         let mut num_ops = 0;
         let mut num_cycles = 0;
-        let mut cpu = rz80::CPU::new();
+        let mut cpu = rz80::CPU::new_64k();
         let mut bus = DummyBus { };
         cpu.mem.write(0x0100, prog);
         cpu.reg.set_sp(0xF000);

@@ -43,7 +43,7 @@ pub struct Memory {
 impl Memory {
 
     /// return new, unmapped memory object
-    pub fn new_unmapped() -> Memory {
+    pub fn new() -> Memory {
         Memory {
             pages: [Page::new(); NUM_PAGES],
             layers: [[Page::new(); NUM_PAGES]; NUM_LAYERS],
@@ -52,8 +52,8 @@ impl Memory {
     }
 
     /// return new memory object with 64 kByte mapped, writable memory (for testing)
-    pub fn new() -> Memory {
-        let mut mem = Memory::new_unmapped();
+    pub fn new_64k() -> Memory {
+        let mut mem = Memory::new();
         mem.map(0, 0, (1<<16), 0, true);
         mem
     }
@@ -163,6 +163,16 @@ impl Memory {
         }
     }
 
+    /// write unsigned byte, ignore write-protection flag
+    pub fn w8f(&mut self, addr: RegT, val: RegT) {
+        let uaddr = (addr & 0xFFFF) as usize;
+        let page = &self.pages[uaddr >> PAGE_SHIFT];
+        if page.mapped { 
+            let heap_offset = page.offset + (uaddr & PAGE_MASK);
+            self.heap[heap_offset] = val as u8;
+        }
+    }
+
     /// read unsigned word from 16-bit address
     #[inline(always)]
     pub fn r16(&self, addr: RegT) -> RegT {
@@ -180,11 +190,11 @@ impl Memory {
         self.w8(addr + 1, h);
     }
 
-    /// write a whole chunk of memory
+    /// write a whole chunk of memory, ignore write-protection
     pub fn write(&mut self, addr: RegT, data: &[u8]) {
         let mut offset = 0;
         for b in data {
-            self.w8(addr+offset, *b as RegT);
+            self.w8f(addr+offset, *b as RegT);
             offset += 1;
         }
     }
@@ -196,7 +206,7 @@ mod tests {
 
     #[test]
     fn mem_readwrite() {
-        let mut mem = Memory::new();
+        let mut mem = Memory::new_64k();
         mem.w8(0x1234, 0x12);
         assert!(mem.r8(0x1234) == 0x12);
 
