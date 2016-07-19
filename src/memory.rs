@@ -272,4 +272,27 @@ mod tests {
         mem.w8(0x0000, 0x66);
         assert!(mem.r8(0x0000) == 0x66);
     }
+
+    #[test]
+    fn mem_layers() {
+        let mut mem = Memory::new();
+        const SIZE : usize = 0x8000;  // 32k
+        let x11 = [0x11u8; SIZE];
+        let x22 = [0x22u8; SIZE];
+        let x33 = [0x33u8; SIZE];
+        let x44 = [0x44u8; SIZE];
+        mem.map_bytes(3, 0x00000, 0x0000, true, &x11);
+        mem.map_bytes(2, 0x08000, 0x4000, true, &x22);
+        mem.map_bytes(1, 0x10000, 0x8000, true, &x33);
+        mem.map_bytes(0, 0x18000, 0xC000, true, &x44);
+        assert!(mem.r8(0x0000) == 0x44);    // layer 0 is wrapping around at 0xFFFF
+        assert!(mem.r8(0x4000) == 0x22);
+        assert!(mem.r8(0x8000) == 0x33);
+        assert!(mem.r8(0xC000) == 0x44);
+        mem.unmap(0, 0xC000, SIZE);
+        assert!(mem.r8(0x0000) == 0x11); 
+        assert!(mem.r8(0x4000) == 0x22);
+        assert!(mem.r8(0x8000) == 0x33);
+        assert!(mem.r8(0xC000) == 0x33);
+    }
 }
