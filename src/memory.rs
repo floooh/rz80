@@ -1,3 +1,4 @@
+use std::mem;
 use RegT;
 
 const PAGE_SHIFT: usize = 10;   // 1 kByte page size = (1<<10)
@@ -54,12 +55,12 @@ impl Memory {
     /// return new memory object with 64 kByte mapped, writable memory (for testing)
     pub fn new_64k() -> Memory {
         let mut mem = Memory::new();
-        mem.map(0, 0, (1<<16), 0, true);
+        mem.map(0, 0, 0, true, (1<<16));
         mem
     }
 
-    /// map a chunk of heap memory to CPU-mapped memory
-    pub fn map(&mut self, layer: usize, heap_offset: usize, size: usize, addr: usize, writable: bool) {
+    /// map a chunk of uninitialized heap memory to CPU-mapped memory
+    pub fn map(&mut self, layer: usize, heap_offset: usize, addr: usize, writable: bool, size: usize) {
         assert!((size & PAGE_MASK) == 0);
         assert!((addr & PAGE_MASK) == 0);
         let num = size >> PAGE_SHIFT;
@@ -70,6 +71,16 @@ impl Memory {
             page.map(heap_offset + map_offset, writable);
         }
         self.update_mapping();
+    }
+
+    /// map a chunk of heap memory, and initialize it
+    pub fn map_bytes(&mut self, layer: usize, heap_offset: usize, addr: usize, writable: bool, content: &[u8]) {
+        assert!((addr & PAGE_MASK) == 0);
+        let size = mem::size_of_val(content);
+        assert!((size & PAGE_MASK) == 0);
+        self.map(layer, heap_offset, addr, writable, size);
+        let dst = &mut self.heap[heap_offset..heap_offset+size];
+        dst.clone_from_slice(content);
     }
 
     /// unmap a chunk heap memory
@@ -222,5 +233,43 @@ mod tests {
         assert!(mem.r16(0xFFFF) == 0x2233);
         assert!(mem.r8(0xFFFF) == 0x33);
         assert!(mem.r8(0x0000) == 0x22);
+    }
+
+    #[test]
+    fn mem_map() {
+        let mut mem = Memory::new();
+        const SIZE : usize = 0x4000;  // 16k
+        let x11 = [0x11u8; SIZE];
+        let x22 = [0x22u8; SIZE];
+        let x33 = [0x33u8; SIZE];
+        let x44 = [0x44u8; SIZE];
+        mem.map_bytes(0, 0x0000, 0x0000, true, &x11);
+        mem.map_bytes(0, 0x4000, 0x4000, true, &x22);
+        mem.map_bytes(0, 0x8000, 0x8000, true, &x33);
+        mem.map_bytes(0, 0xC000, 0xC000, false, &x44);
+        assert!(mem.r8(0x0000) == 0x11);
+        assert!(mem.r8(0x4000) == 0x22);
+        assert!(mem.r8(0x8000) == 0x33);
+        assert!(mem.r8(0xC000) == 0x44);
+        assert!(mem.r8(0x3FFF) == 0x11);
+        assert!(mem.r8(0x7FFF) == 0x22);
+        assert!(mem.r8(0xBFFF) == 0x33);
+        assert!(mem.r8(0xFFFF) == 0x44);
+        assert!(mem.r16(0x3FFF) == 0x2211);
+        assert!(mem.r16(0x7FFF) == 0x3322);
+        assert!(mem.r16(0xBFFF) == 0x4433);
+        assert!(mem.r16(0xFFFF) == 0x1144);
+        mem.w16(0xBFFF, 0x1234);
+        assert!(mem.r8(0xBFFF) == 0x34);
+        assert!(mem.r8(0xC000) == 0x44);
+        mem.unmap(0, 0x4000, SIZE);
+        assert!(mem.r8(0x4000) == 0xFF);
+        assert!(mem.r8(0x7FFF) == 0xFF);
+        assert!(mem.r8(0x3FFF) == 0x11);
+        assert!(mem.r8(0x8000) == 0x33);
+        mem.w8(0x4000, 0x55);
+        assert!(mem.r8(0x4000) == 0xFF);
+        mem.w8(0x0000, 0x66);
+        assert!(mem.r8(0x0000) == 0x66);
     }
 }
