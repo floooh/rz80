@@ -14,8 +14,10 @@ pub trait Bus {
     /// CPU writes to I/O port
     fn cpu_outp(&mut self, port: RegT, val: RegT) { }
 
-    /// interrupt acknowledge (called by CPU), return interrupt vector
-    fn int_ack(&mut self) -> RegT { 0 }
+    /// interrupt request acknowledge (called by CPU), return interrupt vector
+    fn irq_ack(&mut self) -> RegT { 0 }
+    /// notify interrupt daisy chain that CPU executed a RETI
+    fn irq_reti(&mut self) { }
 
     /// PIO output callback
     fn pio_outp(&mut self, pio: usize, chn: usize, data: RegT) { }

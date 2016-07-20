@@ -37,10 +37,7 @@ mod test_zex {
                 panic!("Unknown CP/M call {}!", cpu.reg.c());
             }
         }
-        // emulate a RET
-        let sp = cpu.reg.sp();
-        cpu.reg.set_pc(cpu.mem.r16(sp));
-        cpu.reg.set_sp(sp + 2);
+        cpu.ret();
     }
 
     fn run_test(prog: &[u8]) -> (i64, i64) {

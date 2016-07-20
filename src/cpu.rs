@@ -730,8 +730,9 @@ impl CPU {
                 self.neg8();
                 8
             },
-            (1, _, 5) => {
-                panic!("FIXME: RETN, RETI");
+            (1, 1, 5) => {
+                // RETI (RETN is not implemented)
+                self.reti(bus)
             },
             (1, _, 6) => {
                 match y {
@@ -880,6 +881,12 @@ impl CPU {
         self.irq_received = true;
     }
 
+    pub fn reti(&mut self, bus: &mut Bus) -> i64 {
+        self.ret();
+        bus.irq_reti();
+        15
+    }
+
     pub fn handle_irq(&mut self, bus: &mut Bus) -> i64 {
         // NOTE: only interrupt mode 2 is supported at the moment
         assert!(2 == self.reg.im);
@@ -897,7 +904,7 @@ impl CPU {
             self.irq_received = false;
             self.iff1 = false;
             self.iff2 = false;
-            let vec = bus.int_ack();
+            let vec = bus.irq_ack();
             let addr = (self.reg.i<<8 | vec) & 0xFFFE;
         
             // store return address on stack, and jump to interrupt handler
