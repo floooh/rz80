@@ -134,7 +134,7 @@ impl CPU {
         self.reg.r = (self.reg.r & 0x80) | ((self.reg.r+1) & 0x7F);
         let pc = self.reg.pc();
         let op = self.mem.r8(pc);
-        self.reg.set_pc(pc + 1);
+        self.reg.inc_pc(1);
         op
     }
 
@@ -146,7 +146,7 @@ impl CPU {
             self.iff2 = true;
             self.enable_interrupt = false
         }
-        let cyc = self.do_op(bus, false);
+        let mut cyc = self.do_op(bus, false);
         if self.irq_received {
             cyc += self.handle_irq(bus);
             self.irq_received = false;
@@ -159,7 +159,7 @@ impl CPU {
     fn imm8(&mut self) -> RegT {
         let pc  = self.reg.pc();
         let imm = self.mem.r8(pc);
-        self.reg.set_pc(pc + 1);
+        self.reg.inc_pc(1);
         imm
     }
 
@@ -168,7 +168,7 @@ impl CPU {
     fn imm16(&mut self) -> RegT {
         let pc  = self.reg.pc();
         let imm = self.mem.r16(pc);
-        self.reg.set_pc(pc + 2);
+        self.reg.inc_pc(2);
         imm
     }
 
@@ -177,7 +177,7 @@ impl CPU {
     fn d(&mut self) -> RegT {
         let pc = self.reg.pc();
         let d = self.mem.rs8(pc);
-        self.reg.set_pc(pc + 1);
+        self.reg.inc_pc(1);
         d
     }
 
@@ -321,7 +321,7 @@ impl CPU {
                     12
                 }
                 else {
-                    self.reg.set_pc(pc + 1);
+                    self.reg.inc_pc(1);
                     7                    
                 }
             }
@@ -1393,7 +1393,7 @@ impl CPU {
         self.ldi();
         if (self.reg.f() & VF) != 0 {
             let pc = self.reg.pc();
-            self.reg.set_pc(pc - 2);
+            self.reg.dec_pc(2);
             self.reg.set_wz(pc + 1);
             21
         }
@@ -1407,7 +1407,7 @@ impl CPU {
         self.ldd();
         if (self.reg.f() & VF) != 0 {
             let pc = self.reg.pc();
-            self.reg.set_pc(pc - 2);
+            self.reg.dec_pc(2);
             self.reg.set_wz(pc + 1);
             21
         }
@@ -1465,7 +1465,7 @@ impl CPU {
         self.cpi();
         if (self.reg.f() & (VF|ZF)) == VF {
             let pc = self.reg.pc();
-            self.reg.set_pc(pc - 2);
+            self.reg.dec_pc(2);
             self.reg.set_wz(pc + 1);
             21
         }
@@ -1479,7 +1479,7 @@ impl CPU {
         self.cpd();
         if (self.reg.f() & (VF|ZF)) == VF {
             let pc = self.reg.pc();
-            self.reg.set_pc(pc - 2);
+            self.reg.dec_pc(2);
             self.reg.set_wz(pc + 1);
             21
         }
@@ -1552,8 +1552,7 @@ impl CPU {
     pub fn inir(&mut self, bus: &mut Bus) -> i64 {
         self.ini(bus);
         if self.reg.b() != 0 {
-            let pc = self.reg.pc();
-            self.reg.set_pc(pc - 2);
+            self.reg.dec_pc(2);
             21
         }
         else {
@@ -1565,8 +1564,7 @@ impl CPU {
     pub fn indr(&mut self, bus: &mut Bus) -> i64 {
         self.ind(bus);
         if self.reg.b() != 0 {
-            let pc = self.reg.pc();
-            self.reg.set_pc(pc - 2);
+            self.reg.dec_pc(2);
             21
         }
         else {
@@ -1606,8 +1604,7 @@ impl CPU {
     pub fn otir(&mut self, bus: &mut Bus) -> i64 {
         self.outi(bus);
         if self.reg.b() != 0 {
-            let pc = self.reg.pc();
-            self.reg.set_pc(pc - 2);
+            self.reg.dec_pc(2);
             21
         }
         else {
@@ -1619,8 +1616,7 @@ impl CPU {
     pub fn otdr(&mut self, bus: &mut Bus) -> i64 {
         self.outd(bus);
         if self.reg.b() != 0 {
-            let pc = self.reg.pc();
-            self.reg.set_pc(pc - 2);
+            self.reg.dec_pc(2);
             21
         }
         else {
