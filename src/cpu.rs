@@ -11,6 +11,7 @@ pub struct CPU {
     pub iff2: bool,
     pub invalid_op: bool,
     enable_interrupt: bool,
+    irq_received: bool,
     pub mem : Memory,
 }
 
@@ -97,6 +98,7 @@ impl CPU {
             iff2: false,
             invalid_op: false,
             enable_interrupt: false,
+            irq_received: false,
             mem: Memory::new()
         }
     }
@@ -110,6 +112,7 @@ impl CPU {
             iff2: false,
             invalid_op: false,
             enable_interrupt: false,
+            irq_received: false,
             mem: Memory::new_64k()
         }
     }
@@ -121,6 +124,7 @@ impl CPU {
         self.iff1 = false;
         self.iff2 = false;
         self.invalid_op = false;
+        self.irq_received = false;
         self.enable_interrupt = false;
     }
 
@@ -142,7 +146,12 @@ impl CPU {
             self.iff2 = true;
             self.enable_interrupt = false
         }
-        self.do_op(bus, false)
+        let cyc = self.do_op(bus, false);
+        if self.irq_received {
+            cyc += self.handle_irq(bus);
+            self.irq_received = false;
+        }
+        cyc
     }
 
     /// load 8-bit unsigned immediate operand and increment PC
@@ -867,10 +876,46 @@ impl CPU {
         }
     }
 
+    pub fn irq(&mut self) {
+        self.irq_received = true;
+    }
+
+    pub fn handle_irq(&mut self, bus: &mut Bus) -> i64 {
+        // NOTE: only interrupt mode 2 is supported at the moment
+        assert!(2 == self.reg.im);
+        
+        let mut cycles = 2;
+
+        // leave HALT state
+        if self.halt {
+            self.halt = false;
+            self.reg.inc_pc(1);
+        }
+
+        // handle the interrupt
+        if self.iff1 {
+            self.irq_received = false;
+            self.iff1 = false;
+            self.iff2 = false;
+            let vec = bus.int_ack();
+            let addr = (self.reg.i<<8 | vec) & 0xFFFE;
+        
+            // store return address on stack, and jump to interrupt handler
+            let sp = (self.reg.sp() - 2) & 0xFFFF;
+            self.mem.w16(sp, self.reg.pc());
+            self.reg.set_sp(sp);
+            let int_handler = self.mem.r16(addr);
+            self.reg.set_pc(int_handler);
+            cycles += 19;
+        }
+        let pc = self.reg.pc();
+        self.reg.set_wz(pc);
+        cycles
+    }
+
     pub fn halt(&mut self) {
         self.halt = true;
-        let pc = self.reg.pc();
-        self.reg.set_pc(pc - 1);
+        self.reg.dec_pc(1);
     }
 
     #[inline(always)]

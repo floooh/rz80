@@ -188,6 +188,12 @@ impl Registers {
     #[inline(always)]
     pub fn set_pc(&mut self, v: RegT) { self.r_pc = v as u16; }
 
+    #[inline(always)]
+    pub fn inc_pc(&mut self, inc: u16) { self.r_pc = self.r_pc.wrapping_add(inc); }
+
+    #[inline(always)]
+    pub fn dec_pc(&mut self, dec: u16) { self.r_pc = self.r_pc.wrapping_sub(dec); }
+
     /// get 8-bit register by index (where index is 3-bit register id from Z80 instruction)
     #[inline(always)]
     pub fn r8(&self, r: usize) -> RegT { 

@@ -14,6 +14,9 @@ pub trait Bus {
     /// CPU writes to I/O port
     fn cpu_outp(&mut self, port: RegT, val: RegT) { }
 
+    /// interrupt acknowledge (called by CPU), return interrupt vector
+    fn int_ack(&mut self) -> RegT { 0 }
+
     /// PIO output callback
     fn pio_outp(&mut self, pio: usize, chn: usize, data: RegT) { }
     /// PIO input callback
