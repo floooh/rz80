@@ -1,4 +1,3 @@
-#![allow(unused)]
 use RegT;
 use bus::Bus;
 
@@ -134,7 +133,7 @@ impl PIO {
     }
 
     /// read control register
-    pub fn read_control(&self, chn: usize) -> RegT {
+    pub fn read_control(&self) -> RegT {
         ((self.chn[A].int_control & 0xC0) | (self.chn[B].int_control >> 4)) as RegT
     }
 
