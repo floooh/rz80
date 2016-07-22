@@ -14,6 +14,10 @@ pub trait Bus {
     /// CPU writes to I/O port
     fn cpu_outp(&mut self, port: RegT, val: RegT) { }
 
+    /// request an interrupt, called by a device to generate interrupt
+    fn irq(&mut self, ctrl_id: usize, vec: u8) { }
+    /// forward an interrupt-request to CPU, called by daisychain
+    fn irq_cpu(&mut self) { }
     /// interrupt request acknowledge (called by CPU), return interrupt vector
     fn irq_ack(&mut self) -> RegT { 0 }
     /// notify interrupt daisy chain that CPU executed a RETI
