@@ -10,25 +10,25 @@ use RegT;
 #[allow(unused_variables)]
 pub trait Bus {
     /// CPU reads from I/O port
-    fn cpu_inp(&mut self, port: RegT) -> RegT { 0 }
+    fn cpu_inp(&self, port: RegT) -> RegT { 0 }
     /// CPU writes to I/O port
-    fn cpu_outp(&mut self, port: RegT, val: RegT) { }
+    fn cpu_outp(&self, port: RegT, val: RegT) { }
 
     /// request an interrupt, called by a device to generate interrupt
-    fn irq(&mut self, ctrl_id: usize, vec: u8) { }
+    fn irq(&self, ctrl_id: usize, vec: u8) { }
     /// forward an interrupt-request to CPU, called by daisychain
-    fn irq_cpu(&mut self) { }
+    fn irq_cpu(&self) { }
     /// interrupt request acknowledge (called by CPU), return interrupt vector
-    fn irq_ack(&mut self) -> RegT { 0 }
+    fn irq_ack(&self) -> RegT { 0 }
     /// notify interrupt daisy chain that CPU executed a RETI
-    fn irq_reti(&mut self) { }
+    fn irq_reti(&self) { }
 
     /// PIO output callback
-    fn pio_outp(&mut self, pio: usize, chn: usize, data: RegT) { }
+    fn pio_outp(&self, pio: usize, chn: usize, data: RegT) { }
     /// PIO input callback
-    fn pio_inp(&mut self, pio: usize, chn: usize) -> RegT { 0 }
+    fn pio_inp(&self, pio: usize, chn: usize) -> RegT { 0 }
     /// PIO channel rdy line has changed
-    fn pio_rdy(&mut self, pio: usize, chn: usize, rdy: bool) { }
+    fn pio_rdy(&self, pio: usize, chn: usize, rdy: bool) { }
     /// PIO interrupt request
-    fn pio_int(&mut self, pio: usize, chn: usize, int_vector: RegT) { }
+    fn pio_int(&self, pio: usize, chn: usize, int_vector: RegT) { }
 }

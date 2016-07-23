@@ -139,7 +139,7 @@ impl CPU {
     }
 
     /// decode and execute one instruction
-    pub fn step(&mut self, bus: &mut Bus) -> i64 {
+    pub fn step(&mut self, bus: &Bus) -> i64 {
         self.invalid_op = false;
         if self.enable_interrupt {
             self.iff1 = true;
@@ -235,7 +235,7 @@ impl CPU {
     /// * 'd'   - the d in (IX+d), (IY+d), 0 if m is HL
     ///
     /// returns number of cycles the instruction takes
-    pub fn do_op(&mut self, bus: &mut Bus, ext: bool) -> i64 {
+    pub fn do_op(&mut self, bus: &Bus, ext: bool) -> i64 {
         let (cyc, ext_cyc) = if ext {(4,8)} else {(0,0)};
         let op = self.fetch_op();
 
@@ -636,7 +636,7 @@ impl CPU {
     }
 
     /// fetch and execute ED prefix instruction
-    fn do_ed_op(&mut self, bus: &mut Bus) -> i64 {
+    fn do_ed_op(&mut self, bus: &Bus) -> i64 {
         let op = self.fetch_op();
 
         // split instruction byte into bit groups
@@ -881,13 +881,13 @@ impl CPU {
         self.irq_received = true;
     }
 
-    pub fn reti(&mut self, bus: &mut Bus) -> i64 {
+    pub fn reti(&mut self, bus: &Bus) -> i64 {
         self.ret();
         bus.irq_reti();
         15
     }
 
-    pub fn handle_irq(&mut self, bus: &mut Bus) -> i64 {
+    pub fn handle_irq(&mut self, bus: &Bus) -> i64 {
         // NOTE: only interrupt mode 2 is supported at the moment
         assert!(2 == self.reg.im);
         
@@ -1496,12 +1496,12 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn inp(&mut self, bus: &mut Bus, port: RegT) -> RegT {
+    pub fn inp(&mut self, bus: &Bus, port: RegT) -> RegT {
         bus.cpu_inp(port) & 0xFF
     }
 
     #[inline(always)]
-    pub fn outp(&mut self, bus: &mut Bus, port: RegT, val: RegT) {
+    pub fn outp(&mut self, bus: &Bus, port: RegT, val: RegT) {
         bus.cpu_outp(port, val);
     }
 
@@ -1528,7 +1528,7 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn ini(&mut self, bus: &mut Bus) {
+    pub fn ini(&mut self, bus: &Bus) {
         let bc = self.reg.bc();
         let io_val = self.inp(bus, bc);
         self.reg.set_wz(bc + 1);
@@ -1542,7 +1542,7 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn ind(&mut self, bus: &mut Bus) {
+    pub fn ind(&mut self, bus: &Bus) {
         let bc = self.reg.bc();
         let io_val = self.inp(bus, bc);
         self.reg.set_wz(bc - 1);
@@ -1556,7 +1556,7 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn inir(&mut self, bus: &mut Bus) -> i64 {
+    pub fn inir(&mut self, bus: &Bus) -> i64 {
         self.ini(bus);
         if self.reg.b() != 0 {
             self.reg.dec_pc(2);
@@ -1568,7 +1568,7 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn indr(&mut self, bus: &mut Bus) -> i64 {
+    pub fn indr(&mut self, bus: &Bus) -> i64 {
         self.ind(bus);
         if self.reg.b() != 0 {
             self.reg.dec_pc(2);
@@ -1580,7 +1580,7 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn outi(&mut self, bus: &mut Bus) {
+    pub fn outi(&mut self, bus: &Bus) {
         let hl = self.reg.hl();
         let io_val = self.mem.r8(hl);
         self.reg.set_hl(hl + 1);
@@ -1594,7 +1594,7 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn outd(&mut self, bus: &mut Bus) {
+    pub fn outd(&mut self, bus: &Bus) {
         let hl = self.reg.hl();
         let io_val = self.mem.r8(hl);
         self.reg.set_hl(hl - 1);
@@ -1608,7 +1608,7 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn otir(&mut self, bus: &mut Bus) -> i64 {
+    pub fn otir(&mut self, bus: &Bus) -> i64 {
         self.outi(bus);
         if self.reg.b() != 0 {
             self.reg.dec_pc(2);
@@ -1620,7 +1620,7 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn otdr(&mut self, bus: &mut Bus) -> i64 {
+    pub fn otdr(&mut self, bus: &Bus) -> i64 {
         self.outd(bus);
         if self.reg.b() != 0 {
             self.reg.dec_pc(2);
@@ -1993,11 +1993,11 @@ mod tests {
 
     struct TestBus { }
     impl Bus for TestBus {
-        fn cpu_inp(&mut self, port: RegT) -> RegT {
+        fn cpu_inp(&self, port: RegT) -> RegT {
             assert!(port == 0x1234);
             port & 0xFF
         }
-        fn cpu_outp(&mut self, port: RegT, val: RegT) {
+        fn cpu_outp(&self, port: RegT, val: RegT) {
             assert!(port == 0x1234);
             assert!(val == 12)
         }
@@ -2006,16 +2006,16 @@ mod tests {
     #[test]
     fn inp() {
         let mut cpu = CPU::new_64k();
-        let mut bus = TestBus { };
-        let i = cpu.inp(&mut bus, 0x1234);
+        let bus = TestBus { };
+        let i = cpu.inp(&bus, 0x1234);
         assert!(i == 0x34);
     }
 
     #[test]
     fn outp() {
         let mut cpu = CPU::new_64k();
-        let mut bus = TestBus { };
-        cpu.outp(&mut bus, 0x1234, 12);
+        let bus = TestBus { };
+        cpu.outp(&bus, 0x1234, 12);
     }
 }
 
