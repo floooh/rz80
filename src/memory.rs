@@ -38,7 +38,7 @@ impl Page {
 pub struct Memory {
     pages: [Page; NUM_PAGES],                   // currently CPU-visible pages 
     layers: [[Page; NUM_PAGES]; NUM_LAYERS],    // currently mapped layers
-    heap: [u8; HEAP_SIZE],                      // all available physical memory
+    pub heap: [u8; HEAP_SIZE],                      // all available physical memory
 }
 
 impl Memory {
@@ -106,7 +106,7 @@ impl Memory {
     }
 
     /// unmap all pages in all layers
-    pub fn umap_all(&mut self) {
+    pub fn unmap_all(&mut self) {
         for layer in self.layers.iter_mut() {
             for page in layer.iter_mut() {
                 page.unmap();
