@@ -12,7 +12,10 @@ pub use memory::Memory as Memory;
 pub use cpu::CPU as CPU;
 pub use bus::Bus as Bus;
 pub use pio::PIO as PIO;
+pub use pio::A as PIO_A;
+pub use pio::B as PIO_B;
 pub use daisychain::Daisychain as Daisychain;
+
 
 pub use registers::CF as CF;
 pub use registers::NF as NF;

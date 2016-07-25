@@ -5,11 +5,11 @@ extern crate minifb;
 
 use std::cell::RefCell;
 use minifb::{Window, Key, Scale, WindowOptions};
-use rz80::{RegT,Bus,CPU,PIO,Daisychain};
+use rz80::*;
 
 const FB_WIDTH: usize=256;          // Z1013 framebuffer width
 const FB_HEIGHT: usize=256;         // Z1013 framebuffer height
-const Z1013_MAX_KEYS: usize=128;    // 
+const Z1013_MAX_KEYS: usize=128;
 const Z1013_FREQ_KHZ: i64=2000;     // frequency (2MHz = 2000 kHz)
 
 const DEV_PIO: usize=0;
@@ -119,6 +119,18 @@ impl Z1013 {
         self.kbd_column_bits = 0;
         cpu.reg.set_pc(0xF000);
     }
+
+    pub fn put_key(&mut self, ascii: u8) {
+        let key_index = (ascii as usize) & (Z1013_MAX_KEYS-1);
+        match ascii {
+            0 => { 
+                self.next_kbd_column_bits = 0; 
+            },
+            _ => { 
+                self.next_kbd_column_bits = self.key_map[key_index]; 
+            }
+        }
+    }
 }
 
 struct System {
@@ -129,13 +141,117 @@ struct System {
 }
 
 impl Bus for System {
-    fn cpu_inp(&self, port: RegT) -> RegT {
-        println!("IN {}", port);
-        0
-    }
+
     fn cpu_outp(&self, port: RegT, val: RegT) {
-        println!("OUT {},{}", port, val);
+        match port & 0xFF {
+            // PIO-A data
+            0x00 => {
+                // println!("PIO-A write data {:x}", val);
+                self.pio.borrow_mut().write_data(self, PIO_A, val);
+            },
+            // PIO-A, control
+            0x01 => {
+                // println!("PIO-A write control {:x}", val);
+                self.pio.borrow_mut().write_data(self, PIO_A, val);
+            },
+            // PIO-B, data
+            0x02 => {
+                // println!("PIO-B write data {:x}", val);
+                self.pio.borrow_mut().write_data(self, PIO_B, val);
+            },
+            // PIO-B, data
+            0x03 => {
+                // println!("PIO-B write control {:x}", val);
+                self.pio.borrow_mut().write_data(self, PIO_B, val);
+            },
+            // keyboard column
+            0x08 => {
+                // println!("keyboard column {:x}", val);
+                let mut z1013 = self.z1013.borrow_mut();
+                if val == 0 {
+                    z1013.kbd_column_bits = z1013.next_kbd_column_bits;
+                }
+                z1013.kbd_column_nr_requested = val as usize;
+            },
+            _ => {
+                println!("CPU OUT: {:x}", val);
+            }
+        }
     }
+    
+    fn cpu_inp(&self, port: RegT) -> RegT {
+        match port & 0xFF {
+            // PIO-A data
+            0x00 => {
+                // println!("PIO-A read data");
+                self.pio.borrow_mut().read_data(self, PIO_A)
+            },
+            // PIO-A control
+            0x01 => {
+                // println!("PIO-A read control");
+                self.pio.borrow_mut().read_control()
+            },
+            // PIO-B read data
+            0x02 => {
+                // println!("PIO-B read data");
+                self.pio.borrow_mut().read_data(self, PIO_B)
+            },
+            // PIO-B read control
+            0x03 => {
+                // println!("PIO-B read control");
+                self.pio.borrow_mut().read_control()
+            },
+            _ => {
+                println!("CPU IN: {:x}", port);
+                0xFF
+            }
+        }
+    }
+
+    fn pio_outp(&self, pio: usize, chn: usize, data: RegT) {
+        if chn == PIO_B {
+            // println!("PIO-B out {:x}", data);
+            let mut z1013 = self.z1013.borrow_mut();
+            z1013.kbd_8x8_requested = 0 != (data & (1<<4));
+        }
+        else {
+            println!("PIO-A output (unused)");
+        }
+    }
+
+    fn pio_inp(&self, pio: usize, chn: usize) -> RegT {
+        if chn == PIO_B {
+            // println!("PIO-B in");
+            let z1013 = self.z1013.borrow();
+            let col = z1013.kbd_column_nr_requested & 7;
+            let mut val = z1013.kbd_column_bits >> (col*8);
+            if z1013.kbd_8x8_requested {
+                val >>= 4;
+            }
+            val = 0xF & !(val & 0xF);
+            val as RegT
+        }
+        else {
+            println!("PIO-A input (unused)");
+            0xFF
+        }
+    }
+
+    fn irq(&self, ctrl_id: usize, vec: u8) { 
+        println!("IRQ");
+    }
+    fn irq_cpu(&self) {
+        println!("IRQ CPU");
+    }
+
+    fn irq_ack(&self) -> RegT { 
+        println!("IRQ ACK");
+        0 
+    }
+    fn irq_reti(&self) { 
+        println!("IRQ RETI");
+    }
+    
 }
 
 impl System {
@@ -183,18 +299,18 @@ impl System {
                 for x in 0..32 {
                     let chr = vid_mem[(y<<5)+x] as usize;
                     let bits = Z1013_FONT[(chr<<3)|py];
-                    fb[i+0] = if (bits & 0x80) != 0 {0xFFFFFFFF} else {0xFF000000};
-                    fb[i+1] = if (bits & 0x40) != 0 {0xFFFFFFFF} else {0xFF000000};
-                    fb[i+2] = if (bits & 0x20) != 0 {0xFFFFFFFF} else {0xFF000000};
-                    fb[i+3] = if (bits & 0x10) != 0 {0xFFFFFFFF} else {0xFF000000};
-                    fb[i+4] = if (bits & 0x08) != 0 {0xFFFFFFFF} else {0xFF000000};
-                    fb[i+5] = if (bits & 0x04) != 0 {0xFFFFFFFF} else {0xFF000000};
-                    fb[i+6] = if (bits & 0x02) != 0 {0xFFFFFFFF} else {0xFF000000};
-                    fb[i+7] = if (bits & 0x01) != 0 {0xFFFFFFFF} else {0xFF000000};
-                    i += 8;
+                    for px in 0..8 {
+                        fb[i] = if (bits & (1<<(7-px))) != 0 {0xFFFFFFFF} else {0xFF000000};
+                        i += 1;
+                    }
                 }
             }
         }
+    }
+
+    pub fn put_key(&mut self, ascii: u8) {
+        let mut z1013 = self.z1013.borrow_mut();
+        z1013.put_key(ascii);
     }
 }
 
@@ -218,9 +334,16 @@ fn main() {
     let micro_seconds_per_frame: i64 = 1000000 / 60;
     system.poweron();
     while window.is_open() && !window.is_key_down(Key::Escape) {
+        if window.is_key_down(Key::A) {
+            println!("KEY!");
+            system.put_key(b'A');
+        }
+        else {
+            system.put_key(0);
+        }
         system.step(micro_seconds_per_frame);
         system.decode_video(&mut frame_buffer);
-        window.update_with_buffer(&frame_buffer);   
+        window.update_with_buffer(&frame_buffer); 
     }
 }
 
