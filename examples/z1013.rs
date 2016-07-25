@@ -318,7 +318,7 @@ fn create_window() -> Window {
     match Window::new("rz80 Z1013 Example",
                FB_WIDTH, FB_HEIGHT,
                WindowOptions {
-                   resize: true,
+                   resize: false,
                    scale: Scale::X2,
                    ..WindowOptions::default()
                }) {
