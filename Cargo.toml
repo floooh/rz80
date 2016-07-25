@@ -5,6 +5,7 @@ authors = ["Andre Weissflog <floooh@gmail.com>"]
 
 [dependencies]
 time="0.1"
+minifb="0.8.2"
 
 [profile.release]
 lto = true
