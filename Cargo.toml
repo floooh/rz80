@@ -3,7 +3,7 @@ name = "rz80"
 version = "0.1.0"
 authors = ["Andre Weissflog <floooh@gmail.com>"]
 
-[dependencies]
+[dev-dependencies]
 time="0.1"
 minifb="0.8.2"
 
