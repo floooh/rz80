@@ -152,17 +152,17 @@ impl Bus for System {
             // PIO-A, control
             0x01 => {
                 // println!("PIO-A write control {:x}", val);
-                self.pio.borrow_mut().write_data(self, PIO_A, val);
+                self.pio.borrow_mut().write_control(PIO_A, val);
             },
             // PIO-B, data
             0x02 => {
                 // println!("PIO-B write data {:x}", val);
                 self.pio.borrow_mut().write_data(self, PIO_B, val);
             },
-            // PIO-B, data
+            // PIO-B, control
             0x03 => {
                 // println!("PIO-B write control {:x}", val);
-                self.pio.borrow_mut().write_data(self, PIO_B, val);
+                self.pio.borrow_mut().write_control(PIO_B, val);
             },
             // keyboard column
             0x08 => {
