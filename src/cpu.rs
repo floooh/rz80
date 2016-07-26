@@ -887,6 +887,7 @@ impl CPU {
         15
     }
 
+    #[inline(always)]
     pub fn handle_irq(&mut self, bus: &Bus) -> i64 {
         // NOTE: only interrupt mode 2 is supported at the moment
         assert!(2 == self.reg.im);
