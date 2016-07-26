@@ -1,24 +1,44 @@
-#![allow(unused)]
 extern crate rz80;
 extern crate time;
 extern crate minifb;
 
+use rz80::{CPU,PIO,Bus,RegT,PIO_A,PIO_B};
+use minifb::{Key, Window, Scale, WindowOptions};
 use std::cell::RefCell;
-use minifb::{Window, Key, Scale, WindowOptions};
-use rz80::*;
 
 const FB_WIDTH: usize=256;          // Z1013 framebuffer width
 const FB_HEIGHT: usize=256;         // Z1013 framebuffer height
 const Z1013_MAX_KEYS: usize=128;
 const Z1013_FREQ_KHZ: i64=2000;     // frequency (2MHz = 2000 kHz)
 
-const DEV_PIO: usize=0;
-const DEV_PIO_A: usize=0;
-const DEV_PIO_B: usize=1;
-const NUM_DEVS: usize=2;
-
+// binary dump of the Z1013 operatin system ROM and font data
 static Z1013_MON_A2: &'static [u8] = include_bytes!("z1013_mon_a2.bin");
 static Z1013_FONT:   &'static [u8] = include_bytes!("z1013_font.bin");
+
+// a mapping of all accepted minifb keys to their ASCII values (with and
+// without shift key pressed), this only works for english keyboard layouts
+static KEYS: &'static [(Key,u8,u8)] = &[
+    (Key::Key0,b'0',b')'), (Key::Key1,b'1',b'!'), (Key::Key2,b'2',b'@'), (Key::Key3,b'3',b'#'),
+    (Key::Key4,b'4',b'$'), (Key::Key5,b'5',b'%'), (Key::Key6,b'6',b'^'), (Key::Key7,b'7',b'&'),
+    (Key::Key8,b'8',b'*'), (Key::Key9,b'9',b'('), (Key::Minus,b'-',b'_'), (Key::Equal,b'=',b'+'),
+    (Key::A,b'A',b'a'), (Key::B,b'B',b'b'), (Key::C,b'C',b'c'), (Key::D,b'D',b'd'),
+    (Key::E,b'E',b'e'), (Key::F,b'F',b'f'), (Key::G,b'G',b'g'), (Key::H,b'H',b'h'),
+    (Key::I,b'I',b'i'), (Key::J,b'J',b'j'), (Key::K,b'K',b'k'), (Key::L,b'L',b'l'),
+    (Key::M,b'M',b'm'), (Key::N,b'N',b'n'), (Key::O,b'O',b'o'), (Key::P,b'P',b'p'),
+    (Key::Q,b'Q',b'q'), (Key::R,b'R',b'r'), (Key::S,b'S',b's'), (Key::T,b'T',b't'),
+    (Key::U,b'U',b'u'), (Key::V,b'V',b'v'), (Key::W,b'W',b'w'), (Key::X,b'X',b'x'),
+    (Key::Y,b'Y',b'y'), (Key::Z,b'Z',b'z'),
+    (Key::Comma,b',',b'<'), (Key::Period,b'.',b'>'), (Key::Slash,b'/',b'?'),
+    (Key::LeftBracket,b'[',b'{'), (Key::RightBracket,b']',b'}'),
+    (Key::Semicolon,b';',b':'), (Key::Apostrophe,b'\'',b'"'), (Key::Backslash,b'\\',b'|'),
+    (Key::Space,0x20,0x20), (Key::Left,0x08,0x08), (Key::Right,0x09,0x09), (Key::Down,0x0A,0x0A),
+    (Key::Up, 0x0B, 0x0B), (Key::Enter,0x0D,0x0D)
+];
+
+// the Z1013 8x8 keyboard matrix, in 2 layers (no-shift and shift)
+static KEY_MATRIX: &'static [u8] =
+    b"13579-  QETUO@  ADGJL*  YCBM.^  24680[  WRZIP]  SFHK+\\  XVN,/_  \
+      !#%')=  qetuo`  adgjl:  ycbm>~  \"$&( {  wrzip}  sfhk;|  xvn<?   ";
 
 struct Z1013 {
     kbd_column_nr_requested: usize,
@@ -53,29 +73,10 @@ impl Z1013 {
     }
 
     fn init_keymap_8x8(&mut self) {
-
-        // 8x8 keyboard matrix with 2 shift-layers
-        let layers_8x8 =
-            b"13579-  \
-              QETUO@  \
-              ADGJL*  \
-              YCBM.^  \
-              24680[  \
-              WRZIP]  \
-              SFHK+\\  \
-              XVN,/_  \
-              !#%')=  \
-              qetuo`  \
-              adgjl:  \
-              ycbm>~  \
-              \"$&( {  \
-              wrzip}  \
-              sfhk;|  \
-              xvn<?   ";
         for shift in 0..2 {
             for line in 0..8 {
                 for col in 0..8 {
-                    let c = layers_8x8[shift*64 + line*8 + col];
+                    let c = KEY_MATRIX[shift*64 + line*8 + col];
                     if 0x20 != c {
                         self.init_key(c, col, line, shift, 8);
                     }
@@ -113,13 +114,6 @@ impl Z1013 {
         cpu.reg.set_pc(0xF000);
     }
 
-    pub fn reset(&mut self, cpu: &mut CPU) {
-        self.kbd_column_nr_requested = 0;
-        self.next_kbd_column_bits = 0;
-        self.kbd_column_bits = 0;
-        cpu.reg.set_pc(0xF000);
-    }
-
     pub fn put_key(&mut self, ascii: u8) {
         let key_index = (ascii as usize) & (Z1013_MAX_KEYS-1);
         match ascii {
@@ -136,7 +130,6 @@ impl Z1013 {
 struct System {
     pub cpu: RefCell<CPU>,
     pub pio: RefCell<PIO>,
-    pub daisy: RefCell<Daisychain>,
     pub z1013: RefCell<Z1013>,
 }
 
@@ -146,36 +139,29 @@ impl Bus for System {
         match port & 0xFF {
             // PIO-A data
             0x00 => {
-                // println!("PIO-A write data {:x}", val);
                 self.pio.borrow_mut().write_data(self, PIO_A, val);
             },
             // PIO-A, control
             0x01 => {
-                // println!("PIO-A write control {:x}", val);
                 self.pio.borrow_mut().write_control(PIO_A, val);
             },
             // PIO-B, data
             0x02 => {
-                // println!("PIO-B write data {:x}", val);
                 self.pio.borrow_mut().write_data(self, PIO_B, val);
             },
             // PIO-B, control
             0x03 => {
-                // println!("PIO-B write control {:x}", val);
                 self.pio.borrow_mut().write_control(PIO_B, val);
             },
             // keyboard column
             0x08 => {
-                // println!("keyboard column {:x}", val);
                 let mut z1013 = self.z1013.borrow_mut();
                 if val == 0 {
                     z1013.kbd_column_bits = z1013.next_kbd_column_bits;
                 }
                 z1013.kbd_column_nr_requested = val as usize;
             },
-            _ => {
-                println!("CPU OUT: {:x}", val);
-            }
+            _ => ()
         }
     }
     
@@ -183,43 +169,32 @@ impl Bus for System {
         match port & 0xFF {
             // PIO-A data
             0x00 => {
-                // println!("PIO-A read data");
                 self.pio.borrow_mut().read_data(self, PIO_A)
             },
             // PIO-A control
             0x01 => {
-                // println!("PIO-A read control");
                 self.pio.borrow_mut().read_control()
             },
             // PIO-B read data
             0x02 => {
-                // println!("PIO-B read data");
                 self.pio.borrow_mut().read_data(self, PIO_B)
             },
             // PIO-B read control
             0x03 => {
-                // println!("PIO-B read control");
                 self.pio.borrow_mut().read_control()
             },
-            _ => {
-                println!("CPU IN: {:x}", port);
-                0xFF
-            }
+            _ => 0xFF
         }
     }
 
-    fn pio_outp(&self, pio: usize, chn: usize, data: RegT) {
+    fn pio_outp(&self, _: usize, chn: usize, data: RegT) {
         if chn == PIO_B {
-            // println!("PIO-B out {:x}", data);
             let mut z1013 = self.z1013.borrow_mut();
             z1013.kbd_8x8_requested = 0 != (data & (1<<4));
         }
-        else {
-            println!("PIO-A output (unused)");
-        }
     }
 
-    fn pio_inp(&self, pio: usize, chn: usize) -> RegT {
+    fn pio_inp(&self, _: usize, chn: usize) -> RegT {
         if chn == PIO_B {
             // println!("PIO-B in");
             let z1013 = self.z1013.borrow();
@@ -232,34 +207,16 @@ impl Bus for System {
             val as RegT
         }
         else {
-            println!("PIO-A input (unused)");
             0xFF
         }
     }
-
-    fn irq(&self, ctrl_id: usize, vec: u8) { 
-        println!("IRQ");
-    }
-    fn irq_cpu(&self) {
-        println!("IRQ CPU");
-    }
-
-    fn irq_ack(&self) -> RegT { 
-        println!("IRQ ACK");
-        0 
-    }
-    fn irq_reti(&self) { 
-        println!("IRQ RETI");
-    }
-    
 }
 
 impl System {
     pub fn new() -> System {
         System {
             cpu: RefCell::new(CPU::new()),
-            pio: RefCell::new(PIO::new(DEV_PIO)),
-            daisy: RefCell::new(Daisychain::new(NUM_DEVS)),
+            pio: RefCell::new(PIO::new(0)),
             z1013: RefCell::new(Z1013::new()),
         }
     }
@@ -268,17 +225,6 @@ impl System {
         let mut z1013 = self.z1013.borrow_mut();
         let mut cpu = self.cpu.borrow_mut();
         z1013.poweron(&mut cpu);
-    }
-
-    pub fn reset(&self) {
-        let mut cpu = self.cpu.borrow_mut();
-        let mut pio = self.pio.borrow_mut();
-        let mut daisy = self.daisy.borrow_mut();
-        let mut z1013 = self.z1013.borrow_mut();
-        cpu.reset();
-        pio.reset();
-        daisy.reset();
-        z1013.reset(&mut cpu);
     }
 
     pub fn step(&self, micro_seconds: i64) {
@@ -314,33 +260,30 @@ impl System {
     }
 }
 
-fn create_window() -> Window {
-    match Window::new("rz80 Z1013 Example",
-               FB_WIDTH, FB_HEIGHT,
-               WindowOptions {
-                   resize: false,
-                   scale: Scale::X2,
-                   ..WindowOptions::default()
-               }) {
-        Ok(win) => win,
-        Err(err) => panic!("Unable to create minifb window: {}", err)
-    }
-}
-
 fn main() {
     let mut system = System::new();
-    let mut window = create_window(); 
+    let mut window = match Window::new("rz80 Z1013 Example",
+           FB_WIDTH, FB_HEIGHT,
+           WindowOptions {
+               resize: false,
+               scale: Scale::X2,
+               ..WindowOptions::default()
+           }) {
+        Ok(win) => win,
+        Err(err) => panic!("Unable to create minifb window: {}", err)
+    };
     let mut frame_buffer = [0u32; FB_WIDTH*FB_HEIGHT];
     let micro_seconds_per_frame: i64 = 1000000 / 60;
     system.poweron();
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        if window.is_key_down(Key::A) {
-            println!("KEY!");
-            system.put_key(b'A');
+        let mut ascii: u8 = 0;
+        let shift = window.is_key_down(Key::LeftShift)|window.is_key_down(Key::RightShift);
+        for key in KEYS {
+            if window.is_key_down(key.0) {
+                ascii = if shift {key.2} else {key.1}
+            }
         }
-        else {
-            system.put_key(0);
-        }
+        system.put_key(ascii);
         system.step(micro_seconds_per_frame);
         system.decode_video(&mut frame_buffer);
         window.update_with_buffer(&frame_buffer); 
