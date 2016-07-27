@@ -158,11 +158,10 @@ impl Z1013 {
     }
 
     pub fn put_key(&mut self, ascii: u8) {
-        let key_index = (ascii as usize) & (Z1013_MAX_KEYS-1);
-        match ascii {
-            0 => self.next_kbd_column_bits = 0,
-            _ => self.next_kbd_column_bits = self.key_map[key_index],
-        }
+        self.next_kbd_column_bits = match ascii {
+            0 => 0,
+            _ => self.key_map[(ascii as usize) & (Z1013_MAX_KEYS-1)]
+        };
     }
 }
 
