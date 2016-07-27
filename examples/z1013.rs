@@ -36,9 +36,9 @@ use time::PreciseTime;
 use std::cell::RefCell;
 
 // import binary dumps of the operating system, font data and BASIC interpreter
-static OS:      &'static [u8] = include_bytes!("z1013_mon_a2.bin");
-static FONT:    &'static [u8] = include_bytes!("z1013_font.bin");
-static BASIC:   &'static [u8] = include_bytes!("kc_basic.z80"); 
+static OS:      &'static [u8] = include_bytes!("dumps/z1013_mon_a2.bin");
+static FONT:    &'static [u8] = include_bytes!("dumps/z1013_font.bin");
+static BASIC:   &'static [u8] = include_bytes!("dumps/kc_basic.z80"); 
 
 // framebuffer dimensions (32x32 characters @ 8x8 pixels)
 const WIDTH: usize=256;
