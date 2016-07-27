@@ -252,8 +252,8 @@ impl Bus for System {
     }
 
     // pio_inp() is called when a PIO data register is read, and this
-    // is final piece in the keyboard emulation puzzle, since this
-    // is where the upper or lower 4 lines of the keyboard matrix
+    // is the final piece in the keyboard emulation puzzle
+    // where the upper or lower 4 lines of the keyboard matrix
     // are returned
     fn pio_inp(&self, _: usize, chn: usize) -> RegT {
         if chn == PIO_B {
@@ -262,7 +262,7 @@ impl Bus for System {
             let mut val = z1013.kbd_matrix_bits >> (col*8);
             if z1013.kbd_high_lines_requested {
                 // upper 4 keyboard matrix lines are requested,
-                // shift the bit down into place
+                // shift the bits down into place
                 val >>= 4;
             }
             // the keyboard matrix logic is 'active low', so 
