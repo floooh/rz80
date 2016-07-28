@@ -1,9 +1,9 @@
 use RegT;
 use bus::Bus;
 
-pub const A : usize = 0;    // PIO channel A
-pub const B : usize = 1;    // PIO channel B
-pub const NUM_CHANNELS : usize = 2;
+pub const PIO_A : usize = 0;    // PIO channel A
+pub const PIO_B : usize = 1;    // PIO channel B
+const NUM_CHANNELS : usize = 2;
 
 #[derive(Clone, Copy, PartialEq)]
 enum Expect {
@@ -12,20 +12,25 @@ enum Expect {
     IntMask,
 }
 
-pub const MODE_OUTPUT          : u8 = 0;
-pub const MODE_INPUT           : u8 = 1;
-pub const MODE_BIDIRECTIONAL   : u8 = 2;
-pub const MODE_BITCONTROL      : u8 = 3;
+#[derive(Clone, Copy, PartialEq)]
+pub enum Mode {
+    Output,
+    Input,
+    Bidirectional,
+    Bitcontrol,
+}
 
 pub const INTCTRL_ENABLE_INT   : u8 = (1<<7);
-pub const INTCTRL_AND_OR       : u8 = (1<<6);
-pub const INTCTRL_HIGH_LOW     : u8 = (1<<5);
 pub const INTCTRL_MASK_FOLLOWS : u8 = (1<<4);
+#[allow(unused)]
+pub const INTCTRL_AND_OR       : u8 = (1<<6);
+#[allow(unused)]
+pub const INTCTRL_HIGH_LOW     : u8 = (1<<5);
 
 #[derive(Clone, Copy)]
 struct Channel {
     pub expect : Expect,        // next expected control byte type
-    pub mode : u8,              // current operation mode
+    pub mode : Mode,            // current operation mode
     pub output: u8,             // output register value
     pub input: u8,              // input register value
     pub io_select: u8,          // IO select bits for bit-control mode
@@ -51,7 +56,7 @@ impl PIO {
             chn: [
                 Channel {
                     expect:         Expect::Any,
-                    mode:           MODE_OUTPUT,
+                    mode:           Mode::Output,
                     output:         0,
                     input:          0,
                     io_select:      0,
@@ -69,7 +74,7 @@ impl PIO {
     /// reset the PIO
     pub fn reset(&mut self) {
         for chn in self.chn.iter_mut() {
-            chn.mode   = MODE_INPUT;
+            chn.mode   = Mode::Input;
             chn.expect = Expect::Any;
             chn.output = 0;
             chn.io_select = 0;
@@ -97,13 +102,18 @@ impl PIO {
                 match val & 0xF {
                     // set channel mode
                     0xF => {
-                        let m = ((val>>6) & 3) as u8;
-                        if (chn == B) && m == MODE_BIDIRECTIONAL {
-                            panic!("MODE_BIDIRECTIONAL on PIO channel B not allowed!");
+                        let mode = match (val>>6) & 3 {
+                            0 => Mode::Output,
+                            1 => Mode::Input,
+                            2 => Mode::Bidirectional,
+                            _ => Mode::Bitcontrol,
+                        };
+                        if (chn == PIO_B) && mode == Mode::Bidirectional {
+                            panic!("Bidirectional mode on PIO channel B not allowed!");
                         }
                         else {
-                            c.mode = m;
-                            if m == MODE_BITCONTROL {
+                            c.mode = mode;
+                            if mode == Mode::Bitcontrol {
                                 c.expect = Expect::IOSelect;
                                 c.bctrl_match = false;
                             }
@@ -134,7 +144,8 @@ impl PIO {
 
     /// read control register
     pub fn read_control(&self) -> RegT {
-        ((self.chn[A].int_control & 0xC0) | (self.chn[B].int_control >> 4)) as RegT
+        ((self.chn[PIO_A].int_control & 0xC0) | 
+         (self.chn[PIO_B].int_control >> 4)) as RegT
     }
 
     /// set rdy flag on channel, and call pio_rdy callback on bus if changed
@@ -149,16 +160,16 @@ impl PIO {
     /// write data to PIO channel
     pub fn write_data(&mut self, bus: &Bus, chn: usize, data: RegT) {
         match self.chn[chn].mode {
-            MODE_OUTPUT => {
+            Mode::Output => {
                 self.set_rdy(bus, chn, false);
                 self.chn[chn].output = data as u8;
                 bus.pio_outp(self.id, chn, data);
                 self.set_rdy(bus, chn, true);
             },
-            MODE_INPUT => { 
+            Mode::Input => { 
                 self.chn[chn].output = data as u8;  // not a bug
             },
-            MODE_BIDIRECTIONAL => {
+            Mode::Bidirectional => {
                 self.set_rdy(bus, chn, false);
                 self.chn[chn].output = data as u8;
                 if !self.chn[chn].stb {
@@ -166,21 +177,20 @@ impl PIO {
                 }
                 self.set_rdy(bus, chn, true);
             },
-            MODE_BITCONTROL => {
+            Mode::Bitcontrol => {
                 self.chn[chn].output = data as u8;
                 bus.pio_outp(self.id, chn, data);
             },
-            _ => panic!("Invalid PIO mode!")
         }
     }
 
     /// read data from PIO channel
     pub fn read_data(&mut self, bus: &Bus, chn: usize) -> RegT {
         match self.chn[chn].mode {
-            MODE_OUTPUT => {
+            Mode::Output => {
                 self.chn[chn].output as RegT
             },
-            MODE_INPUT => {
+            Mode::Input => {
                 if !self.chn[chn].stb {
                     self.chn[chn].input = bus.pio_inp(self.id, chn) as u8;
                 }
@@ -188,24 +198,23 @@ impl PIO {
                 self.set_rdy(bus, chn, true);
                 self.chn[chn].input as RegT
             },
-            MODE_BIDIRECTIONAL => {
+            Mode::Bidirectional => {
                 self.set_rdy(bus, chn, false);
                 self.set_rdy(bus, chn, true);
                 self.chn[chn].input as RegT
             },
-            MODE_BITCONTROL => {
+            Mode::Bitcontrol => {
                 self.chn[chn].input = bus.pio_inp(self.id, chn) as u8;
                 let c = self.chn[chn];
                 ((c.input & c.io_select) | (c.output & !c.io_select)) as RegT
             }
-            _ => panic!("Invalid PIO mode!")
         }
     }
 
     /// write data from peripheral device into PIO
     pub fn write(&mut self, bus: &Bus, chn: usize, data: RegT) {
         let mut c = self.chn[chn];
-        if c.mode == MODE_BITCONTROL {
+        if c.mode == Mode::Bitcontrol {
             c.input = data as u8;
             let mask = !c.int_mask;
             let val = mask & ((c.input & c.io_select) | (c.output & !c.io_select));
@@ -236,7 +245,7 @@ mod tests {
         let mut pio = PIO::new(0);
         for chn in pio.chn.iter() {
             assert!(Expect::Any == chn.expect);
-            assert!(MODE_OUTPUT == chn.mode);
+            assert!(Mode::Output == chn.mode);
             assert!(0 == chn.output);
             assert!(0 == chn.input);
             assert!(0 == chn.io_select);
@@ -245,28 +254,28 @@ mod tests {
             assert!(0 == chn.int_control); 
             assert!(!chn.bctrl_match);
         }
-        pio.chn[A].mode         = MODE_BIDIRECTIONAL;
-        pio.chn[A].expect       = Expect::IntMask;
-        pio.chn[A].output       = 0x12;
-        pio.chn[A].input        = 0x34;
-        pio.chn[A].io_select    = 0xAA;
-        pio.chn[A].int_mask     = 0xEE;
-        pio.chn[A].int_vector   = 0x10;
-        pio.chn[A].int_control  = INTCTRL_ENABLE_INT|INTCTRL_MASK_FOLLOWS;
-        pio.chn[A].bctrl_match  = true;
-        pio.chn[B].mode         = MODE_BITCONTROL;
-        pio.chn[B].expect       = Expect::IOSelect;
-        pio.chn[B].output       = 0x56;
-        pio.chn[B].input        = 0x78;
-        pio.chn[B].io_select    = 0xBB;
-        pio.chn[B].int_mask     = 0x55;
-        pio.chn[B].int_vector   = 0x20;
-        pio.chn[B].int_control  = INTCTRL_ENABLE_INT|INTCTRL_HIGH_LOW;
-        pio.chn[B].bctrl_match  = true;
+        pio.chn[PIO_A].mode         = Mode::Bidirectional;
+        pio.chn[PIO_A].expect       = Expect::IntMask;
+        pio.chn[PIO_A].output       = 0x12;
+        pio.chn[PIO_A].input        = 0x34;
+        pio.chn[PIO_A].io_select    = 0xAA;
+        pio.chn[PIO_A].int_mask     = 0xEE;
+        pio.chn[PIO_A].int_vector   = 0x10;
+        pio.chn[PIO_A].int_control  = INTCTRL_ENABLE_INT|INTCTRL_MASK_FOLLOWS;
+        pio.chn[PIO_A].bctrl_match  = true;
+        pio.chn[PIO_B].mode         = Mode::Bitcontrol;
+        pio.chn[PIO_B].expect       = Expect::IOSelect;
+        pio.chn[PIO_B].output       = 0x56;
+        pio.chn[PIO_B].input        = 0x78;
+        pio.chn[PIO_B].io_select    = 0xBB;
+        pio.chn[PIO_B].int_mask     = 0x55;
+        pio.chn[PIO_B].int_vector   = 0x20;
+        pio.chn[PIO_B].int_control  = INTCTRL_ENABLE_INT|INTCTRL_HIGH_LOW;
+        pio.chn[PIO_B].bctrl_match  = true;
         
         pio.reset();
         for chn in pio.chn.iter() {
-            assert!(MODE_INPUT == chn.mode);
+            assert!(Mode::Input == chn.mode);
             assert!(Expect::Any == chn.expect);
             assert!(0 == chn.output);
             assert!(0 == chn.io_select);
@@ -274,12 +283,12 @@ mod tests {
             assert!(0 == (chn.int_control & INTCTRL_ENABLE_INT));
             assert!(!chn.bctrl_match);
         }
-        assert!(0x34 == pio.chn[A].input);
-        assert!(0x78 == pio.chn[B].input);
-        assert!(0x10 == pio.chn[A].int_vector);
-        assert!(0x20 == pio.chn[B].int_vector);
-        assert!(INTCTRL_MASK_FOLLOWS == pio.chn[A].int_control);
-        assert!(INTCTRL_HIGH_LOW == pio.chn[B].int_control);
+        assert!(0x34 == pio.chn[PIO_A].input);
+        assert!(0x78 == pio.chn[PIO_B].input);
+        assert!(0x10 == pio.chn[PIO_A].int_vector);
+        assert!(0x20 == pio.chn[PIO_B].int_vector);
+        assert!(INTCTRL_MASK_FOLLOWS == pio.chn[PIO_A].int_control);
+        assert!(INTCTRL_HIGH_LOW == pio.chn[PIO_B].int_control);
     }   
 
     #[test]
@@ -287,27 +296,27 @@ mod tests {
         let mut pio = PIO::new(0);
 
         // load interrupt vector (bit 0 == 0)
-        pio.write_control(A, 0xE0);
-        pio.write_control(B, 0xE2);
-        assert!(0xE0 == pio.chn[A].int_vector);
-        assert!(0xE2 == pio.chn[B].int_vector);
+        pio.write_control(PIO_A, 0xE0);
+        pio.write_control(PIO_B, 0xE2);
+        assert!(0xE0 == pio.chn[PIO_A].int_vector);
+        assert!(0xE2 == pio.chn[PIO_B].int_vector);
 
         // set operating modes (0bmmxx1111), where mm
         // is the mode (00:output, 01:input, 10:bidirectional, 11:bitcontrol)
         // xx is ignored
         // bidirectional requires the bit control word to be written next
-        pio.write_control(A, 0b00101111);   // output
-        assert!(MODE_OUTPUT == pio.chn[A].mode);
-        pio.write_control(A, 0b01011111);   // input
-        assert!(MODE_INPUT == pio.chn[A].mode);
-        pio.write_control(A, 0b10111111);   // bidirectional
-        assert!(MODE_BIDIRECTIONAL == pio.chn[A].mode);
-        pio.write_control(A, 0b11001111);   // bitcontrol
-        assert!(MODE_BITCONTROL == pio.chn[A].mode);
-        assert!(Expect::IOSelect == pio.chn[A].expect);
-        pio.write_control(A, 0b10101010);   // write bitcontrol IO mask
-        assert!(0b10101010 == pio.chn[A].io_select);
-        assert!(Expect::Any == pio.chn[A].expect);
+        pio.write_control(PIO_A, 0b00101111);   // output
+        assert!(Mode::Output == pio.chn[PIO_A].mode);
+        pio.write_control(PIO_A, 0b01011111);   // input
+        assert!(Mode::Input == pio.chn[PIO_A].mode);
+        pio.write_control(PIO_A, 0b10111111);   // bidirectional
+        assert!(Mode::Bidirectional == pio.chn[PIO_A].mode);
+        pio.write_control(PIO_A, 0b11001111);   // bitcontrol
+        assert!(Mode::Bitcontrol == pio.chn[PIO_A].mode);
+        assert!(Expect::IOSelect == pio.chn[PIO_A].expect);
+        pio.write_control(PIO_A, 0b10101010);   // write bitcontrol IO mask
+        assert!(0b10101010 == pio.chn[PIO_A].io_select);
+        assert!(Expect::Any == pio.chn[PIO_A].expect);
 
         // set interrupt control word
         // bit 7: interrupt enable/disable
@@ -315,27 +324,27 @@ mod tests {
         // bit 5: high/low (bitcontrol mode)
         // bit 4: mask follows (bitcontrol mode)
         // bit 3..0: 0111
-        pio.write_control(A, 0b10100111);
-        assert!(0b10100000 == pio.chn[A].int_control);
-        assert!(Expect::Any == pio.chn[A].expect);
+        pio.write_control(PIO_A, 0b10100111);
+        assert!(0b10100000 == pio.chn[PIO_A].int_control);
+        assert!(Expect::Any == pio.chn[PIO_A].expect);
         assert!(INTCTRL_ENABLE_INT|INTCTRL_HIGH_LOW == 
-                INTCTRL_ENABLE_INT|INTCTRL_HIGH_LOW & pio.chn[A].int_control);
-        pio.write_control(A, 0b00010111);
-        assert!(0b00010000 == pio.chn[A].int_control);
-        assert!(INTCTRL_MASK_FOLLOWS == pio.chn[A].int_control & INTCTRL_MASK_FOLLOWS);
-        assert!(Expect::IntMask == pio.chn[A].expect);
-        pio.write_control(A, 0b01010101);
-        assert!(0b01010101 == pio.chn[A].int_mask);
-        assert!(Expect::Any == pio.chn[A].expect);
+                INTCTRL_ENABLE_INT|INTCTRL_HIGH_LOW & pio.chn[PIO_A].int_control);
+        pio.write_control(PIO_A, 0b00010111);
+        assert!(0b00010000 == pio.chn[PIO_A].int_control);
+        assert!(INTCTRL_MASK_FOLLOWS == pio.chn[PIO_A].int_control & INTCTRL_MASK_FOLLOWS);
+        assert!(Expect::IntMask == pio.chn[PIO_A].expect);
+        pio.write_control(PIO_A, 0b01010101);
+        assert!(0b01010101 == pio.chn[PIO_A].int_mask);
+        assert!(Expect::Any == pio.chn[PIO_A].expect);
 
         // set interrupt enable bit individually
-        pio.write_control(A, 0b11100111);
-        assert!(0b11100000 == pio.chn[A].int_control);
-        pio.write_control(A, 0b00000011);
-        assert!(0b01100000 == pio.chn[A].int_control);
-        pio.write_control(A, 0b10110011);
-        assert!(0b11100000 == pio.chn[A].int_control);
-        assert!(Expect::Any == pio.chn[A].expect);
+        pio.write_control(PIO_A, 0b11100111);
+        assert!(0b11100000 == pio.chn[PIO_A].int_control);
+        pio.write_control(PIO_A, 0b00000011);
+        assert!(0b01100000 == pio.chn[PIO_A].int_control);
+        pio.write_control(PIO_A, 0b10110011);
+        assert!(0b11100000 == pio.chn[PIO_A].int_control);
+        assert!(Expect::Any == pio.chn[PIO_A].expect);
     }
 }
 

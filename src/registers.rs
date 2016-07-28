@@ -1,14 +1,23 @@
 use RegT;
 
-pub const CF : RegT = 1<<0;      // carry flag
-pub const NF : RegT = 1<<1;      // add/subtract flag
-pub const VF : RegT = 1<<2;      // parity/overflow flag
-pub const PF : RegT = 1<<2;      // parity/overflow flag
-pub const XF : RegT = 1<<3;      // undocumented flag bit 3
-pub const HF : RegT = 1<<4;      // half-carry flag
-pub const YF : RegT = 1<<5;      // undocumented flag bit 5
-pub const ZF : RegT = 1<<6;      // zero flag
-pub const SF : RegT = 1<<7;      // sign flag
+/// carry flag
+pub const CF : RegT = 1<<0;
+/// add/subtract flag
+pub const NF : RegT = 1<<1;
+/// overflow flag (same as parity)
+pub const VF : RegT = 1<<2;
+/// parity flag (same as overflow)
+pub const PF : RegT = 1<<2;
+/// undocumented 'X' flag
+pub const XF : RegT = 1<<3;
+/// half carry flag
+pub const HF : RegT = 1<<4;
+/// undocumented 'Y' flag
+pub const YF : RegT = 1<<5;
+/// zero flag
+pub const ZF : RegT = 1<<6;
+/// sign flag
+pub const SF : RegT = 1<<7;
 
 const B : usize = 0;
 const C : usize = 1;
@@ -52,7 +61,7 @@ pub const HL_ : usize = 20;
 pub const AF_ : usize = 22;
 pub const WZ_ : usize = 24;
 
-/// Z80 register bank
+/// Z80 CPU register bank access
 pub struct Registers {
     reg : [u8; NUM_REGS],
     r_pc: u16,
@@ -90,107 +99,150 @@ impl Registers {
         self.r = 0;
     }
 
-    /// get 8-bit registers
+    /// get content of A register
     #[inline(always)]
     pub fn a(&self) -> RegT { self.reg[A] as RegT }
+    /// get content of F register (status flags)
     #[inline(always)]
     pub fn f(&self) -> RegT { self.reg[F] as RegT }
+    /// get content of B register
     #[inline(always)]
     pub fn b(&self) -> RegT { self.reg[B] as RegT }
+    /// get content of C register
     #[inline(always)]
     pub fn c(&self) -> RegT { self.reg[C] as RegT }
+    /// get content of D register
     #[inline(always)]
     pub fn d(&self) -> RegT { self.reg[D] as RegT }
+    /// get content of E register
     #[inline(always)]
     pub fn e(&self) -> RegT { self.reg[E] as RegT }
+    /// get content of H register
     #[inline(always)]
     pub fn h(&self) -> RegT { self.reg[H] as RegT }
+    /// get content of L register
     #[inline(always)]
     pub fn l(&self) -> RegT { self.reg[L] as RegT }
+    /// get content of undocumented W register (of WZ register pair)
     #[inline(always)]
     pub fn w(&self) -> RegT { self.reg[WZH] as RegT }
 
-    /// set 8-bit registers
+    /// set content of A register
     #[inline(always)]
     pub fn set_a(&mut self, v: RegT) { self.reg[A] = v as u8; }
+    /// set content of F register (status flags)
     #[inline(always)]
     pub fn set_f(&mut self, v: RegT) { self.reg[F] = v as u8; }
+    /// set content of B register
     #[inline(always)]
     pub fn set_b(&mut self, v: RegT) { self.reg[B] = v as u8; }
+    /// set content of C register
     #[inline(always)]
     pub fn set_c(&mut self, v: RegT) { self.reg[C] = v as u8; }
+    /// set content of D register
     #[inline(always)]
     pub fn set_d(&mut self, v: RegT) { self.reg[D] = v as u8; }
+    /// set content of E register
     #[inline(always)]
     pub fn set_e(&mut self, v: RegT) { self.reg[E] = v as u8; }
+    /// set content of H register
     #[inline(always)]
     pub fn set_h(&mut self, v: RegT) { self.reg[H] = v as u8; }
+    /// set content of L register
     #[inline(always)]
     pub fn set_l(&mut self, v: RegT) { self.reg[L] = v as u8; }
 
-    /// get 16-bit registers
+    /// get content of AF register pair
     #[inline(always)]
     pub fn af(&self) -> RegT { (self.reg[A] as RegT)<<8 | self.reg[F] as RegT }
+    /// get content of BC register pair
     #[inline(always)]
     pub fn bc(&self) -> RegT { (self.reg[B] as RegT)<<8 | self.reg[C] as RegT }
+    /// get content of DE register pair
     #[inline(always)]
     pub fn de(&self) -> RegT { (self.reg[D] as RegT)<<8 | self.reg[E] as RegT }
+    /// get content of HL register pair
     #[inline(always)]
     pub fn hl(&self) -> RegT { (self.reg[H] as RegT)<<8 | self.reg[L] as RegT }
+    /// get content of IX register
     #[inline(always)]
     pub fn ix(&self) -> RegT { (self.reg[IXH] as RegT)<<8 | self.reg[IXL] as RegT }
+    /// get content of IY register
     #[inline(always)]
     pub fn iy(&self) -> RegT { (self.reg[IYH] as RegT)<<8 | self.reg[IYL] as RegT }
+    /// get content of SP register
     #[inline(always)]
     pub fn sp(&self) -> RegT { (self.reg[SPH] as RegT)<<8 | self.reg[SPL] as RegT }
+    /// get content of undocumented WZ register
     #[inline(always)]
     pub fn wz(&self) -> RegT { (self.reg[WZH] as RegT)<<8 | self.reg[WZL] as RegT }
+    /// get content of AF' register
     #[inline(always)]
     pub fn af_(&self) -> RegT { (self.reg[A_] as RegT)<<8 | self.reg[F_] as RegT }
+    /// get content of BC' register
     #[inline(always)]
     pub fn bc_(&self) -> RegT { (self.reg[B_] as RegT)<<8 | self.reg[C_] as RegT }
+    /// get content of DE' register
     #[inline(always)]
     pub fn de_(&self) -> RegT { (self.reg[D_] as RegT)<<8 | self.reg[E_] as RegT }
+    /// get content of HL' register
     #[inline(always)]
     pub fn hl_(&self) -> RegT { (self.reg[H_] as RegT)<<8 | self.reg[L_] as RegT }
+    /// get content of undocumented WZ' register
     #[inline(always)]
     pub fn wz_(&self) -> RegT { (self.reg[WZH_] as RegT)<<8 | self.reg[WZL_] as RegT }
+    /// get content of PC register
     #[inline(always)]
     pub fn pc(&self) -> RegT { self.r_pc as RegT }
 
-    /// set 16-bit registers
+    /// set content of AF register pair
     #[inline(always)]
     pub fn set_af(&mut self, v: RegT) { self.reg[A] = (v>>8) as u8; self.reg[F] = v as u8; }
+    /// set content of BC register pair
     #[inline(always)]
     pub fn set_bc(&mut self, v: RegT) { self.reg[B] = (v>>8) as u8; self.reg[C] = v as u8; }
+    /// set content of DE register pair
     #[inline(always)]
     pub fn set_de(&mut self, v: RegT) { self.reg[D] = (v>>8) as u8; self.reg[E] = v as u8; }
+    /// set content of HL register pair
     #[inline(always)]
     pub fn set_hl(&mut self, v: RegT) { self.reg[H] = (v>>8) as u8; self.reg[L] = v as u8; }
+    /// set content of IX register
     #[inline(always)]
     pub fn set_ix(&mut self, v: RegT) { self.reg[IXH] = (v>>8) as u8; self.reg[IXL] = v as u8; }
+    /// set content of IY register
     #[inline(always)]
     pub fn set_iy(&mut self, v: RegT) { self.reg[IYH] = (v>>8) as u8; self.reg[IYL] = v as u8; }
+    /// set content of SP register
     #[inline(always)]
     pub fn set_sp(&mut self, v: RegT) { self.reg[SPH] = (v>>8) as u8; self.reg[SPL] = v as u8; }
+    /// set content of undocumented WZ register
     #[inline(always)]
     pub fn set_wz(&mut self, v: RegT) { self.reg[WZH] = (v>>8) as u8; self.reg[WZL] = v as u8; }
+    /// set content of AF' register
     #[inline(always)]
     pub fn set_af_(&mut self, v: RegT) { self.reg[A_] = (v>>8) as u8; self.reg[F_] = v as u8; }
+    /// set content of BC' register
     #[inline(always)]
     pub fn set_bc_(&mut self, v: RegT) { self.reg[B_] = (v>>8) as u8; self.reg[C_] = v as u8; }
+    /// set content of DE' register
     #[inline(always)]
     pub fn set_de_(&mut self, v: RegT) { self.reg[D_] = (v>>8) as u8; self.reg[E_] = v as u8; }
+    /// set content of HL' register
     #[inline(always)]
     pub fn set_hl_(&mut self, v: RegT) { self.reg[H_] = (v>>8) as u8; self.reg[L_] = v as u8; }
+    /// set content of undocumented WZ' register
     #[inline(always)]
     pub fn set_wz_(&mut self, v: RegT) { self.reg[WZH_] = (v>>8) as u8; self.reg[WZL_] = v as u8; }
+    /// set content of PC register
     #[inline(always)]
     pub fn set_pc(&mut self, v: RegT) { self.r_pc = v as u16; }
 
+    /// increment the PC register by some value
     #[inline(always)]
     pub fn inc_pc(&mut self, inc: u16) { self.r_pc = self.r_pc.wrapping_add(inc); }
 
+    /// decrement the PC register by some value
     #[inline(always)]
     pub fn dec_pc(&mut self, dec: u16) { self.r_pc = self.r_pc.wrapping_sub(dec); }
 

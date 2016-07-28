@@ -1,29 +1,23 @@
+//! **rz80** is a Z80 chip family emulation library written in Rust which can be used as basis for
+//! writing a full computer emulator.
+//!
+//! The CPU emulation is precise enough to run both the ZEXDOC and ZEXALL conformance test
+//! without errors.
+
+/// generic integer type for 8- and 16-bit values
 pub type RegT = i32;
 
-pub mod registers;
-pub mod memory;
-pub mod bus;
-pub mod cpu;
-pub mod pio;
-pub mod daisychain;
+mod registers;
+mod memory;
+mod bus;
+mod cpu;
+mod pio;
+mod daisychain;
 
-pub use registers::Registers as Registers;
-pub use memory::Memory as Memory;
-pub use cpu::CPU as CPU;
-pub use bus::Bus as Bus;
-pub use pio::PIO as PIO;
-pub use pio::A as PIO_A;
-pub use pio::B as PIO_B;
-pub use daisychain::Daisychain as Daisychain;
-
-
-pub use registers::CF as CF;
-pub use registers::NF as NF;
-pub use registers::VF as VF;
-pub use registers::PF as PF;
-pub use registers::XF as XF;
-pub use registers::HF as HF;
-pub use registers::YF as YF;
-pub use registers::ZF as ZF;
-pub use registers::SF as SF;
+pub use registers::{Registers,CF,NF,VF,PF,XF,HF,YF,ZF,SF};
+pub use memory::Memory;
+pub use cpu::CPU;
+pub use bus::Bus;
+pub use pio::{PIO,PIO_A,PIO_B};
+pub use daisychain::Daisychain;
 
