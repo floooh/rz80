@@ -3,92 +3,108 @@ use memory::Memory;
 use registers::Registers;
 use bus::Bus;
 
-/// Z80 CPU emulation 
+/// Z80 CPU emulation
 pub struct CPU {
-    pub reg : Registers,
-    pub halt : bool,
+    pub reg: Registers,
+    pub halt: bool,
     pub iff1: bool,
     pub iff2: bool,
     pub invalid_op: bool,
     enable_interrupt: bool,
     irq_received: bool,
-    pub mem : Memory,
+    pub mem: Memory,
 }
 
 fn canthappen() -> ! {
     panic!("Can't happen!");
 }
 
-use registers::CF as CF;
-use registers::NF as NF;
-use registers::VF as VF;
-use registers::PF as PF;
-use registers::XF as XF;
-use registers::HF as HF;
-use registers::YF as YF;
-use registers::ZF as ZF;
-use registers::SF as SF;
+use registers::CF;
+use registers::NF;
+use registers::VF;
+use registers::PF;
+use registers::XF;
+use registers::HF;
+use registers::YF;
+use registers::ZF;
+use registers::SF;
 
 #[inline(always)]
 fn flags_add(acc: RegT, add: RegT, res: RegT) -> RegT {
-    (if (res & 0xFF)==0 { ZF } else { res & SF }) |
-    (res & (YF|XF)) |
-    ((res>>8) & CF) |            
-    ((acc^add^res) & HF) |
-    ((((acc^add^0x80) & (add^res))>>5) & VF)
+    (if (res & 0xFF) == 0 {
+        ZF
+    } else {
+        res & SF
+    }) | (res & (YF | XF)) | ((res >> 8) & CF) | ((acc ^ add ^ res) & HF) |
+    ((((acc ^ add ^ 0x80) & (add ^ res)) >> 5) & VF)
 }
 
 #[inline(always)]
 fn flags_sub(acc: RegT, sub: RegT, res: RegT) -> RegT {
-    NF | 
-    (if (res & 0xFF)==0 { ZF } else { res & SF }) |
-    (res & (YF|XF)) |
-    ((res>>8) & CF) |            
-    ((acc^sub^res) & HF) |
-    ((((acc^sub) & (res^acc))>>5) & VF)
+    NF |
+    (if (res & 0xFF) == 0 {
+        ZF
+    } else {
+        res & SF
+    }) | (res & (YF | XF)) | ((res >> 8) & CF) | ((acc ^ sub ^ res) & HF) |
+    ((((acc ^ sub) & (res ^ acc)) >> 5) & VF)
 }
 
 #[inline(always)]
 fn flags_cp(acc: RegT, sub: RegT, res: RegT) -> RegT {
-    // the only difference to flags_sub() is that the 
+    // the only difference to flags_sub() is that the
     // 2 undocumented flag bits X and Y are taken from the
     // sub-value, not the result
-    NF | 
-    (if (res & 0xFF)==0 { ZF } else { res & SF }) |
-    (sub & (YF|XF)) |
-    ((res>>8) & CF) |            
-    ((acc^sub^res) & HF) |
-    ((((acc^sub) & (res^acc))>>5) & VF)
+    NF |
+    (if (res & 0xFF) == 0 {
+        ZF
+    } else {
+        res & SF
+    }) | (sub & (YF | XF)) | ((res >> 8) & CF) | ((acc ^ sub ^ res) & HF) |
+    ((((acc ^ sub) & (res ^ acc)) >> 5) & VF)
 }
 
 #[inline(always)]
 fn flags_szp(val: RegT) -> RegT {
     let v = val & 0xFF;
-    (if (v.count_ones()&1)==0 { PF } else { 0 }) |
-    (if v==0 { ZF } else { v & SF }) |
-    (v & (YF|XF))
+    (if (v.count_ones() & 1) == 0 {
+        PF
+    } else {
+        0
+    }) |
+    (if v == 0 {
+        ZF
+    } else {
+        v & SF
+    }) | (v & (YF | XF))
 }
 
 #[inline(always)]
 fn flags_sziff2(val: RegT, iff2: bool) -> RegT {
-    (if (val & 0xFF)==0 {ZF} else {val & SF}) |
-    (val & (YF|XF)) |
-    if iff2 {PF} else {0}
+    (if (val & 0xFF) == 0 {
+        ZF
+    } else {
+        val & SF
+    }) | (val & (YF | XF)) |
+    if iff2 {
+        PF
+    } else {
+        0
+    }
 }
 
-use registers::BC as BC;
-use registers::DE as DE;
-use registers::HL as HL;
-use registers::AF as AF;
-use registers::WZ as WZ;
-use registers::BC_ as BC_;
-use registers::DE_ as DE_;
-use registers::HL_ as HL_;
-use registers::AF_ as AF_;
-use registers::WZ_ as WZ_;
+use registers::BC;
+use registers::DE;
+use registers::HL;
+use registers::AF;
+use registers::WZ;
+use registers::BC_;
+use registers::DE_;
+use registers::HL_;
+use registers::AF_;
+use registers::WZ_;
 
 impl CPU {
-
     /// initialize a new Z80 CPU object
     pub fn new() -> CPU {
         CPU {
@@ -99,7 +115,7 @@ impl CPU {
             invalid_op: false,
             enable_interrupt: false,
             irq_received: false,
-            mem: Memory::new()
+            mem: Memory::new(),
         }
     }
 
@@ -113,7 +129,7 @@ impl CPU {
             invalid_op: false,
             enable_interrupt: false,
             irq_received: false,
-            mem: Memory::new_64k()
+            mem: Memory::new_64k(),
         }
     }
 
@@ -131,7 +147,7 @@ impl CPU {
     /// fetch the next instruction byte from memory
     #[inline(always)]
     fn fetch_op(&mut self) -> RegT {
-        self.reg.r = (self.reg.r & 0x80) | ((self.reg.r+1) & 0x7F);
+        self.reg.r = (self.reg.r & 0x80) | ((self.reg.r + 1) & 0x7F);
         let pc = self.reg.pc();
         let op = self.mem.r8(pc);
         self.reg.inc_pc(1);
@@ -157,7 +173,7 @@ impl CPU {
     /// load 8-bit unsigned immediate operand and increment PC
     #[inline(always)]
     fn imm8(&mut self) -> RegT {
-        let pc  = self.reg.pc();
+        let pc = self.reg.pc();
         let imm = self.mem.r8(pc);
         self.reg.inc_pc(1);
         imm
@@ -166,7 +182,7 @@ impl CPU {
     /// load 16-bit immediate operand and bump PC
     #[inline(always)]
     fn imm16(&mut self) -> RegT {
-        let pc  = self.reg.pc();
+        let pc = self.reg.pc();
         let imm = self.mem.r16(pc);
         self.reg.inc_pc(2);
         imm
@@ -189,8 +205,7 @@ impl CPU {
             let addr = (self.reg.r16sp(2) + d) & 0xFFFF;
             self.reg.set_wz(addr);
             addr
-        }
-        else {
+        } else {
             self.reg.hl()
         }
     }
@@ -203,8 +218,7 @@ impl CPU {
             let addr = (self.reg.r16sp(2) + self.d()) & 0xFFFF;
             self.reg.set_wz(addr);
             addr
-        }
-        else {
+        } else {
             self.reg.hl()
         }
     }
@@ -236,20 +250,25 @@ impl CPU {
     ///
     /// returns number of cycles the instruction takes
     pub fn do_op(&mut self, bus: &Bus, ext: bool) -> i64 {
-        let (cyc, ext_cyc) = if ext {(4,8)} else {(0,0)};
+        let (cyc, ext_cyc) = if ext {
+            (4, 8)
+        } else {
+            (0, 0)
+        };
         let op = self.fetch_op();
 
         // split instruction byte into bit groups
-        let x = op>>6;
-        let y = (op>>3 & 7) as usize;
+        let x = op >> 6;
+        let y = (op >> 3 & 7) as usize;
         let z = (op & 7) as usize;
-        cyc + match (x, y, z) {
-        //--- block 1: 8-bit loads
+        cyc +
+        match (x, y, z) {
+            // --- block 1: 8-bit loads
             // special case LD (HL),(HL): HALT
             (1, 6, 6) => {
-                self.halt(); 
+                self.halt();
                 4
-            },
+            }
             // LD (HL),r; LD (IX+d),r; LD (IY+d),r
             // NOTE: this always loads from H,L, never IXH, ...
             (1, 6, _) => {
@@ -257,22 +276,22 @@ impl CPU {
                 let v = self.reg.r8i(z);
                 self.mem.w8(a, v);
                 7 + ext_cyc
-            },
+            }
             // LD r,(HL); LD r,(IX+d); LD r,(IY+d)
             // NOTE: this always loads to H,L, never IXH,...
             (1, _, 6) => {
                 let a = self.addr(ext);
                 let v = self.mem.r8(a);
                 self.reg.set_r8i(y, v);
-                7 + ext_cyc 
-            },
+                7 + ext_cyc
+            }
             // LD r,s
             (1, _, _) => {
                 let v = self.reg.r8(z);
                 self.reg.set_r8(y, v);
                 4
-            },
-        //--- block 2: 8-bit ALU instructions
+            }
+            // --- block 2: 8-bit ALU instructions
             // ALU (HL); ALU (IX+d); ALU (IY+d)
             (2, _, _) => {
                 if z == 6 {
@@ -281,28 +300,23 @@ impl CPU {
                     let val = self.mem.r8(a);
                     self.alu8(y, val);
                     7 + ext_cyc
-                }
-                else {
+                } else {
                     // ALU r
                     let val = self.reg.r8(z);
                     self.alu8(y, val);
                     4
                 }
-            },
-        //--- block 0: misc ops
+            }
+            // --- block 0: misc ops
             // NOP
-            (0, 0, 0) => { 
-                4 
-            },
+            (0, 0, 0) => 4,
             // EX AF,AF'
-            (0, 1, 0) => { 
-                self.reg.swap(AF, AF_); 
-                4 
-            },
+            (0, 1, 0) => {
+                self.reg.swap(AF, AF_);
+                4
+            }
             // DJNZ
-            (0, 2, 0) => { 
-                self.djnz() 
-            },
+            (0, 2, 0) => self.djnz(),
             // JR d
             (0, 3, 0) => {
                 let pc = self.reg.pc();
@@ -310,32 +324,30 @@ impl CPU {
                 self.reg.set_pc(wz);
                 self.reg.set_wz(wz);
                 12
-            },
+            }
             // JR cc
             (0, _, 0) => {
                 let pc = self.reg.pc();
-                if self.cc(y-4) {
+                if self.cc(y - 4) {
                     let wz = pc + self.mem.rs8(pc) + 1;
                     self.reg.set_pc(wz);
                     self.reg.set_wz(wz);
                     12
-                }
-                else {
+                } else {
                     self.reg.inc_pc(1);
-                    7                    
+                    7
                 }
             }
             // 16-bit immediate loads and 16-bit ADD
             (0, _, 1) => {
-                let p = y>>1;
+                let p = y >> 1;
                 let q = y & 1;
                 if q == 0 {
                     // LD rr,nn (inkl IX,IY)
                     let val = self.imm16();
                     self.reg.set_r16sp(p, val);
                     10
-                }
-                else {
+                } else {
                     // ADD HL,rr; ADD IX,rr; ADD IY,rr
                     let acc = self.reg.r16sp(2);
                     let val = self.reg.r16sp(p);
@@ -343,10 +355,10 @@ impl CPU {
                     self.reg.set_r16sp(2, res);
                     11
                 }
-            },
+            }
             (0, _, 2) => {
                 // indirect loads
-                let p = y>>1;
+                let p = y >> 1;
                 let q = y & 1;
                 match (q, p) {
                     // LD (nn),HL; LD (nn),IX; LD (nn),IY
@@ -356,7 +368,7 @@ impl CPU {
                         self.mem.w16(addr, v);
                         self.reg.set_wz(addr + 1);
                         16
-                    },
+                    }
                     // LD (nn),A
                     (0, 3) => {
                         let addr = self.imm16();
@@ -367,20 +379,24 @@ impl CPU {
                     }
                     // LD (BC),A; LD (DE),A,; LD (nn),A
                     (0, _) => {
-                        let addr = if p==0 { self.reg.bc() } else { self.reg.de() };
+                        let addr = if p == 0 {
+                            self.reg.bc()
+                        } else {
+                            self.reg.de()
+                        };
                         let a = self.reg.a();
                         self.mem.w8(addr, a);
-                        self.reg.set_wz(a<<8 | ((addr+1) & 0xFF));
+                        self.reg.set_wz(a << 8 | ((addr + 1) & 0xFF));
                         7
-                    },
+                    }
                     // LD HL,(nn); LD IX,(nn); LD IY,(nn)
                     (1, 2) => {
                         let addr = self.imm16();
-                        let val  = self.mem.r16(addr);
+                        let val = self.mem.r16(addr);
                         self.reg.set_r16sp(2, val);
                         self.reg.set_wz(addr + 1);
                         16
-                    },
+                    }
                     // LD A,(nn)
                     (1, 3) => {
                         let addr = self.imm16();
@@ -391,23 +407,32 @@ impl CPU {
                     }
                     // LD A,(BC); LD A,(DE)
                     (1, _) => {
-                        let addr = if p == 0 { self.reg.bc() } else { self.reg.de() };
+                        let addr = if p == 0 {
+                            self.reg.bc()
+                        } else {
+                            self.reg.de()
+                        };
                         let val = self.mem.r8(addr);
                         self.reg.set_a(val);
                         self.reg.set_wz(addr + 1);
                         7
-                    },
-                    (_,_) => canthappen()
+                    }
+                    (_, _) => canthappen(),
                 }
-            },
+            }
             (0, _, 3) => {
                 // 16-bit INC/DEC
-                let p = y>>1;
+                let p = y >> 1;
                 let q = y & 1;
-                let val = self.reg.r16sp(p) + if q==0 {1} else {-1};
+                let val = self.reg.r16sp(p) +
+                          if q == 0 {
+                    1
+                } else {
+                    -1
+                };
                 self.reg.set_r16sp(p, val);
                 6
-            },
+            }
             // INC (HL); INC (IX+d); INC (IY+d)
             (0, 6, 4) => {
                 let addr = self.addr(ext);
@@ -415,14 +440,14 @@ impl CPU {
                 let w = self.inc8(v);
                 self.mem.w8(addr, w);
                 11 + ext_cyc
-            },
+            }
             // INC r
             (0, _, 4) => {
                 let v = self.reg.r8(y);
                 let w = self.inc8(v);
                 self.reg.set_r8(y, w);
                 4
-            },
+            }
             // DEC (HL); DEC (IX+d); DEC (IY+d)
             (0, 6, 5) => {
                 let addr = self.addr(ext);
@@ -430,14 +455,14 @@ impl CPU {
                 let w = self.dec8(v);
                 self.mem.w8(addr, w);
                 11 + ext_cyc
-            },
+            }
             // DEC r
             (0, _, 5) => {
                 let v = self.reg.r8(y);
                 let w = self.dec8(v);
                 self.reg.set_r8(y, w);
                 4
-            },
+            }
             // LD r,n; LD (HL),n; LD (IX+d),n; LD (IY+d),n
             (0, _, 6) => {
                 if y == 6 {
@@ -445,15 +470,18 @@ impl CPU {
                     let addr = self.addr(ext);
                     let v = self.imm8();
                     self.mem.w8(addr, v);
-                    if ext { 15 } else { 10 }
-                }
-                else {
+                    if ext {
+                        15
+                    } else {
+                        10
+                    }
+                } else {
                     // LD r,n
                     let v = self.imm8();
                     self.reg.set_r8(y, v);
                     7
                 }
-            },
+            }
             // misc ops on A and F
             (0, _, 7) => {
                 match y {
@@ -465,29 +493,29 @@ impl CPU {
                     5 => self.cpl(),
                     6 => self.scf(),
                     7 => self.ccf(),
-                    _ => canthappen()
+                    _ => canthappen(),
                 }
                 4
             }
-        //--- block 3: misc and prefixed ops
-            (3, _, 0) => { 
+            // --- block 3: misc and prefixed ops
+            (3, _, 0) => {
                 // RET cc
-                self.retcc(y) 
+                self.retcc(y)
             }
             (3, _, 1) => {
-                let p = y>>1;
+                let p = y >> 1;
                 let q = y & 1;
-                match (q,p) {
+                match (q, p) {
                     (0, _) => {
                         // POP BC,DE,HL,IX,IY
                         let val = self.pop();
                         self.reg.set_r16af(p, val);
                         10
-                    },
+                    }
                     (1, 0) => {
                         // RET
                         self.ret()
-                    },
+                    }
                     (1, 1) => {
                         // EXX
                         self.reg.swap(BC, BC_);
@@ -495,24 +523,22 @@ impl CPU {
                         self.reg.swap(HL, HL_);
                         self.reg.swap(WZ, WZ_);
                         4
-                    },
+                    }
                     (1, 2) => {
                         // JP HL; JP IX; JP IY
                         let v = self.reg.r16sp(2);
                         self.reg.set_pc(v);
                         4
-                    },
+                    }
                     (1, 3) => {
                         // LD SP,HL, LD SP,IX; LD SP,IY
                         let v = self.reg.r16sp(2);
                         self.reg.set_sp(v);
                         6
-                    },
-                    (_, _) => {
-                        canthappen()
                     }
+                    (_, _) => canthappen(),
                 }
-            },
+            }
             (3, _, 2) => {
                 // JP cc,nn
                 let nn = self.imm16();
@@ -521,34 +547,32 @@ impl CPU {
                     self.reg.set_pc(nn);
                 }
                 10
-            },
+            }
             (3, _, 3) => {
                 // misc ops
                 match y {
-                    0 => { 
+                    0 => {
                         // JP nn
                         let nn = self.imm16();
                         self.reg.set_wz(nn);
                         self.reg.set_pc(nn);
                         10
-                    },
-                    1 => {
-                        self.do_cb_op(ext)
-                    },
+                    }
+                    1 => self.do_cb_op(ext),
                     2 => {
                         // OUT (n),A
                         let a = self.reg.a();
-                        let port = (a<<8 | self.imm8()) & 0xFFFF;
+                        let port = (a << 8 | self.imm8()) & 0xFFFF;
                         self.outp(bus, port, a);
                         11
-                    },
+                    }
                     3 => {
                         // IN A,(n)
-                        let port = (self.reg.a()<<8 | self.imm8()) & 0xFFFF;
+                        let port = (self.reg.a() << 8 | self.imm8()) & 0xFFFF;
                         let v = self.inp(bus, port);
                         self.reg.set_a(v);
                         11
-                    },
+                    }
                     4 => {
                         // EX (SP),HL; EX (SP),IX; EX (SP),IY
                         let sp = self.reg.sp();
@@ -558,32 +582,32 @@ impl CPU {
                         self.reg.set_wz(v_mem);
                         self.reg.set_r16sp(2, v_mem);
                         19
-                    },
+                    }
                     5 => {
                         // EX DE,HL
                         self.reg.swap(DE, HL);
                         4
-                    },
+                    }
                     6 => {
                         // DI
-                        self.iff1 = false; 
+                        self.iff1 = false;
                         self.iff2 = false;
                         4
-                    },
+                    }
                     7 => {
                         // EI
                         self.enable_interrupt = true;
                         4
-                    },
-                    _ => canthappen()
+                    }
+                    _ => canthappen(),
                 }
-            },
+            }
             (3, _, 4) => {
                 // CALL cc
                 self.callcc(y)
-            },
+            }
             (3, _, 5) => {
-                let p = y>>1;
+                let p = y >> 1;
                 let q = y & 1;
                 match (q, p) {
                     (0, _) => {
@@ -591,43 +615,43 @@ impl CPU {
                         let v = self.reg.r16af(p);
                         self.push(v);
                         11
-                    },
+                    }
                     (1, 0) => {
                         // CALL nn
                         self.call()
-                    },
+                    }
                     (1, 1) => {
                         // DD prefix instructions
                         self.reg.patch_ix();
                         let cycles = self.do_op(bus, true);
                         self.reg.unpatch();
                         cycles
-                    },
+                    }
                     (1, 2) => {
                         // ED prefix instructions
                         self.do_ed_op(bus)
-                    },
+                    }
                     (1, 3) => {
                         // FD prefix instructions
                         self.reg.patch_iy();
-                        let cycles = self.do_op(bus, true); 
+                        let cycles = self.do_op(bus, true);
                         self.reg.unpatch();
                         cycles
-                    },
-                    (_, _) => canthappen()
+                    }
+                    (_, _) => canthappen(),
                 }
-            },
+            }
             // ALU n
             (3, _, 6) => {
                 let val = self.imm8();
                 self.alu8(y, val);
                 7
-            },
+            }
             // RST
             (3, _, 7) => {
                 self.rst((y * 8) as RegT);
                 11
-            },
+            }
             // not implemented
             _ => {
                 panic!("Invalid instruction!");
@@ -640,29 +664,53 @@ impl CPU {
         let op = self.fetch_op();
 
         // split instruction byte into bit groups
-        let x = op>>6;
-        let y = (op>>3 & 7) as usize;
+        let x = op >> 6;
+        let y = (op >> 3 & 7) as usize;
         let z = (op & 7) as usize;
         match (x, y, z) {
             // block instructions
-            (2, 4, 0) => { self.ldi(); 16 },
-            (2, 5, 0) => { self.ldd(); 16 },
-            (2, 6, 0) => { self.ldir() },
-            (2, 7, 0) => { self.lddr() },
-            (2, 4, 1) => { self.cpi(); 16 },
-            (2, 5, 1) => { self.cpd(); 16 },
-            (2, 6, 1) => { self.cpir() },
-            (2, 7, 1) => { self.cpdr() },
-            (2, 4, 2) => { self.ini(bus); 16 },
-            (2, 5, 2) => { self.ind(bus); 16 },
-            (2, 6, 2) => { self.inir(bus) },
-            (2, 7, 2) => { self.indr(bus) },
-            (2, 4, 3) => { self.outi(bus); 16 },
-            (2, 5, 3) => { self.outd(bus); 16 },
-            (2, 6, 3) => { self.otir(bus) },
-            (2, 7, 3) => { self.otdr(bus) },
+            (2, 4, 0) => {
+                self.ldi();
+                16
+            }
+            (2, 5, 0) => {
+                self.ldd();
+                16
+            }
+            (2, 6, 0) => self.ldir(),
+            (2, 7, 0) => self.lddr(),
+            (2, 4, 1) => {
+                self.cpi();
+                16
+            }
+            (2, 5, 1) => {
+                self.cpd();
+                16
+            }
+            (2, 6, 1) => self.cpir(),
+            (2, 7, 1) => self.cpdr(),
+            (2, 4, 2) => {
+                self.ini(bus);
+                16
+            }
+            (2, 5, 2) => {
+                self.ind(bus);
+                16
+            }
+            (2, 6, 2) => self.inir(bus),
+            (2, 7, 2) => self.indr(bus),
+            (2, 4, 3) => {
+                self.outi(bus);
+                16
+            }
+            (2, 5, 3) => {
+                self.outd(bus);
+                16
+            }
+            (2, 6, 3) => self.otir(bus),
+            (2, 7, 3) => self.otdr(bus),
 
-            (1, 6, 0) => { 
+            (1, 6, 0) => {
                 // IN F,(C) (undocumented special case, only alter flags,
                 // don't store result)
                 let bc = self.reg.bc();
@@ -670,7 +718,7 @@ impl CPU {
                 let f = flags_szp(v) | (self.reg.f() & CF);
                 self.reg.set_f(f);
                 12
-            },
+            }
             (1, _, 0) => {
                 // IN r,(C)
                 let bc = self.reg.bc();
@@ -679,106 +727,133 @@ impl CPU {
                 let f = flags_szp(v) | (self.reg.f() & CF);
                 self.reg.set_f(f);
                 12
-            },
+            }
             (1, 6, 1) => {
                 // OUT (C),F (undocumented special case, always output 0)
                 let bc = self.reg.bc();
                 self.outp(bus, bc, 0);
                 12
-            },
+            }
             (1, _, 1) => {
                 // OUT (C),r
                 let bc = self.reg.bc();
                 let v = self.reg.r8(y);
                 self.outp(bus, bc, v);
                 12
-            },
+            }
             (1, _, 2) => {
                 // SBC/ADC HL,rr
-                let p = y>>1;
+                let p = y >> 1;
                 let q = y & 1;
                 let acc = self.reg.hl();
                 let val = self.reg.r16sp(p);
                 let res = if q == 0 {
                     self.sbc16(acc, val)
-                } 
-                else {
+                } else {
                     self.adc16(acc, val)
                 };
                 self.reg.set_hl(res);
                 15
-            },
+            }
             (1, _, 3) => {
                 // 16-bit immediate address load/store
-                let p = y>>1;
+                let p = y >> 1;
                 let q = y & 1;
                 let nn = self.imm16();
                 if q == 0 {
                     // LD (nn),rr
                     let val = self.reg.r16sp(p);
                     self.mem.w16(nn, val);
-                }
-                else {
+                } else {
                     // LD rr,(nn)
                     let val = self.mem.r16(nn);
                     self.reg.set_r16sp(p, val);
                 }
                 self.reg.set_wz(nn + 1);
                 20
-            },
+            }
             (1, _, 4) => {
                 self.neg8();
                 8
-            },
+            }
             (1, 1, 5) => {
                 // RETI (RETN is not implemented)
                 self.reti(bus)
-            },
+            }
             (1, _, 6) => {
                 match y {
-                    0|1|4|5 => { self.reg.im = 0; },
-                    2|6     => { self.reg.im = 1; },
-                    3|7     => { self.reg.im = 2; },
-                    _       => { canthappen(); }
+                    0 | 1 | 4 | 5 => {
+                        self.reg.im = 0;
+                    }
+                    2 | 6 => {
+                        self.reg.im = 1;
+                    }
+                    3 | 7 => {
+                        self.reg.im = 2;
+                    }
+                    _ => {
+                        canthappen();
+                    }
                 }
                 8
-            },
-            (1, 0, 7) => { self.reg.i = self.reg.a(); 9 },   // LD I,A
-            (1, 1, 7) => { self.reg.r = self.reg.a(); 9 },   // LD R,A
-            (1, 2, 7) => { 
+            }
+            (1, 0, 7) => {
+                self.reg.i = self.reg.a();
+                9
+            }   // LD I,A
+            (1, 1, 7) => {
+                self.reg.r = self.reg.a();
+                9
+            }   // LD R,A
+            (1, 2, 7) => {
                 // LD A,I
                 let i = self.reg.i;
-                self.reg.set_a(i); 
-                let f = flags_sziff2(i, self.iff2)|(self.reg.f() & CF);
+                self.reg.set_a(i);
+                let f = flags_sziff2(i, self.iff2) | (self.reg.f() & CF);
                 self.reg.set_f(f);
                 9
-            },
+            }
             (1, 3, 7) => {
                 // LD A,R
                 let r = self.reg.r;
                 self.reg.set_a(r);
-                let f = flags_sziff2(r, self.iff2)|(self.reg.f() & CF);
+                let f = flags_sziff2(r, self.iff2) | (self.reg.f() & CF);
                 self.reg.set_f(f);
                 9
-            },
-            (1, 4, 7) => { self.rrd(); 18 },    // RRD
-            (1, 5, 7) => { self.rld(); 18 },    // RLD
-            (1, _, 7) => { 9 },     // NOP (ED)
-            _ => panic!("CB: Invalid instruction!")
+            }
+            (1, 4, 7) => {
+                self.rrd();
+                18
+            }    // RRD
+            (1, 5, 7) => {
+                self.rld();
+                18
+            }    // RLD
+            (1, _, 7) => 9,     // NOP (ED)
+            _ => panic!("CB: Invalid instruction!"),
         }
     }
 
     /// fetch and execute CB prefix instruction
     fn do_cb_op(&mut self, ext: bool) -> i64 {
-        let d = if ext {self.d()} else {0};
+        let d = if ext {
+            self.d()
+        } else {
+            0
+        };
         let op = self.fetch_op();
-        let cyc = if ext {4} else {0};
+        let cyc = if ext {
+            4
+        } else {
+            0
+        };
 
         // split instruction byte into bit groups
-        let x = op>>6;
-        let y = (op>>3 & 7) as usize;
+        let x = op >> 6;
+        let y = (op >> 3 & 7) as usize;
         let z = (op & 7) as usize;
-        cyc + match x {
+        cyc +
+        match x {
             0 => {
                 // rotates and shifts
                 if z == 6 {
@@ -788,9 +863,8 @@ impl CPU {
                     let w = self.rot(y, v);
                     self.mem.w8(a, w);
                     15
-                }
-                else if ext {
-                    // undocumented: ROT (IX+d), (IY+d),r 
+                } else if ext {
+                    // undocumented: ROT (IX+d), (IY+d),r
                     // (also stores result in a register)
                     let a = self.addr_d(d, ext);
                     let v = self.mem.r8(a);
@@ -798,82 +872,76 @@ impl CPU {
                     self.reg.set_r8i(z, w);
                     self.mem.w8(a, w);
                     15
-                }
-                else {   
+                } else {
                     // ROT r
                     let v = self.reg.r8i(z);
                     let w = self.rot(y, v);
                     self.reg.set_r8i(z, w);
                     8
                 }
-            },
+            }
             1 => {
                 // BIT n
                 if z == 6 {
                     // BIT n,(HL); BIT n,(IX+d); BIT n,(IY+d)
                     let a = self.addr_d(d, ext);
                     let v = self.mem.r8(a);
-                    self.ibit(v, 1<<y);
+                    self.ibit(v, 1 << y);
                     12
-                }
-                else {
+                } else {
                     // BIT n,r
                     let v = self.reg.r8i(z);
-                    self.bit(v, 1<<y);
+                    self.bit(v, 1 << y);
                     8
                 }
-            },
+            }
             2 => {
                 // RES n
                 if z == 6 {
                     // RES n,(HL); RES n,(IX+d); RES n,(IY+d)
                     let a = self.addr_d(d, ext);
-                    let v = self.mem.r8(a) & !(1<<y);
+                    let v = self.mem.r8(a) & !(1 << y);
                     self.mem.w8(a, v);
                     15
-                }
-                else if ext {
+                } else if ext {
                     // RES n,(IX+d),r; RES n,(IY+d),r
                     // (also stores result in a register)
                     let a = self.addr_d(d, ext);
-                    let v = self.mem.r8(a) & !(1<<y);
+                    let v = self.mem.r8(a) & !(1 << y);
                     self.reg.set_r8i(z, v);
                     self.mem.w8(a, v);
                     15
-                }
-                else {
+                } else {
                     // RES n,r
-                    let v = self.reg.r8i(z) & !(1<<y);
+                    let v = self.reg.r8i(z) & !(1 << y);
                     self.reg.set_r8i(z, v);
                     8
                 }
-            },
+            }
             3 => {
                 // SET n
                 if z == 6 {
                     // SET n,(HL); SET n,(IX+d); SET n,(IY+d)
                     let a = self.addr_d(d, ext);
-                    let v = self.mem.r8(a) | 1<<y;
+                    let v = self.mem.r8(a) | 1 << y;
                     self.mem.w8(a, v);
                     15
-                }
-                else if ext {
+                } else if ext {
                     // SET n,(IX+d),r; SET n,(IY+d),r
                     // (also stores result in a register)
                     let a = self.addr_d(d, ext);
-                    let v = self.mem.r8(a) | 1<<y;
+                    let v = self.mem.r8(a) | 1 << y;
                     self.reg.set_r8i(z, v);
                     self.mem.w8(a, v);
                     15
-                }
-                else {
+                } else {
                     // SET n,r
-                    let v = self.reg.r8i(z) | 1<<y;
+                    let v = self.reg.r8i(z) | 1 << y;
                     self.reg.set_r8i(z, v);
                     8
                 }
-            },
-            _ => canthappen() 
+            }
+            _ => canthappen(),
         }
     }
 
@@ -891,7 +959,7 @@ impl CPU {
     pub fn handle_irq(&mut self, bus: &Bus) -> i64 {
         // NOTE: only interrupt mode 2 is supported at the moment
         assert!(2 == self.reg.im);
-        
+
         let mut cycles = 2;
 
         // leave HALT state
@@ -906,8 +974,8 @@ impl CPU {
             self.iff1 = false;
             self.iff2 = false;
             let vec = bus.irq_ack();
-            let addr = (self.reg.i<<8 | vec) & 0xFFFE;
-        
+            let addr = (self.reg.i << 8 | vec) & 0xFFFE;
+
             // store return address on stack, and jump to interrupt handler
             let sp = (self.reg.sp() - 2) & 0xFFFF;
             self.mem.w16(sp, self.reg.pc());
@@ -960,7 +1028,7 @@ impl CPU {
             5 => self.xor8(val),
             6 => self.or8(val),
             7 => self.cp8(val),
-            _ => panic!("Can't happen!")
+            _ => panic!("Can't happen!"),
         }
     }
 
@@ -1034,11 +1102,16 @@ impl CPU {
     #[inline(always)]
     pub fn inc8(&mut self, val: RegT) -> RegT {
         let res = (val + 1) & 0xFF;
-        let f = (if res==0 {ZF} else {res & SF}) |
-            (res & (XF|YF)) | 
-            ((res^val) & HF) |
-            (if res==0x80 {VF} else {0}) |
-            (self.reg.f() & CF);
+        let f = (if res == 0 {
+            ZF
+        } else {
+            res & SF
+        }) | (res & (XF | YF)) | ((res ^ val) & HF) |
+                (if res == 0x80 {
+            VF
+        } else {
+            0
+        }) | (self.reg.f() & CF);
         self.reg.set_f(f);
         res
     }
@@ -1046,12 +1119,17 @@ impl CPU {
     #[inline(always)]
     pub fn dec8(&mut self, val: RegT) -> RegT {
         let res = (val - 1) & 0xFF;
-        let f = NF | 
-            (if res==0 {ZF} else {res & SF}) |
-            (res & (XF|YF)) |
-            ((res^val) & HF) |
-            (if res==0x7F {VF} else {0}) |
-            (self.reg.f() & CF);
+        let f = NF |
+                (if res == 0 {
+            ZF
+        } else {
+            res & SF
+        }) | (res & (XF | YF)) | ((res ^ val) & HF) |
+                (if res == 0x7F {
+            VF
+        } else {
+            0
+        }) | (self.reg.f() & CF);
         self.reg.set_f(f);
         res
     }
@@ -1067,29 +1145,29 @@ impl CPU {
             5 => self.sra8(val),
             6 => self.sll8(val),
             7 => self.srl8(val),
-            _ => panic!("Can't happen")
+            _ => panic!("Can't happen"),
         }
     }
 
     #[inline(always)]
     pub fn rlc8(&mut self, val: RegT) -> RegT {
-        let res = (val<<1 | val>>7) & 0xFF;
-        self.reg.set_f(flags_szp(res) | ((val>>7) & CF));
+        let res = (val << 1 | val >> 7) & 0xFF;
+        self.reg.set_f(flags_szp(res) | ((val >> 7) & CF));
         res
     }
 
     #[inline(always)]
     pub fn rlca8(&mut self) {
         let acc = self.reg.a();
-        let res = (acc<<1 | acc>>7) & 0xFF;
-        let f = ((acc>>7) & CF) | (res & (XF|YF)) | (self.reg.f() & (SF|ZF|PF));
+        let res = (acc << 1 | acc >> 7) & 0xFF;
+        let f = ((acc >> 7) & CF) | (res & (XF | YF)) | (self.reg.f() & (SF | ZF | PF));
         self.reg.set_f(f);
         self.reg.set_a(res);
     }
 
     #[inline(always)]
     pub fn rrc8(&mut self, val: RegT) -> RegT {
-        let res = (val>>1 | val<<7) & 0xFF;
+        let res = (val >> 1 | val << 7) & 0xFF;
         self.reg.set_f(flags_szp(res) | (val & CF));
         res
     }
@@ -1097,16 +1175,16 @@ impl CPU {
     #[inline(always)]
     pub fn rrca8(&mut self) {
         let acc = self.reg.a();
-        let res = (acc>>1 | acc<<7) & 0xFF;
-        let f = (acc & CF) | (res & (XF|YF)) | (self.reg.f() & (SF|ZF|PF));
+        let res = (acc >> 1 | acc << 7) & 0xFF;
+        let f = (acc & CF) | (res & (XF | YF)) | (self.reg.f() & (SF | ZF | PF));
         self.reg.set_f(f);
         self.reg.set_a(res);
     }
 
     #[inline(always)]
     pub fn rl8(&mut self, val: RegT) -> RegT {
-        let res = (val<<1 | (self.reg.f() & CF)) & 0xFF;
-        self.reg.set_f(flags_szp(res) | ((val>>7) & CF));
+        let res = (val << 1 | (self.reg.f() & CF)) & 0xFF;
+        self.reg.set_f(flags_szp(res) | ((val >> 7) & CF));
         res
     }
 
@@ -1114,14 +1192,14 @@ impl CPU {
     pub fn rla8(&mut self) {
         let acc = self.reg.a();
         let f = self.reg.f();
-        let res = (acc<<1 | (f & CF)) & 0xFF;
-        self.reg.set_f(((acc>>7) & CF) | (res & (XF|YF)) | (f & (SF|ZF|PF)));
+        let res = (acc << 1 | (f & CF)) & 0xFF;
+        self.reg.set_f(((acc >> 7) & CF) | (res & (XF | YF)) | (f & (SF | ZF | PF)));
         self.reg.set_a(res);
     }
 
     #[inline(always)]
     pub fn rr8(&mut self, val: RegT) -> RegT {
-        let res = (val>>1 | (self.reg.f() & CF)<<7) & 0xFF;
+        let res = (val >> 1 | (self.reg.f() & CF) << 7) & 0xFF;
         self.reg.set_f(flags_szp(res) | (val & CF));
         res
     }
@@ -1130,49 +1208,49 @@ impl CPU {
     pub fn rra8(&mut self) {
         let acc = self.reg.a();
         let f = self.reg.f();
-        let res = (acc>>1 | (f & CF)<<7) & 0xFF;
-        self.reg.set_f((acc & CF) | (res & (XF|YF)) | (f & (SF|ZF|PF)));
+        let res = (acc >> 1 | (f & CF) << 7) & 0xFF;
+        self.reg.set_f((acc & CF) | (res & (XF | YF)) | (f & (SF | ZF | PF)));
         self.reg.set_a(res);
     }
 
     #[inline(always)]
     pub fn sla8(&mut self, val: RegT) -> RegT {
-        let res = (val<<1) & 0xFF;
-        self.reg.set_f(flags_szp(res) | (val>>7 & CF));
+        let res = (val << 1) & 0xFF;
+        self.reg.set_f(flags_szp(res) | (val >> 7 & CF));
         res
     }
 
     #[inline(always)]
     pub fn sll8(&mut self, val: RegT) -> RegT {
         // undocumented, sll8 is identical with sla8, but shifts a 1 into LSB
-        let res = (val<<1 | 1) & 0xFF;
-        self.reg.set_f(flags_szp(res) | (val>>7 & CF));
+        let res = (val << 1 | 1) & 0xFF;
+        self.reg.set_f(flags_szp(res) | (val >> 7 & CF));
         res
     }
 
     #[inline(always)]
     pub fn sra8(&mut self, val: RegT) -> RegT {
-        let res = (val>>1 | (val & 0x80)) & 0xFF;
+        let res = (val >> 1 | (val & 0x80)) & 0xFF;
         self.reg.set_f(flags_szp(res) | (val & CF));
         res
     }
 
     #[inline(always)]
     pub fn srl8(&mut self, val: RegT) -> RegT {
-        let res = val>>1 & 0xFF;
+        let res = val >> 1 & 0xFF;
         self.reg.set_f(flags_szp(res) | (val & CF));
         res
     }
-    
+
     #[inline(always)]
     pub fn rld(&mut self) {
         let addr = self.reg.hl();
         let v = self.mem.r8(addr);
         let ah = self.reg.a() & 0xF0;
         let al = self.reg.a() & 0x0F;
-        let a = ah | (v>>4 & 0x0F);
+        let a = ah | (v >> 4 & 0x0F);
         self.reg.set_a(a);
-        self.mem.w8(addr, (v<<4 | al) & 0xFF);
+        self.mem.w8(addr, (v << 4 | al) & 0xFF);
         self.reg.set_wz(addr + 1);
         let f = flags_szp(a) | (self.reg.f() & CF);
         self.reg.set_f(f);
@@ -1186,7 +1264,7 @@ impl CPU {
         let al = self.reg.a() & 0x0F;
         let a = ah | (v & 0x0F);
         self.reg.set_a(a);
-        self.mem.w8(addr, (v>>4 | al<<4) & 0xFF);
+        self.mem.w8(addr, (v >> 4 | al << 4) & 0xFF);
         self.reg.set_wz(addr + 1);
         let f = flags_szp(a) | (self.reg.f() & CF);
         self.reg.set_f(f);
@@ -1196,20 +1274,26 @@ impl CPU {
     pub fn bit(&mut self, val: RegT, mask: RegT) {
         let res = val & mask;
         let f = HF | (self.reg.f() & CF) |
-            (if res == 0 {ZF|PF} else {res & SF}) |
-            (val & (XF|YF));
+                (if res == 0 {
+            ZF | PF
+        } else {
+            res & SF
+        }) | (val & (XF | YF));
         self.reg.set_f(f)
     }
 
     #[inline(always)]
     pub fn ibit(&mut self, val: RegT, mask: RegT) {
-        // special version of the BIT instruction for 
+        // special version of the BIT instruction for
         // (HL), (IX+d), (IY+d) to set the undocumented XF|YF flags
         // from high byte of HL+1 or IX/IY+d (expected in WZ)
         let res = val & mask;
         let f = HF | (self.reg.f() & CF) |
-            (if res == 0 {ZF|PF} else {res & SF}) |
-            (self.reg.w() & (XF|YF));
+                (if res == 0 {
+            ZF | PF
+        } else {
+            res & SF
+        }) | (self.reg.w() & (XF | YF));
         self.reg.set_f(f)
     }
 
@@ -1217,22 +1301,23 @@ impl CPU {
     pub fn add16(&mut self, acc: RegT, add: RegT) -> RegT {
         self.reg.set_wz(acc + 1);
         let res = acc + add;
-        let f = (self.reg.f() & (SF|ZF|VF)) |
-            (((acc^res^add)>>8) & HF) |
-            (res>>16 & CF) | (res>>8 & (YF|XF));
+        let f = (self.reg.f() & (SF | ZF | VF)) | (((acc ^ res ^ add) >> 8) & HF) |
+                (res >> 16 & CF) | (res >> 8 & (YF | XF));
         self.reg.set_f(f);
         res & 0xFFFF
     }
-    
+
     #[inline(always)]
     pub fn adc16(&mut self, acc: RegT, add: RegT) -> RegT {
         self.reg.set_wz(acc + 1);
         let res = acc + add + (self.reg.f() & CF);
-        self.reg.set_f((((acc^res^add)>>8) & HF) |
-            ((res>>16) & CF) |
-            ((res>>8) & (SF|XF|YF)) |
-            (if (res & 0xFFFF) == 0 {ZF} else {0}) |
-            (((add^acc^0x8000) & (add^res) & 0x8000)>>13));
+        self.reg.set_f((((acc ^ res ^ add) >> 8) & HF) | ((res >> 16) & CF) |
+                       ((res >> 8) & (SF | XF | YF)) |
+                       (if (res & 0xFFFF) == 0 {
+            ZF
+        } else {
+            0
+        }) | (((add ^ acc ^ 0x8000) & (add ^ res) & 0x8000) >> 13));
         res & 0xFFFF
     }
 
@@ -1240,11 +1325,13 @@ impl CPU {
     pub fn sbc16(&mut self, acc: RegT, sub: RegT) -> RegT {
         self.reg.set_wz(acc + 1);
         let res = acc - sub - (self.reg.f() & CF);
-        self.reg.set_f(NF | (((acc^res^sub)>>8) & HF) |
-            ((res>>16) & CF) |
-            ((res>>8) & (SF|XF|YF)) |
-            (if (res & 0xFFFF) == 0 {ZF} else {0}) |
-            (((sub^acc) & (acc^res) & 0x8000)>>13));
+        self.reg.set_f(NF | (((acc ^ res ^ sub) >> 8) & HF) | ((res >> 16) & CF) |
+                       ((res >> 8) & (SF | XF | YF)) |
+                       (if (res & 0xFFFF) == 0 {
+            ZF
+        } else {
+            0
+        }) | (((sub ^ acc) & (acc ^ res) & 0x8000) >> 13));
         res & 0xFFFF
     }
 
@@ -1259,8 +1346,7 @@ impl CPU {
             self.reg.set_wz(wz);
             self.reg.set_pc(wz);
             13  // return num cycles if branch taken
-        }
-        else {
+        } else {
             let pc = self.reg.pc() + 1;
             self.reg.set_pc(pc);
             8   // return num cycles if loop finished
@@ -1279,8 +1365,7 @@ impl CPU {
             if (a > 0x99) || (0 != (f & CF)) {
                 val = (val - 0x60) & 0xFF;
             }
-        }
-        else {
+        } else {
             if ((a & 0xF) > 0x9) || (0 != (f & HF)) {
                 val = (val + 0x06) & 0xFF;
             }
@@ -1288,10 +1373,12 @@ impl CPU {
                 val = (val + 0x60) & 0xFF;
             }
         }
-        self.reg.set_f((f & (CF|NF)) |
-            (if a>0x99 {CF} else {0}) |
-            ((a^val) & HF) |
-            flags_szp(val));
+        self.reg.set_f((f & (CF | NF)) |
+                       (if a > 0x99 {
+            CF
+        } else {
+            0
+        }) | ((a ^ val) & HF) | flags_szp(val));
         self.reg.set_a(val);
     }
 
@@ -1299,7 +1386,7 @@ impl CPU {
     pub fn cpl(&mut self) {
         let f = self.reg.f();
         let a = self.reg.a() ^ 0xFF;
-        self.reg.set_f((f & (SF|ZF|PF|CF)) | (HF|NF) | (a & (YF|XF)));
+        self.reg.set_f((f & (SF | ZF | PF | CF)) | (HF | NF) | (a & (YF | XF)));
         self.reg.set_a(a);
     }
 
@@ -1307,14 +1394,15 @@ impl CPU {
     pub fn scf(&mut self) {
         let f = self.reg.f();
         let a = self.reg.a();
-        self.reg.set_f((f & (SF|ZF|YF|XF|PF)) | CF | (a & (YF|XF)));
+        self.reg.set_f((f & (SF | ZF | YF | XF | PF)) | CF | (a & (YF | XF)));
     }
 
     #[inline(always)]
     pub fn ccf(&mut self) {
         let f = self.reg.f();
         let a = self.reg.a();
-        self.reg.set_f(((f & (SF|ZF|YF|XF|PF|CF)) | ((f & CF)<<4) | (a & (YF|XF))) ^ CF);
+        self.reg
+            .set_f(((f & (SF | ZF | YF | XF | PF | CF)) | ((f & CF) << 4) | (a & (YF | XF))) ^ CF);
     }
 
     #[inline(always)]
@@ -1335,15 +1423,14 @@ impl CPU {
         self.reg.set_sp(sp);
         self.reg.set_wz(wz);
         self.reg.set_pc(wz);
-        17 
+        17
     }
 
     #[inline(always)]
     pub fn retcc(&mut self, y: usize) -> i64 {
         if self.cc(y) {
             self.ret() + 1
-        }
-        else {
+        } else {
             5
         }
     }
@@ -1352,12 +1439,11 @@ impl CPU {
     pub fn callcc(&mut self, y: usize) -> i64 {
         if self.cc(y) {
             self.call()
-        }
-        else {
+        } else {
             let wz = self.imm16();
             self.reg.set_wz(wz);
             10
-        }               
+        }
     }
 
     #[inline(always)]
@@ -1371,10 +1457,22 @@ impl CPU {
         let bc = (self.reg.bc() - 1) & 0xFFFF;
         self.reg.set_bc(bc);
         let n = (val + self.reg.a()) & 0xFF;
-        let f = (self.reg.f() & (SF|ZF|CF)) |
-            (if (n & 0x02) != 0 {YF} else {0}) |
-            (if (n & 0x08) != 0 {XF} else {0}) |
-            (if bc > 0 {VF} else {0});
+        let f = (self.reg.f() & (SF | ZF | CF)) |
+                (if (n & 0x02) != 0 {
+            YF
+        } else {
+            0
+        }) |
+                (if (n & 0x08) != 0 {
+            XF
+        } else {
+            0
+        }) |
+                (if bc > 0 {
+            VF
+        } else {
+            0
+        });
         self.reg.set_f(f);
     }
 
@@ -1389,10 +1487,22 @@ impl CPU {
         let bc = (self.reg.bc() - 1) & 0xFFFF;
         self.reg.set_bc(bc);
         let n = (val + self.reg.a()) & 0xFF;
-        let f = (self.reg.f() & (SF|ZF|CF)) |
-            (if (n & 0x02) != 0 {YF} else {0}) |
-            (if (n & 0x08) != 0 {XF} else {0}) |
-            (if bc > 0 {VF} else {0});
+        let f = (self.reg.f() & (SF | ZF | CF)) |
+                (if (n & 0x02) != 0 {
+            YF
+        } else {
+            0
+        }) |
+                (if (n & 0x08) != 0 {
+            XF
+        } else {
+            0
+        }) |
+                (if bc > 0 {
+            VF
+        } else {
+            0
+        });
         self.reg.set_f(f);
     }
 
@@ -1404,8 +1514,7 @@ impl CPU {
             self.reg.dec_pc(2);
             self.reg.set_wz(pc + 1);
             21
-        }
-        else {
+        } else {
             16
         }
     }
@@ -1418,8 +1527,7 @@ impl CPU {
             self.reg.dec_pc(2);
             self.reg.set_wz(pc + 1);
             21
-        }
-        else {
+        } else {
             16
         }
     }
@@ -1435,14 +1543,30 @@ impl CPU {
         let a = self.reg.a();
         let mut v = a - self.mem.r8(hl);
         let mut f = NF | (self.reg.f() & CF) |
-            (if v==0 {ZF} else {v & SF}) |
-            (if (v & 0xF)>(a & 0xF) {HF} else {0}) |
-            (if bc != 0 {VF} else {0});
+                    (if v == 0 {
+            ZF
+        } else {
+            v & SF
+        }) |
+                    (if (v & 0xF) > (a & 0xF) {
+            HF
+        } else {
+            0
+        }) |
+                    (if bc != 0 {
+            VF
+        } else {
+            0
+        });
         if (f & HF) != 0 {
             v -= 1;
         }
-        if (v & 0x02) != 0 { f |= YF };
-        if (v & 0x08) != 0 { f |= XF };
+        if (v & 0x02) != 0 {
+            f |= YF
+        };
+        if (v & 0x08) != 0 {
+            f |= XF
+        };
         self.reg.set_f(f);
     }
 
@@ -1457,27 +1581,42 @@ impl CPU {
         let a = self.reg.a();
         let mut v = a - self.mem.r8(hl);
         let mut f = NF | (self.reg.f() & CF) |
-            (if v==0 {ZF} else {v & SF}) |
-            (if (v & 0xF)>(a & 0xF) {HF} else {0}) |
-            (if bc != 0 {VF} else {0});
+                    (if v == 0 {
+            ZF
+        } else {
+            v & SF
+        }) |
+                    (if (v & 0xF) > (a & 0xF) {
+            HF
+        } else {
+            0
+        }) |
+                    (if bc != 0 {
+            VF
+        } else {
+            0
+        });
         if (f & HF) != 0 {
             v -= 1;
         }
-        if (v & 0x02) != 0 { f |= YF };
-        if (v & 0x08) != 0 { f |= XF };
+        if (v & 0x02) != 0 {
+            f |= YF
+        };
+        if (v & 0x08) != 0 {
+            f |= XF
+        };
         self.reg.set_f(f);
     }
 
     #[inline(always)]
     pub fn cpir(&mut self) -> i64 {
         self.cpi();
-        if (self.reg.f() & (VF|ZF)) == VF {
+        if (self.reg.f() & (VF | ZF)) == VF {
             let pc = self.reg.pc();
             self.reg.dec_pc(2);
             self.reg.set_wz(pc + 1);
             21
-        }
-        else {
+        } else {
             16
         }
     }
@@ -1485,13 +1624,12 @@ impl CPU {
     #[inline(always)]
     pub fn cpdr(&mut self) -> i64 {
         self.cpd();
-        if (self.reg.f() & (VF|ZF)) == VF {
+        if (self.reg.f() & (VF | ZF)) == VF {
             let pc = self.reg.pc();
             self.reg.dec_pc(2);
             self.reg.set_wz(pc + 1);
             21
-        }
-        else {
+        } else {
             16
         }
     }
@@ -1511,10 +1649,21 @@ impl CPU {
         let b = self.reg.b();
         let c = self.reg.c();
         let t = ((c + add) & 0xFF) + val;
-        (if b != 0 {b & SF} else {ZF}) |
-        (if (val & SF) != 0 {NF} else {0}) |
-        (if (t & 0x100) != 0 {HF|CF} else {0}) |
-        (flags_szp((t & 0x07) ^ b) & PF)
+        (if b != 0 {
+            b & SF
+        } else {
+            ZF
+        }) |
+        (if (val & SF) != 0 {
+            NF
+        } else {
+            0
+        }) |
+        (if (t & 0x100) != 0 {
+            HF | CF
+        } else {
+            0
+        }) | (flags_szp((t & 0x07) ^ b) & PF)
     }
 
     #[inline(always)]
@@ -1522,10 +1671,21 @@ impl CPU {
         let b = self.reg.b();
         let l = self.reg.l();
         let t = l + val;
-        (if b != 0 {b & SF} else {ZF}) |
-        (if (val & SF) != 0 {NF} else {0}) |
-        (if (t & 0x100) != 0 {HF|CF} else {0}) |
-        (flags_szp((t & 0x07) ^ b) & PF)
+        (if b != 0 {
+            b & SF
+        } else {
+            ZF
+        }) |
+        (if (val & SF) != 0 {
+            NF
+        } else {
+            0
+        }) |
+        (if (t & 0x100) != 0 {
+            HF | CF
+        } else {
+            0
+        }) | (flags_szp((t & 0x07) ^ b) & PF)
     }
 
     #[inline(always)]
@@ -1562,8 +1722,7 @@ impl CPU {
         if self.reg.b() != 0 {
             self.reg.dec_pc(2);
             21
-        }
-        else {
+        } else {
             16
         }
     }
@@ -1574,8 +1733,7 @@ impl CPU {
         if self.reg.b() != 0 {
             self.reg.dec_pc(2);
             21
-        }
-        else {
+        } else {
             16
         }
     }
@@ -1614,8 +1772,7 @@ impl CPU {
         if self.reg.b() != 0 {
             self.reg.dec_pc(2);
             21
-        }
-        else {
+        } else {
             16
         }
     }
@@ -1626,29 +1783,28 @@ impl CPU {
         if self.reg.b() != 0 {
             self.reg.dec_pc(2);
             21
-        }
-        else {
+        } else {
             16
         }
     }
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
 
     use super::*;
     use RegT;
     use Bus;
-    use registers::CF as CF;
-    use registers::NF as NF;
-    use registers::VF as VF;
-    use registers::PF as PF;
-    use registers::XF as XF;
-    use registers::HF as HF;
-    use registers::YF as YF;
-    use registers::ZF as ZF;
-    use registers::SF as SF;
+    use registers::CF;
+    use registers::NF;
+    use registers::VF;
+    use registers::PF;
+    use registers::XF;
+    use registers::HF;
+    use registers::YF;
+    use registers::ZF;
+    use registers::SF;
 
     #[test]
     fn reset() {
@@ -1723,7 +1879,7 @@ mod tests {
     }
 
     fn test_flags(cpu: &CPU, expected: RegT) -> bool {
-        (cpu.reg.f() & !(XF|YF)) == expected
+        (cpu.reg.f() & !(XF | YF)) == expected
     }
 
     #[test]
@@ -1739,10 +1895,10 @@ mod tests {
         cpu.reg.set_a(0x81);
         cpu.add8(0x80);
         assert!(0x01 == cpu.reg.a());
-        assert!(test_flags(&cpu, VF|CF));
+        assert!(test_flags(&cpu, VF | CF));
         cpu.add8(0xFF);
         assert!(0x00 == cpu.reg.a());
-        assert!(test_flags(&cpu, ZF|HF|CF));
+        assert!(test_flags(&cpu, ZF | HF | CF));
     }
 
     #[test]
@@ -1757,10 +1913,10 @@ mod tests {
         assert!(test_flags(&cpu, 0));
         cpu.adc8(0x61);
         assert!(0xA2 == cpu.reg.a());
-        assert!(test_flags(&cpu, SF|VF));
+        assert!(test_flags(&cpu, SF | VF));
         cpu.adc8(0x81);
         assert!(0x23 == cpu.reg.a());
-        assert!(test_flags(&cpu, VF|CF));
+        assert!(test_flags(&cpu, VF | CF));
         cpu.adc8(0x41);
         assert!(0x65 == cpu.reg.a());
         assert!(test_flags(&cpu, 0));
@@ -1772,16 +1928,16 @@ mod tests {
         cpu.reg.set_a(0x04);
         cpu.sub8(0x04);
         assert!(0x00 == cpu.reg.a());
-        assert!(test_flags(&cpu, ZF|NF));
+        assert!(test_flags(&cpu, ZF | NF));
         cpu.sub8(0x01);
         assert!(0xFF == cpu.reg.a());
-        assert!(test_flags(&cpu, SF|HF|NF|CF));
+        assert!(test_flags(&cpu, SF | HF | NF | CF));
         cpu.sub8(0xF8);
         assert!(0x07 == cpu.reg.a());
         assert!(test_flags(&cpu, NF));
         cpu.sub8(0x0F);
         assert!(0xF8 == cpu.reg.a());
-        assert!(test_flags(&cpu, SF|HF|NF|CF));
+        assert!(test_flags(&cpu, SF | HF | NF | CF));
     }
 
     #[test]
@@ -1790,10 +1946,10 @@ mod tests {
         cpu.reg.set_a(0x04);
         cpu.sbc8(0x04);
         assert!(0x00 == cpu.reg.a());
-        assert!(test_flags(&cpu, ZF|NF));
+        assert!(test_flags(&cpu, ZF | NF));
         cpu.sbc8(0x01);
         assert!(0xFF == cpu.reg.a());
-        assert!(test_flags(&cpu, SF|HF|NF|CF));
+        assert!(test_flags(&cpu, SF | HF | NF | CF));
         cpu.sbc8(0xF8);
         assert!(0x06 == cpu.reg.a());
         assert!(test_flags(&cpu, NF));
@@ -1804,13 +1960,13 @@ mod tests {
         let mut cpu = CPU::new_64k();
         cpu.reg.set_a(0x04);
         cpu.cp8(0x04);
-        assert!(test_flags(&cpu, ZF|NF)); 
+        assert!(test_flags(&cpu, ZF | NF));
         cpu.cp8(0x05);
-        assert!(test_flags(&cpu, SF|HF|NF|CF));
+        assert!(test_flags(&cpu, SF | HF | NF | CF));
         cpu.cp8(0x03);
         assert!(test_flags(&cpu, NF));
         cpu.cp8(0xFF);
-        assert!(test_flags(&cpu, HF|NF|CF));
+        assert!(test_flags(&cpu, HF | NF | CF));
     }
 
     #[test]
@@ -1819,38 +1975,47 @@ mod tests {
         cpu.reg.set_a(0x01);
         cpu.neg8();
         assert!(0xFF == cpu.reg.a());
-        assert!(test_flags(&cpu, SF|HF|NF|CF));
+        assert!(test_flags(&cpu, SF | HF | NF | CF));
         cpu.reg.set_a(0x00);
         cpu.neg8();
         assert!(0x00 == cpu.reg.a());
-        assert!(test_flags(&cpu, NF|ZF));
+        assert!(test_flags(&cpu, NF | ZF));
         cpu.reg.set_a(0x80);
         cpu.neg8();
         assert!(0x80 == cpu.reg.a());
-        assert!(test_flags(&cpu, SF|VF|NF|CF))
+        assert!(test_flags(&cpu, SF | VF | NF | CF))
     }
 
     #[test]
     fn and8() {
         let mut cpu = CPU::new_64k();
-        cpu.reg.set_a(0xFF); cpu.and8(0x01);
-        assert!(0x01 == cpu.reg.a()); assert!(test_flags(&cpu, HF));
-        cpu.reg.set_a(0xFF); cpu.and8(0xAA);
-        assert!(0xAA == cpu.reg.a()); assert!(test_flags(&cpu, SF|HF|PF));
-        cpu.reg.set_a(0xFF); cpu.and8(0x03);
-        assert!(0x03 == cpu.reg.a()); assert!(test_flags(&cpu, HF|PF));
+        cpu.reg.set_a(0xFF);
+        cpu.and8(0x01);
+        assert!(0x01 == cpu.reg.a());
+        assert!(test_flags(&cpu, HF));
+        cpu.reg.set_a(0xFF);
+        cpu.and8(0xAA);
+        assert!(0xAA == cpu.reg.a());
+        assert!(test_flags(&cpu, SF | HF | PF));
+        cpu.reg.set_a(0xFF);
+        cpu.and8(0x03);
+        assert!(0x03 == cpu.reg.a());
+        assert!(test_flags(&cpu, HF | PF));
     }
 
     #[test]
     fn or8() {
         let mut cpu = CPU::new_64k();
-        cpu.reg.set_a(0x00); 
+        cpu.reg.set_a(0x00);
         cpu.or8(0x00);
-        assert!(0x00 == cpu.reg.a()); assert!(test_flags(&cpu, ZF|PF));
+        assert!(0x00 == cpu.reg.a());
+        assert!(test_flags(&cpu, ZF | PF));
         cpu.or8(0x01);
-        assert!(0x01 == cpu.reg.a()); assert!(test_flags(&cpu, 0));
+        assert!(0x01 == cpu.reg.a());
+        assert!(test_flags(&cpu, 0));
         cpu.or8(0x02);
-        assert!(0x03 == cpu.reg.a()); assert!(test_flags(&cpu, PF));
+        assert!(0x03 == cpu.reg.a());
+        assert!(test_flags(&cpu, PF));
     }
 
     #[test]
@@ -1858,47 +2023,62 @@ mod tests {
         let mut cpu = CPU::new_64k();
         cpu.reg.set_a(0x00);
         cpu.xor8(0x00);
-        assert!(0x00 == cpu.reg.a()); assert!(test_flags(&cpu, ZF|PF));
+        assert!(0x00 == cpu.reg.a());
+        assert!(test_flags(&cpu, ZF | PF));
         cpu.xor8(0x01);
-        assert!(0x01 == cpu.reg.a()); assert!(test_flags(&cpu, 0));
+        assert!(0x01 == cpu.reg.a());
+        assert!(test_flags(&cpu, 0));
         cpu.xor8(0x03);
-        assert!(0x02 == cpu.reg.a()); assert!(test_flags(&cpu, 0));
+        assert!(0x02 == cpu.reg.a());
+        assert!(test_flags(&cpu, 0));
     }
 
     #[test]
     fn inc8_dec8() {
         let mut cpu = CPU::new_64k();
         let a = cpu.inc8(0x00);
-        assert!(0x01 == a); assert!(test_flags(&cpu, 0));
+        assert!(0x01 == a);
+        assert!(test_flags(&cpu, 0));
         let b = cpu.dec8(a);
-        assert!(0x00 == b); assert!(test_flags(&cpu, ZF|NF));
+        assert!(0x00 == b);
+        assert!(test_flags(&cpu, ZF | NF));
         let c = cpu.inc8(0xFF);
-        assert!(0x00 == c); assert!(test_flags(&cpu, ZF|HF));
+        assert!(0x00 == c);
+        assert!(test_flags(&cpu, ZF | HF));
         let d = cpu.dec8(c);
         let f = cpu.reg.f() | CF;
         cpu.reg.set_f(f);   // set carry flag (should be preserved)
-        assert!(0xFF == d); assert!(test_flags(&cpu, SF|HF|NF|CF));
+        assert!(0xFF == d);
+        assert!(test_flags(&cpu, SF | HF | NF | CF));
         let e = cpu.inc8(0x0F);
-        assert!(0x10 == e); assert!(test_flags(&cpu, HF|CF));
+        assert!(0x10 == e);
+        assert!(test_flags(&cpu, HF | CF));
         let f = cpu.dec8(e);
-        assert!(0x0F == f); assert!(test_flags(&cpu, HF|NF|CF));
+        assert!(0x0F == f);
+        assert!(test_flags(&cpu, HF | NF | CF));
     }
 
     #[test]
     fn rlc8_rrc8() {
         let mut cpu = CPU::new_64k();
         let a = cpu.rrc8(0x01);
-        assert!(0x80 == a); assert!(test_flags(&cpu, SF|CF));
+        assert!(0x80 == a);
+        assert!(test_flags(&cpu, SF | CF));
         let b = cpu.rlc8(a);
-        assert!(0x01 == b); assert!(test_flags(&cpu, CF));
+        assert!(0x01 == b);
+        assert!(test_flags(&cpu, CF));
         let c = cpu.rrc8(0xFF);
-        assert!(0xFF == c); assert!(test_flags(&cpu, SF|PF|CF));
+        assert!(0xFF == c);
+        assert!(test_flags(&cpu, SF | PF | CF));
         let d = cpu.rlc8(c);
-        assert!(0xFF == d); assert!(test_flags(&cpu, SF|PF|CF));
+        assert!(0xFF == d);
+        assert!(test_flags(&cpu, SF | PF | CF));
         let e = cpu.rlc8(0x03);
-        assert!(0x06 == e); assert!(test_flags(&cpu, PF));
+        assert!(0x06 == e);
+        assert!(test_flags(&cpu, PF));
         let f = cpu.rrc8(e);
-        assert!(0x03 == f); assert!(test_flags(&cpu, PF));
+        assert!(0x03 == f);
+        assert!(test_flags(&cpu, PF));
     }
 
     #[test]
@@ -1907,30 +2087,40 @@ mod tests {
         cpu.reg.set_f(0xFF);
         cpu.reg.set_a(0xA0);
         cpu.rlca8();
-        assert!(0x41 == cpu.reg.a()); assert!(test_flags(&cpu, SF|ZF|VF|CF));
+        assert!(0x41 == cpu.reg.a());
+        assert!(test_flags(&cpu, SF | ZF | VF | CF));
         cpu.rlca8();
-        assert!(0x82 == cpu.reg.a()); assert!(test_flags(&cpu, SF|ZF|VF));
+        assert!(0x82 == cpu.reg.a());
+        assert!(test_flags(&cpu, SF | ZF | VF));
         cpu.rrca8();
-        assert!(0x41 == cpu.reg.a()); assert!(test_flags(&cpu, SF|ZF|VF));
+        assert!(0x41 == cpu.reg.a());
+        assert!(test_flags(&cpu, SF | ZF | VF));
         cpu.rrca8();
-        assert!(0xA0 == cpu.reg.a()); assert!(test_flags(&cpu, SF|ZF|VF|CF));
+        assert!(0xA0 == cpu.reg.a());
+        assert!(test_flags(&cpu, SF | ZF | VF | CF));
     }
 
     #[test]
     fn rl8_rr8() {
         let mut cpu = CPU::new_64k();
         let a = cpu.rr8(0x01);
-        assert!(0x00 == a); assert!(test_flags(&cpu, ZF|PF|CF));
+        assert!(0x00 == a);
+        assert!(test_flags(&cpu, ZF | PF | CF));
         let b = cpu.rl8(a);
-        assert!(0x01 == b); assert!(test_flags(&cpu, 0));
+        assert!(0x01 == b);
+        assert!(test_flags(&cpu, 0));
         let c = cpu.rr8(0xFF);
-        assert!(0x7F == c); assert!(test_flags(&cpu, CF));
+        assert!(0x7F == c);
+        assert!(test_flags(&cpu, CF));
         let d = cpu.rl8(c);
-        assert!(0xFF == d); assert!(test_flags(&cpu, SF|PF));
+        assert!(0xFF == d);
+        assert!(test_flags(&cpu, SF | PF));
         let e = cpu.rl8(0x03);
-        assert!(0x06 == e); assert!(test_flags(&cpu, PF));
+        assert!(0x06 == e);
+        assert!(test_flags(&cpu, PF));
         let f = cpu.rr8(e);
-        assert!(0x03 == f); assert!(test_flags(&cpu, PF));
+        assert!(0x03 == f);
+        assert!(test_flags(&cpu, PF));
     }
 
 
@@ -1940,56 +2130,74 @@ mod tests {
         cpu.reg.set_f(0xFF);
         cpu.reg.set_a(0xA0);
         cpu.rla8();
-        assert!(0x41 == cpu.reg.a()); assert!(test_flags(&cpu, SF|ZF|VF|CF));
+        assert!(0x41 == cpu.reg.a());
+        assert!(test_flags(&cpu, SF | ZF | VF | CF));
         cpu.rla8();
-        assert!(0x83 == cpu.reg.a()); assert!(test_flags(&cpu, SF|ZF|VF));
+        assert!(0x83 == cpu.reg.a());
+        assert!(test_flags(&cpu, SF | ZF | VF));
         cpu.rra8();
-        assert!(0x41 == cpu.reg.a()); assert!(test_flags(&cpu, SF|ZF|VF|CF));
+        assert!(0x41 == cpu.reg.a());
+        assert!(test_flags(&cpu, SF | ZF | VF | CF));
         cpu.rra8();
-        assert!(0xA0 == cpu.reg.a()); assert!(test_flags(&cpu, SF|ZF|VF|CF));
+        assert!(0xA0 == cpu.reg.a());
+        assert!(test_flags(&cpu, SF | ZF | VF | CF));
     }
 
     #[test]
     fn sla8() {
         let mut cpu = CPU::new_64k();
         let a = cpu.sla8(0x01);
-        assert!(0x02 == a); assert!(test_flags(&cpu, 0));
+        assert!(0x02 == a);
+        assert!(test_flags(&cpu, 0));
         let b = cpu.sla8(0x80);
-        assert!(0x00 == b); assert!(test_flags(&cpu, ZF|PF|CF));
+        assert!(0x00 == b);
+        assert!(test_flags(&cpu, ZF | PF | CF));
         let c = cpu.sla8(0xAA);
-        assert!(0x54 == c); assert!(test_flags(&cpu, CF));
+        assert!(0x54 == c);
+        assert!(test_flags(&cpu, CF));
         let d = cpu.sla8(0xFE);
-        assert!(0xFC == d); assert!(test_flags(&cpu, SF|PF|CF));
+        assert!(0xFC == d);
+        assert!(test_flags(&cpu, SF | PF | CF));
         let e = cpu.sla8(0x7F);
-        assert!(0xFE == e); assert!(test_flags(&cpu, SF));
+        assert!(0xFE == e);
+        assert!(test_flags(&cpu, SF));
     }
 
     #[test]
     fn sra8() {
         let mut cpu = CPU::new_64k();
         let a = cpu.sra8(0x01);
-        assert!(0x00 == a); assert!(test_flags(&cpu, ZF|PF|CF));
+        assert!(0x00 == a);
+        assert!(test_flags(&cpu, ZF | PF | CF));
         let b = cpu.sra8(0x80);
-        assert!(0xC0 == b); assert!(test_flags(&cpu, SF|PF));
+        assert!(0xC0 == b);
+        assert!(test_flags(&cpu, SF | PF));
         let c = cpu.sra8(0xAA);
-        assert!(0xD5 == c); assert!(test_flags(&cpu, SF));
+        assert!(0xD5 == c);
+        assert!(test_flags(&cpu, SF));
         let d = cpu.sra8(0xFE);
-        assert!(0xFF == d); assert!(test_flags(&cpu, SF|PF));
+        assert!(0xFF == d);
+        assert!(test_flags(&cpu, SF | PF));
     }
 
     #[test]
     fn srl8() {
         let mut cpu = CPU::new_64k();
         let a = cpu.srl8(0x01);
-        assert!(0x00 == a); assert!(test_flags(&cpu, ZF|PF|CF));
+        assert!(0x00 == a);
+        assert!(test_flags(&cpu, ZF | PF | CF));
         let b = cpu.srl8(0x80);
-        assert!(0x40 == b); assert!(test_flags(&cpu, 0));
+        assert!(0x40 == b);
+        assert!(test_flags(&cpu, 0));
         let c = cpu.srl8(0xAA);
-        assert!(0x55 == c); assert!(test_flags(&cpu, PF));
+        assert!(0x55 == c);
+        assert!(test_flags(&cpu, PF));
         let d = cpu.srl8(0xFE);
-        assert!(0x7f == d); assert!(test_flags(&cpu, 0));
+        assert!(0x7f == d);
+        assert!(test_flags(&cpu, 0));
         let e = cpu.srl8(0x7F);
-        assert!(0x3F == e); assert!(test_flags(&cpu, PF|CF));
+        assert!(0x3F == e);
+        assert!(test_flags(&cpu, PF | CF));
     }
 
     struct TestBus { }
@@ -2007,7 +2215,7 @@ mod tests {
     #[test]
     fn inp() {
         let mut cpu = CPU::new_64k();
-        let bus = TestBus { };
+        let bus = TestBus {};
         let i = cpu.inp(&bus, 0x1234);
         assert!(i == 0x34);
     }
@@ -2015,8 +2223,7 @@ mod tests {
     #[test]
     fn outp() {
         let mut cpu = CPU::new_64k();
-        let bus = TestBus { };
+        let bus = TestBus {};
         cpu.outp(&bus, 0x1234, 12);
     }
 }
-

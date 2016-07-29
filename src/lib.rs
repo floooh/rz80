@@ -12,10 +12,9 @@ mod cpu;
 mod pio;
 mod daisychain;
 
-pub use registers::{Registers,CF,NF,VF,PF,XF,HF,YF,ZF,SF};
+pub use registers::{Registers, CF, NF, VF, PF, XF, HF, YF, ZF, SF};
 pub use memory::Memory;
 pub use cpu::CPU;
 pub use bus::Bus;
-pub use pio::{PIO,PIO_A,PIO_B};
+pub use pio::{PIO, PIO_A, PIO_B};
 pub use daisychain::Daisychain;
-

@@ -3,15 +3,15 @@ use std::cell::RefCell;
 use RegT;
 use bus::Bus;
 
-const MAX_CONTROLLERS : usize = 16;
+const MAX_CONTROLLERS: usize = 16;
 
 /// a single interrupt controller
 #[derive(Clone,Copy)]
 pub struct Controller {
-    pub int_enabled : bool,
-    pub int_requested : bool,
-    pub int_pending : bool,
-    pub int_vec : u8,
+    pub int_enabled: bool,
+    pub int_requested: bool,
+    pub int_pending: bool,
+    pub int_vec: u8,
 }
 
 impl Controller {
@@ -34,7 +34,7 @@ impl Controller {
 /// interrupt controller daisychain
 pub struct Daisychain {
     pub num_ctrl: usize,
-    pub ctrl : [Controller; MAX_CONTROLLERS],
+    pub ctrl: [Controller; MAX_CONTROLLERS],
 }
 
 impl Daisychain {
@@ -66,7 +66,7 @@ impl Daisychain {
             bus.irq_cpu();
 
             // disable interrupt on downstream controllers
-            for i in ctrl_id+1..self.num_ctrl {
+            for i in ctrl_id + 1..self.num_ctrl {
                 self.ctrl[i].int_enabled = false;
             }
         }
@@ -107,7 +107,7 @@ impl Daisychain {
     }
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 #[cfg(test)]
 mod test {
     use std::cell::RefCell;
@@ -177,7 +177,7 @@ mod test {
             state.irq_ctrl_id = ctrl_id;
             state.irq_vec = vec;
         }
-        fn irq_cpu(&self) { 
+        fn irq_cpu(&self) {
             let mut state = self.state.borrow_mut();
             state.irq_cpu_called = true;
         }
@@ -217,5 +217,3 @@ mod test {
         }
     }
 }
-
-

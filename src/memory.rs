@@ -2,23 +2,27 @@ use std::mem;
 use RegT;
 
 const PAGE_SHIFT: usize = 10;   // 1 kByte page size = (1<<10)
-const PAGE_SIZE:  usize = (1<<PAGE_SHIFT);
-const PAGE_MASK:  usize = PAGE_SIZE-1;
-const HEAP_SIZE:  usize = 128 * PAGE_SIZE;
-const NUM_PAGES:  usize = (1<<16) / PAGE_SIZE;
+const PAGE_SIZE: usize = (1 << PAGE_SHIFT);
+const PAGE_MASK: usize = PAGE_SIZE - 1;
+const HEAP_SIZE: usize = 128 * PAGE_SIZE;
+const NUM_PAGES: usize = (1 << 16) / PAGE_SIZE;
 const NUM_LAYERS: usize = 4;
 
 #[derive(Clone,Copy)]
 struct Page {
-    pub offset: usize,      // offset into heap
-    pub writable: bool,     // true if the page is writable
-    pub mapped: bool,       // true if currently mapped
+    pub offset: usize, // offset into heap
+    pub writable: bool, // true if the page is writable
+    pub mapped: bool, // true if currently mapped
 }
 
 impl Page {
     /// return a new, unmapped page
     pub fn new() -> Page {
-        Page { offset: 0, writable: false, mapped: false }
+        Page {
+            offset: 0,
+            writable: false,
+            mapped: false,
+        }
     }
     /// map page to chunk of heap memory
     pub fn map(&mut self, offset: usize, writable: bool) {
@@ -37,9 +41,9 @@ impl Page {
 /// memory access
 ///
 /// The Memory object wraps access to the Z80's 64 KByte
-/// address space. All memory access goes through a 
+/// address space. All memory access goes through a
 /// page table with a page-size of 1 KByte. The page table
-/// mapping allows a very simple implementation of 
+/// mapping allows a very simple implementation of
 /// bank-switching, which was a popular way in 8-bit computers to
 /// manage more than 64 KBytes of memory.
 ///
@@ -48,7 +52,7 @@ impl Page {
 /// Mapped memory is assigned to 1 out of (currently) 4 layers. If
 /// 2 memory chunks are mapped to the same CPU address range on
 /// different layers, only the memory assigned to the higher-priority
-/// layer is visible to the CPU (layer number 0 has the highest 
+/// layer is visible to the CPU (layer number 0 has the highest
 /// priority and layer number 3 the lowest).
 ///
 /// The layer concept is easier to visualize than to describe:
@@ -86,25 +90,29 @@ pub struct Memory {
 }
 
 impl Memory {
-
     /// return new, unmapped memory object
     pub fn new() -> Memory {
         Memory {
             pages: [Page::new(); NUM_PAGES],
             layers: [[Page::new(); NUM_PAGES]; NUM_LAYERS],
-            heap: [0; HEAP_SIZE]
+            heap: [0; HEAP_SIZE],
         }
     }
 
     /// return new memory object with 64 kByte mapped, writable memory (for testing)
     pub fn new_64k() -> Memory {
         let mut mem = Memory::new();
-        mem.map(0, 0, 0, true, (1<<16));
+        mem.map(0, 0, 0, true, (1 << 16));
         mem
     }
 
     /// map a chunk of uninitialized heap memory to CPU-mapped memory
-    pub fn map(&mut self, layer: usize, heap_offset: usize, addr: usize, writable: bool, size: usize) {
+    pub fn map(&mut self,
+               layer: usize,
+               heap_offset: usize,
+               addr: usize,
+               writable: bool,
+               size: usize) {
         assert!((size & PAGE_MASK) == 0);
         assert!((addr & PAGE_MASK) == 0);
         let num = size >> PAGE_SHIFT;
@@ -118,12 +126,17 @@ impl Memory {
     }
 
     /// map a chunk of heap memory, and initialize it
-    pub fn map_bytes(&mut self, layer: usize, heap_offset: usize, addr: usize, writable: bool, content: &[u8]) {
+    pub fn map_bytes(&mut self,
+                     layer: usize,
+                     heap_offset: usize,
+                     addr: usize,
+                     writable: bool,
+                     content: &[u8]) {
         assert!((addr & PAGE_MASK) == 0);
         let size = mem::size_of_val(content);
         assert!((size & PAGE_MASK) == 0);
         self.map(layer, heap_offset, addr, writable, size);
-        let dst = &mut self.heap[heap_offset..heap_offset+size];
+        let dst = &mut self.heap[heap_offset..heap_offset + size];
         dst.clone_from_slice(content);
     }
 
@@ -161,7 +174,7 @@ impl Memory {
 
     /// private method to update internal CPU-visible mapping from mapped layers
     fn update_mapping(&mut self) {
-        // for each cpu-visible page, find the highest-priority layer 
+        // for each cpu-visible page, find the highest-priority layer
         // which maps this memory range and copy it into the
         // cpu-visible page
         for page_index in 0..NUM_PAGES {
@@ -174,7 +187,7 @@ impl Memory {
             }
             match layer_page {
                 Some(page) => self.pages[page_index] = *page,
-                None => self.pages[page_index].unmap()
+                None => self.pages[page_index].unmap(),
             }
         }
     }
@@ -187,8 +200,7 @@ impl Memory {
         if page.mapped {
             let heap_offset = page.offset + (uaddr & PAGE_MASK);
             self.heap[heap_offset] as RegT
-        }
-        else {
+        } else {
             0xFF
         }
     }
@@ -201,8 +213,7 @@ impl Memory {
         if page.mapped {
             let heap_offset = page.offset + (uaddr & PAGE_MASK);
             self.heap[heap_offset] as i8 as RegT
-        }
-        else {
+        } else {
             0xFF
         }
     }
@@ -222,7 +233,7 @@ impl Memory {
     pub fn w8f(&mut self, addr: RegT, val: RegT) {
         let uaddr = (addr & 0xFFFF) as usize;
         let page = &self.pages[uaddr >> PAGE_SHIFT];
-        if page.mapped { 
+        if page.mapped {
             let heap_offset = page.offset + (uaddr & PAGE_MASK);
             self.heap[heap_offset] = val as u8;
         }
@@ -233,7 +244,7 @@ impl Memory {
     pub fn r16(&self, addr: RegT) -> RegT {
         let l = self.r8(addr);
         let h = self.r8(addr + 1);
-        h<<8 | l
+        h << 8 | l
     }
 
     /// write unsigned word to 16-bit address
@@ -249,7 +260,7 @@ impl Memory {
     pub fn write(&mut self, addr: RegT, data: &[u8]) {
         let mut offset = 0;
         for b in data {
-            self.w8f(addr+offset, *b as RegT);
+            self.w8f(addr + offset, *b as RegT);
             offset += 1;
         }
     }
@@ -272,7 +283,7 @@ mod tests {
         assert!(mem.r16(0x1000) == 0x1234);
         assert!(mem.r8(0x1000) == 0x34);
         assert!(mem.r8(0x1001) == 0x12);
-        
+
         mem.w16(0xFFFF, 0x2233);
         assert!(mem.r16(0xFFFF) == 0x2233);
         assert!(mem.r8(0xFFFF) == 0x33);
@@ -282,7 +293,7 @@ mod tests {
     #[test]
     fn mem_map() {
         let mut mem = Memory::new();
-        const SIZE : usize = 0x4000;  // 16k
+        const SIZE: usize = 0x4000;  // 16k
         let x11 = [0x11u8; SIZE];
         let x22 = [0x22u8; SIZE];
         let x33 = [0x33u8; SIZE];
@@ -320,7 +331,7 @@ mod tests {
     #[test]
     fn mem_layers() {
         let mut mem = Memory::new();
-        const SIZE : usize = 0x8000;  // 32k
+        const SIZE: usize = 0x8000;  // 32k
         let x11 = [0x11u8; SIZE];
         let x22 = [0x22u8; SIZE];
         let x33 = [0x33u8; SIZE];
@@ -334,7 +345,7 @@ mod tests {
         assert!(mem.r8(0x8000) == 0x33);
         assert!(mem.r8(0xC000) == 0x44);
         mem.unmap(0, 0xC000, SIZE);
-        assert!(mem.r8(0x0000) == 0x11); 
+        assert!(mem.r8(0x0000) == 0x11);
         assert!(mem.r8(0x4000) == 0x22);
         assert!(mem.r8(0x8000) == 0x33);
         assert!(mem.r8(0xC000) == 0x33);
