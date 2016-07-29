@@ -1,8 +1,6 @@
 //! **rz80** is a Z80 chip family emulation library written in Rust which can be used as basis for
 //! writing a full computer emulator.
 //!
-//! The CPU emulation is precise enough to run both the ZEXDOC and ZEXALL conformance test
-//! without errors.
 
 /// generic integer type for 8- and 16-bit values
 pub type RegT = i32;

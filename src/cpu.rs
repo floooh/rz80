@@ -3,7 +3,7 @@ use memory::Memory;
 use registers::Registers;
 use bus::Bus;
 
-/// the Z80 CPU state
+/// Z80 CPU emulation 
 pub struct CPU {
     pub reg : Registers,
     pub halt : bool,

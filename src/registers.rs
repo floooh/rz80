@@ -61,7 +61,48 @@ pub const HL_ : usize = 20;
 pub const AF_ : usize = 22;
 pub const WZ_ : usize = 24;
 
-/// Z80 CPU register bank access
+/// CPU register access 
+///
+/// # Examples
+///
+/// set the PC and SP registers:
+///
+/// ```
+/// use rz80::CPU;
+///
+/// let mut cpu = CPU::new();
+/// cpu.reg.set_pc(0x0200);
+/// cpu.reg.set_sp(0x01C0);
+/// ```
+///
+/// get the B, C and BC registers
+///
+/// ```
+/// use rz80::CPU;
+///
+/// let cpu = CPU::new();
+/// let b = cpu.reg.b();
+/// let c = cpu.reg.c();
+/// let bc = cpu.reg.bc();
+/// println!("B: {}, C: {}, BC: {}", b, c, bc);
+/// ```
+/// 8- or 16-bit wraparound happens during the set operation:
+///
+/// ```
+/// use rz80::CPU;
+///
+/// let mut cpu = CPU::new();
+/// 
+/// cpu.reg.set_a(0xFF);
+/// let a = cpu.reg.a() + 1;
+/// cpu.reg.set_a(a);
+/// assert!(cpu.reg.a() == 0x00);
+/// 
+/// cpu.reg.set_hl(0x0000);
+/// let hl = cpu.reg.hl() - 1;
+/// cpu.reg.set_hl(hl);
+/// assert!(cpu.reg.hl() == 0xFFFF);
+/// ```
 pub struct Registers {
     reg : [u8; NUM_REGS],
     r_pc: u16,

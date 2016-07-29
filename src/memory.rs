@@ -34,11 +34,55 @@ impl Page {
     }
 }
 
-/// memory access (simplified, no memory mapping or bank switching)
+/// memory access
+///
+/// The Memory object wraps access to the Z80's 64 KByte
+/// address space. All memory access goes through a 
+/// page table with a page-size of 1 KByte. The page table
+/// mapping allows a very simple implementation of 
+/// bank-switching, which was a popular way in 8-bit computers to
+/// manage more than 64 KBytes of memory.
+///
+/// ## Memory Layers
+///
+/// Mapped memory is assigned to 1 out of (currently) 4 layers. If
+/// 2 memory chunks are mapped to the same CPU address range on
+/// different layers, only the memory assigned to the higher-priority
+/// layer is visible to the CPU (layer number 0 has the highest 
+/// priority and layer number 3 the lowest).
+///
+/// The layer concept is easier to visualize than to describe:
+///
+/// ```text
+///                 +---------------------------------------+
+/// LAYER 3         |333333333333333333333333333333333333333|
+///                 +-------+---------------+---------------+
+/// LAYER 2                 |222222222222222|
+///                         +---------------+       +-------+
+/// LAYER 1                                         |1111111|
+///                               +---------+       +-------+
+/// LAYER 0                       |000000000|
+///                               +---------+
+///                 +-------+-----+---------+-------+-------+
+/// CPU VISIBLE:    |3333333|22222|000000000|3333333|1111111|
+///                 +-------+-----+---------+-------+-------+
+/// ```
+///
+/// ## The Heap
+/// (TODO!)
+///
+/// ## Mapping Memory
+/// (TODO!)
+///
+/// ## Reading and Writing Memory
+/// (TODO!)
 pub struct Memory {
-    pages: [Page; NUM_PAGES],                   // currently CPU-visible pages 
-    layers: [[Page; NUM_PAGES]; NUM_LAYERS],    // currently mapped layers
-    pub heap: [u8; HEAP_SIZE],                      // all available physical memory
+    /// currently CPU-visible pages
+    pages: [Page; NUM_PAGES],
+    /// currently mapped layers
+    layers: [[Page; NUM_PAGES]; NUM_LAYERS],
+    /// 'host' memory
+    pub heap: [u8; HEAP_SIZE],
 }
 
 impl Memory {

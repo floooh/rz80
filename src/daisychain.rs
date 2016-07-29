@@ -31,7 +31,7 @@ impl Controller {
     }
 }
 
-/// a daisy-chain of interrupt controllers
+/// interrupt controller daisychain
 pub struct Daisychain {
     pub num_ctrl: usize,
     pub ctrl : [Controller; MAX_CONTROLLERS],

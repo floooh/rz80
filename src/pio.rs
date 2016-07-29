@@ -42,7 +42,7 @@ struct Channel {
     pub stb : bool,
 }
 
-/// the Z80 PIO state
+/// Z80 PIO emulation 
 pub struct PIO {
     id : usize,     // id of PIO (needed for systems with multiple ids)
     chn : [Channel; NUM_CHANNELS]
