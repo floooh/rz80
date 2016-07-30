@@ -1,4 +1,5 @@
 use RegT;
+use CTC;
 
 /// system bus trait
 ///
@@ -36,6 +37,13 @@ pub trait Bus {
     }
     /// PIO channel rdy line has changed
     fn pio_rdy(&self, pio: usize, chn: usize, rdy: bool) {}
-    /// PIO interrupt request
-    fn pio_int(&self, pio: usize, chn: usize, int_vector: RegT) {}
+    /// interrupt request from PIO
+    fn pio_irq(&self, pio: usize, chn: usize, int_vector: RegT) {}
+
+    /// CTC write callback
+    fn ctc_write(&self, chn: usize, ctc: &CTC) {}
+    /// CTC counter/timer reached zero
+    fn ctc_zero(&self, chn: usize, ctc: &CTC) {}
+    /// interrupt request from CTC
+    fn ctc_irq(&self, ctc: usize, chn: usize, int_vector: RegT) {}
 }

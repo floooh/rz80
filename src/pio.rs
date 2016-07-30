@@ -71,7 +71,7 @@ impl PIO {
 
     /// reset the PIO
     pub fn reset(&mut self) {
-        for chn in self.chn.iter_mut() {
+        for chn in &mut self.chn {
             chn.mode = Mode::Input;
             chn.expect = Expect::Any;
             chn.output = 0;
@@ -219,7 +219,7 @@ impl PIO {
                          ((ictrl == 0x60) && (val == mask));
 
             if !c.bctrl_match && bmatch && (0 != (c.int_control & INTCTRL_ENABLE_INT)) {
-                bus.pio_int(self.id, chn, c.int_vector as RegT);
+                bus.pio_irq(self.id, chn, c.int_vector as RegT);
             }
             c.bctrl_match = bmatch;
         }
