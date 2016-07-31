@@ -2200,7 +2200,7 @@ mod tests {
         assert!(test_flags(&cpu, PF | CF));
     }
 
-    struct TestBus { }
+    struct TestBus;
     impl Bus for TestBus {
         fn cpu_inp(&self, port: RegT) -> RegT {
             assert!(port == 0x1234);
