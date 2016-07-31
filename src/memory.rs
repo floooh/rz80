@@ -73,10 +73,45 @@ impl Page {
 /// ```
 ///
 /// ## The Heap
-/// (TODO!)
+/// 
+/// The Memory class will never keep references to external memory, instead it
+/// comes with it's own few hundred KBytes of embedded memory which is used 
+/// as 'heap'. A single memory page maps 1 KByte of memory from the Z80
+/// address range to 1 KByte of memory somewhere on the embedded heap.
 ///
 /// ## Mapping Memory
-/// (TODO!)
+/// 
+/// This 'maps' a chunk of memory in Z80 address range to a chunk of memory
+/// of the same size in the embedded heap on one of the four memory layers.
+///
+/// The simple form performs the memory mapping but does not copy
+/// any data into the mapped memory region:
+///
+/// ```
+/// use rz80::Memory;
+/// let mut mem = Memory::new();
+///
+/// // map 32 KByte at heap address 0x08000 to CPU addr 0x0000 
+/// // on layer 0 as writable:
+/// mem.map(0, 0x08000, 0x0000, true, 32*1024);
+///
+/// // map another 32 KByte at heap address 0x10000 to CPU addr 0x8000 
+/// // on layer 1 as read-only:
+/// mem.map(1, 0x10000, 0x8000, false, 32*1024);
+/// ```
+///
+/// The method **map_bytes()** performs a memory mapping as above,
+/// but also copies a range of bytes into the mapped memory. This is
+/// useful to initialize the memory with a ROM dump.
+///
+/// ```
+/// use rz80::Memory;
+/// let mut mem = Memory::new();
+/// let rom = [0xFFu8; 4096];
+/// 
+/// // assume that 'rom' is a system ROM dump, and map it as read-only to CPU address 0xF000
+/// mem.map_bytes(0, 0x00000, 0xF000, false, &rom);
+/// ```
 ///
 /// ## Reading and Writing Memory
 /// (TODO!)

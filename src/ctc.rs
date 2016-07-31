@@ -2,9 +2,13 @@
 use RegT;
 use bus::Bus;
 
+/// CTC channel 0
 pub const CTC_0: usize = 0;
+/// CTC channel 1 
 pub const CTC_1: usize = 1;
+/// CTC channel 2
 pub const CTC_2: usize = 2;
+/// CTC channel 3
 pub const CTC_3: usize = 3;
 const NUM_CHANNELS: usize = 4;
 

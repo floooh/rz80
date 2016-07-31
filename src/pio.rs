@@ -1,8 +1,10 @@
 use RegT;
 use bus::Bus;
 
-pub const PIO_A: usize = 0;    // PIO channel A
-pub const PIO_B: usize = 1;    // PIO channel B
+/// PIO channel A
+pub const PIO_A: usize = 0;
+/// PIO channel B
+pub const PIO_B: usize = 1;
 const NUM_CHANNELS: usize = 2;
 
 #[derive(Clone, Copy, PartialEq)]

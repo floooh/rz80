@@ -1,22 +1,22 @@
 use RegT;
 
-/// carry flag
+/// CPU carry flag
 pub const CF: RegT = 1 << 0;
-/// add/subtract flag
+/// CPU add/subtract flag
 pub const NF: RegT = 1 << 1;
-/// overflow flag (same as parity)
+/// CPU overflow flag (same as parity)
 pub const VF: RegT = 1 << 2;
-/// parity flag (same as overflow)
+/// CPU parity flag (same as overflow)
 pub const PF: RegT = 1 << 2;
-/// undocumented 'X' flag
+/// CPU undocumented 'X' flag
 pub const XF: RegT = 1 << 3;
-/// half carry flag
+/// CPU half carry flag
 pub const HF: RegT = 1 << 4;
-/// undocumented 'Y' flag
+/// CPU undocumented 'Y' flag
 pub const YF: RegT = 1 << 5;
-/// zero flag
+/// CPU zero flag
 pub const ZF: RegT = 1 << 6;
-/// sign flag
+/// CPU sign flag
 pub const SF: RegT = 1 << 7;
 
 const B: usize = 0;
