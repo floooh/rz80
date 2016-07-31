@@ -11,7 +11,7 @@ Z80 chip family emulator library written in Rust.
 ```toml
 # Cargo.toml
 [dependencies]
-rz80 = "0.1.0"
+rz80 = "0.1.1"
 ```
 
 ## Examples
