@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `CPU` struct in crate `rz80`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, CPU">
+
+    <title>rz80::CPU - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>rz80</a></p><script>window.sidebarCurrent = {name: 'CPU', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>rz80</a>::<wbr><a class='struct' href=''>CPU</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a id='src-442' class='srclink' href='../src/rz80/src/cpu.rs.html#7-16' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct CPU {
+    pub reg: <a class='struct' href='../rz80/struct.Registers.html' title='rz80::Registers'>Registers</a>,
+    pub halt: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a>,
+    pub iff1: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a>,
+    pub iff2: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a>,
+    pub invalid_op: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a>,
+    pub mem: <a class='struct' href='../rz80/struct.Memory.html' title='rz80::Memory'>Memory</a>,
+    // some fields omitted
+}</pre><div class='docblock'><p>Z80 CPU emulation</p>
+</div><h2 class='fields'>Fields</h2><span id='structfield.reg' class='structfield'><code>reg: <a class='struct' href='../rz80/struct.Registers.html' title='rz80::Registers'>Registers</a></code>
+                           </span><span class='stab '></span><span id='structfield.halt' class='structfield'><code>halt: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code>
+                           </span><span class='stab '></span><span id='structfield.iff1' class='structfield'><code>iff1: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code>
+                           </span><span class='stab '></span><span id='structfield.iff2' class='structfield'><code>iff2: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code>
+                           </span><span class='stab '></span><span id='structfield.invalid_op' class='structfield'><code>invalid_op: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code>
+                           </span><span class='stab '></span><span id='structfield.mem' class='structfield'><code>mem: <a class='struct' href='../rz80/struct.Memory.html' title='rz80::Memory'>Memory</a></code>
+                           </span><span class='stab '></span><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl <a class='struct' href='../rz80/struct.CPU.html' title='rz80::CPU'>CPU</a></code></span><span class='out-of-band'><div class='ghost'></div><a id='src-490' class='srclink' href='../src/rz80/src/cpu.rs.html#107-1790' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>() -&gt; <a class='struct' href='../rz80/struct.CPU.html' title='rz80::CPU'>CPU</a></code></h4>
+<div class='docblock'><p>initialize a new Z80 CPU object</p>
+</div><h4 id='method.new_64k' class='method'><code>fn <a href='#method.new_64k' class='fnname'>new_64k</a>() -&gt; <a class='struct' href='../rz80/struct.CPU.html' title='rz80::CPU'>CPU</a></code></h4>
+<div class='docblock'><p>initialize a new CPU object with 64K RAM (for testing)</p>
+</div><h4 id='method.reset' class='method'><code>fn <a href='#method.reset' class='fnname'>reset</a>(&amp;mut self)</code></h4>
+<div class='docblock'><p>reset the cpu</p>
+</div><h4 id='method.step' class='method'><code>fn <a href='#method.step' class='fnname'>step</a>(&amp;mut self, bus: &amp;<a class='trait' href='../rz80/trait.Bus.html' title='rz80::Bus'>Bus</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a></code></h4>
+<div class='docblock'><p>decode and execute one instruction</p>
+</div><h4 id='method.do_op' class='method'><code>fn <a href='#method.do_op' class='fnname'>do_op</a>(&amp;mut self, bus: &amp;<a class='trait' href='../rz80/trait.Bus.html' title='rz80::Bus'>Bus</a>, ext: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a></code></h4>
+<div class='docblock'><p>execute a single &#39;main-instruction&#39;</p>
+
+<p>This function may be called recursively for prefixed
+instructions</p>
+
+<ul>
+<li>&#39;m&#39;   - index of 16-bit register (may be HL, IX or IY)</li>
+<li>&#39;d&#39;   - the d in (IX+d), (IY+d), 0 if m is HL</li>
+</ul>
+
+<p>returns number of cycles the instruction takes</p>
+</div><h4 id='method.irq' class='method'><code>fn <a href='#method.irq' class='fnname'>irq</a>(&amp;mut self)</code></h4>
+<h4 id='method.reti' class='method'><code>fn <a href='#method.reti' class='fnname'>reti</a>(&amp;mut self, bus: &amp;<a class='trait' href='../rz80/trait.Bus.html' title='rz80::Bus'>Bus</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a></code></h4>
+<h4 id='method.handle_irq' class='method'><code>fn <a href='#method.handle_irq' class='fnname'>handle_irq</a>(&amp;mut self, bus: &amp;<a class='trait' href='../rz80/trait.Bus.html' title='rz80::Bus'>Bus</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a></code></h4>
+<h4 id='method.halt' class='method'><code>fn <a href='#method.halt' class='fnname'>halt</a>(&amp;mut self)</code></h4>
+<h4 id='method.push' class='method'><code>fn <a href='#method.push' class='fnname'>push</a>(&amp;mut self, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<h4 id='method.pop' class='method'><code>fn <a href='#method.pop' class='fnname'>pop</a>(&amp;mut self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<h4 id='method.rst' class='method'><code>fn <a href='#method.rst' class='fnname'>rst</a>(&amp;mut self, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<h4 id='method.alu8' class='method'><code>fn <a href='#method.alu8' class='fnname'>alu8</a>(&amp;mut self, alu: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<h4 id='method.add8' class='method'><code>fn <a href='#method.add8' class='fnname'>add8</a>(&amp;mut self, add: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<h4 id='method.adc8' class='method'><code>fn <a href='#method.adc8' class='fnname'>adc8</a>(&amp;mut self, add: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<h4 id='method.sub8' class='method'><code>fn <a href='#method.sub8' class='fnname'>sub8</a>(&amp;mut self, sub: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<h4 id='method.sbc8' class='method'><code>fn <a href='#method.sbc8' class='fnname'>sbc8</a>(&amp;mut self, sub: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<h4 id='method.cp8' class='method'><code>fn <a href='#method.cp8' class='fnname'>cp8</a>(&amp;mut self, sub: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<h4 id='method.neg8' class='method'><code>fn <a href='#method.neg8' class='fnname'>neg8</a>(&amp;mut self)</code></h4>
+<h4 id='method.and8' class='method'><code>fn <a href='#method.and8' class='fnname'>and8</a>(&amp;mut self, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<h4 id='method.or8' class='method'><code>fn <a href='#method.or8' class='fnname'>or8</a>(&amp;mut self, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<h4 id='method.xor8' class='method'><code>fn <a href='#method.xor8' class='fnname'>xor8</a>(&amp;mut self, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<h4 id='method.inc8' class='method'><code>fn <a href='#method.inc8' class='fnname'>inc8</a>(&amp;mut self, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<h4 id='method.dec8' class='method'><code>fn <a href='#method.dec8' class='fnname'>dec8</a>(&amp;mut self, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<h4 id='method.rot' class='method'><code>fn <a href='#method.rot' class='fnname'>rot</a>(&amp;mut self, op: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<h4 id='method.rlc8' class='method'><code>fn <a href='#method.rlc8' class='fnname'>rlc8</a>(&amp;mut self, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<h4 id='method.rlca8' class='method'><code>fn <a href='#method.rlca8' class='fnname'>rlca8</a>(&amp;mut self)</code></h4>
+<h4 id='method.rrc8' class='method'><code>fn <a href='#method.rrc8' class='fnname'>rrc8</a>(&amp;mut self, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<h4 id='method.rrca8' class='method'><code>fn <a href='#method.rrca8' class='fnname'>rrca8</a>(&amp;mut self)</code></h4>
+<h4 id='method.rl8' class='method'><code>fn <a href='#method.rl8' class='fnname'>rl8</a>(&amp;mut self, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<h4 id='method.rla8' class='method'><code>fn <a href='#method.rla8' class='fnname'>rla8</a>(&amp;mut self)</code></h4>
+<h4 id='method.rr8' class='method'><code>fn <a href='#method.rr8' class='fnname'>rr8</a>(&amp;mut self, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<h4 id='method.rra8' class='method'><code>fn <a href='#method.rra8' class='fnname'>rra8</a>(&amp;mut self)</code></h4>
+<h4 id='method.sla8' class='method'><code>fn <a href='#method.sla8' class='fnname'>sla8</a>(&amp;mut self, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<h4 id='method.sll8' class='method'><code>fn <a href='#method.sll8' class='fnname'>sll8</a>(&amp;mut self, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<h4 id='method.sra8' class='method'><code>fn <a href='#method.sra8' class='fnname'>sra8</a>(&amp;mut self, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<h4 id='method.srl8' class='method'><code>fn <a href='#method.srl8' class='fnname'>srl8</a>(&amp;mut self, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<h4 id='method.rld' class='method'><code>fn <a href='#method.rld' class='fnname'>rld</a>(&amp;mut self)</code></h4>
+<h4 id='method.rrd' class='method'><code>fn <a href='#method.rrd' class='fnname'>rrd</a>(&amp;mut self)</code></h4>
+<h4 id='method.bit' class='method'><code>fn <a href='#method.bit' class='fnname'>bit</a>(&amp;mut self, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>, mask: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<h4 id='method.ibit' class='method'><code>fn <a href='#method.ibit' class='fnname'>ibit</a>(&amp;mut self, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>, mask: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<h4 id='method.add16' class='method'><code>fn <a href='#method.add16' class='fnname'>add16</a>(&amp;mut self, acc: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>, add: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<h4 id='method.adc16' class='method'><code>fn <a href='#method.adc16' class='fnname'>adc16</a>(&amp;mut self, acc: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>, add: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<h4 id='method.sbc16' class='method'><code>fn <a href='#method.sbc16' class='fnname'>sbc16</a>(&amp;mut self, acc: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>, sub: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<h4 id='method.djnz' class='method'><code>fn <a href='#method.djnz' class='fnname'>djnz</a>(&amp;mut self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a></code></h4>
+<h4 id='method.daa' class='method'><code>fn <a href='#method.daa' class='fnname'>daa</a>(&amp;mut self)</code></h4>
+<h4 id='method.cpl' class='method'><code>fn <a href='#method.cpl' class='fnname'>cpl</a>(&amp;mut self)</code></h4>
+<h4 id='method.scf' class='method'><code>fn <a href='#method.scf' class='fnname'>scf</a>(&amp;mut self)</code></h4>
+<h4 id='method.ccf' class='method'><code>fn <a href='#method.ccf' class='fnname'>ccf</a>(&amp;mut self)</code></h4>
+<h4 id='method.ret' class='method'><code>fn <a href='#method.ret' class='fnname'>ret</a>(&amp;mut self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a></code></h4>
+<h4 id='method.call' class='method'><code>fn <a href='#method.call' class='fnname'>call</a>(&amp;mut self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a></code></h4>
+<h4 id='method.retcc' class='method'><code>fn <a href='#method.retcc' class='fnname'>retcc</a>(&amp;mut self, y: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a></code></h4>
+<h4 id='method.callcc' class='method'><code>fn <a href='#method.callcc' class='fnname'>callcc</a>(&amp;mut self, y: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a></code></h4>
+<h4 id='method.ldi' class='method'><code>fn <a href='#method.ldi' class='fnname'>ldi</a>(&amp;mut self)</code></h4>
+<h4 id='method.ldd' class='method'><code>fn <a href='#method.ldd' class='fnname'>ldd</a>(&amp;mut self)</code></h4>
+<h4 id='method.ldir' class='method'><code>fn <a href='#method.ldir' class='fnname'>ldir</a>(&amp;mut self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a></code></h4>
+<h4 id='method.lddr' class='method'><code>fn <a href='#method.lddr' class='fnname'>lddr</a>(&amp;mut self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a></code></h4>
+<h4 id='method.cpi' class='method'><code>fn <a href='#method.cpi' class='fnname'>cpi</a>(&amp;mut self)</code></h4>
+<h4 id='method.cpd' class='method'><code>fn <a href='#method.cpd' class='fnname'>cpd</a>(&amp;mut self)</code></h4>
+<h4 id='method.cpir' class='method'><code>fn <a href='#method.cpir' class='fnname'>cpir</a>(&amp;mut self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a></code></h4>
+<h4 id='method.cpdr' class='method'><code>fn <a href='#method.cpdr' class='fnname'>cpdr</a>(&amp;mut self) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a></code></h4>
+<h4 id='method.inp' class='method'><code>fn <a href='#method.inp' class='fnname'>inp</a>(&amp;mut self, bus: &amp;<a class='trait' href='../rz80/trait.Bus.html' title='rz80::Bus'>Bus</a>, port: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<h4 id='method.outp' class='method'><code>fn <a href='#method.outp' class='fnname'>outp</a>(&amp;mut self, bus: &amp;<a class='trait' href='../rz80/trait.Bus.html' title='rz80::Bus'>Bus</a>, port: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<h4 id='method.ini' class='method'><code>fn <a href='#method.ini' class='fnname'>ini</a>(&amp;mut self, bus: &amp;<a class='trait' href='../rz80/trait.Bus.html' title='rz80::Bus'>Bus</a>)</code></h4>
+<h4 id='method.ind' class='method'><code>fn <a href='#method.ind' class='fnname'>ind</a>(&amp;mut self, bus: &amp;<a class='trait' href='../rz80/trait.Bus.html' title='rz80::Bus'>Bus</a>)</code></h4>
+<h4 id='method.inir' class='method'><code>fn <a href='#method.inir' class='fnname'>inir</a>(&amp;mut self, bus: &amp;<a class='trait' href='../rz80/trait.Bus.html' title='rz80::Bus'>Bus</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a></code></h4>
+<h4 id='method.indr' class='method'><code>fn <a href='#method.indr' class='fnname'>indr</a>(&amp;mut self, bus: &amp;<a class='trait' href='../rz80/trait.Bus.html' title='rz80::Bus'>Bus</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a></code></h4>
+<h4 id='method.outi' class='method'><code>fn <a href='#method.outi' class='fnname'>outi</a>(&amp;mut self, bus: &amp;<a class='trait' href='../rz80/trait.Bus.html' title='rz80::Bus'>Bus</a>)</code></h4>
+<h4 id='method.outd' class='method'><code>fn <a href='#method.outd' class='fnname'>outd</a>(&amp;mut self, bus: &amp;<a class='trait' href='../rz80/trait.Bus.html' title='rz80::Bus'>Bus</a>)</code></h4>
+<h4 id='method.otir' class='method'><code>fn <a href='#method.otir' class='fnname'>otir</a>(&amp;mut self, bus: &amp;<a class='trait' href='../rz80/trait.Bus.html' title='rz80::Bus'>Bus</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a></code></h4>
+<h4 id='method.otdr' class='method'><code>fn <a href='#method.otdr' class='fnname'>otdr</a>(&amp;mut self, bus: &amp;<a class='trait' href='../rz80/trait.Bus.html' title='rz80::Bus'>Bus</a>) -&gt; <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a></code></h4>
+</div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                    <dt>+</dt>
+                    <dd>Collapse/expand all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "rz80";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

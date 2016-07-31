@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="Source to the Rust file `src/lib.rs`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang">
+
+    <title>lib.rs.html -- source</title>
+
+    <link rel="stylesheet" type="text/css" href="../../../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../../../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content source"><pre class="line-numbers"><span id="1"> 1</span>
+<span id="2"> 2</span>
+<span id="3"> 3</span>
+<span id="4"> 4</span>
+<span id="5"> 5</span>
+<span id="6"> 6</span>
+<span id="7"> 7</span>
+<span id="8"> 8</span>
+<span id="9"> 9</span>
+<span id="10">10</span>
+<span id="11">11</span>
+<span id="12">12</span>
+<span id="13">13</span>
+<span id="14">14</span>
+<span id="15">15</span>
+<span id="16">16</span>
+<span id="17">17</span>
+<span id="18">18</span>
+<span id="19">19</span>
+<span id="20">20</span>
+<span id="21">21</span>
+<span id="22">22</span>
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
+<span id="40">40</span>
+<span id="41">41</span>
+<span id="42">42</span>
+<span id="43">43</span>
+<span id="44">44</span>
+<span id="45">45</span>
+<span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
+<span id="49">49</span>
+<span id="50">50</span>
+<span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
+</pre><pre class='rust '>
+<span class='doccomment'>//! **rz80** is a Z80 chip family emulation library written in Rust which can be used as basis for</span>
+<span class='doccomment'>//! writing a full Z80-based computer emulator.</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! # Overview</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! The rz80 library provides chip emulators for the Z80 **CPU**, **PIO** (parallel in/out), **CTC**</span>
+<span class='doccomment'>//! (counter/timer channels) and a **Bus** trait which defines how the chips are wired together</span>
+<span class='doccomment'>//! in a specific emulated system.</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! Writing a home computer emulator usually involves the following steps</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! - import the required chips</span>
+<span class='doccomment'>//! - import ROM dumps using the include_bytes! macro</span>
+<span class='doccomment'>//! - define a **State** struct which holds emulator state required in addition to the chip state</span>
+<span class='doccomment'>//! - define a **System** struct which embeds all chips and the State struct wrapped in RefCells</span>
+<span class='doccomment'>//! - write a **System::poweron()** function which initializes the embedded chips and state objects,</span>
+<span class='doccomment'>//!   initializes the memory map and sets the CPU PC register to the ROM dump start address</span>
+<span class='doccomment'>//! - write a **video-decoder** function which generates a linear RGBA8 framebuffer each frame</span>
+<span class='doccomment'>//! - implement the **Bus trait** on the System struct, this usually involves:</span>
+<span class='doccomment'>//!     - the keyboard emulation</span>
+<span class='doccomment'>//!     - memory bank switching</span>
+<span class='doccomment'>//!     - forward interrupt requests between the various hardware components</span>
+<span class='doccomment'>//!     - sound generation</span>
+<span class='doccomment'>//! - implement the **main loop** which creates a window, forwards keyboard input,</span>
+<span class='doccomment'>//!   and steps the chips emulators forward</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! Very simple 8-bit home computer systems (similar to the ZX81) don&#39;t require any additional</span>
+<span class='doccomment'>//! code, more complex home computers will require additional custom chips emulations that</span>
+<span class='doccomment'>//! are not part of the rz80 library.</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! Check out the two included example emulators:</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! ```bash </span>
+<span class='doccomment'>//! &gt; cargo run --release --example z1013</span>
+<span class='doccomment'>//! &gt; cargo run --release --example kc87</span>
+<span class='doccomment'>//! ```</span>
+<span class='doccomment'>//!</span>
+
+<span class='doccomment'>/// generic integer type for 8- and 16-bit values</span>
+<span class='kw'>pub</span> <span class='kw'>type</span> <span class='ident'>RegT</span> <span class='op'>=</span> <span class='ident'>i32</span>;
+
+<span class='kw'>mod</span> <span class='ident'>registers</span>;
+<span class='kw'>mod</span> <span class='ident'>memory</span>;
+<span class='kw'>mod</span> <span class='ident'>bus</span>;
+<span class='kw'>mod</span> <span class='ident'>cpu</span>;
+<span class='kw'>mod</span> <span class='ident'>pio</span>;
+<span class='kw'>mod</span> <span class='ident'>ctc</span>;
+<span class='kw'>mod</span> <span class='ident'>daisychain</span>;
+
+<span class='kw'>pub</span> <span class='kw'>use</span> <span class='ident'>registers</span>::{<span class='ident'>Registers</span>, <span class='ident'>CF</span>, <span class='ident'>NF</span>, <span class='ident'>VF</span>, <span class='ident'>PF</span>, <span class='ident'>XF</span>, <span class='ident'>HF</span>, <span class='ident'>YF</span>, <span class='ident'>ZF</span>, <span class='ident'>SF</span>};
+<span class='kw'>pub</span> <span class='kw'>use</span> <span class='ident'>memory</span>::<span class='ident'>Memory</span>;
+<span class='kw'>pub</span> <span class='kw'>use</span> <span class='ident'>cpu</span>::<span class='ident'>CPU</span>;
+<span class='kw'>pub</span> <span class='kw'>use</span> <span class='ident'>bus</span>::<span class='ident'>Bus</span>;
+<span class='kw'>pub</span> <span class='kw'>use</span> <span class='ident'>pio</span>::{<span class='ident'>PIO</span>, <span class='ident'>PIO_A</span>, <span class='ident'>PIO_B</span>};
+<span class='kw'>pub</span> <span class='kw'>use</span> <span class='ident'>ctc</span>::{<span class='ident'>CTC</span>, <span class='ident'>CTC_0</span>, <span class='ident'>CTC_1</span>, <span class='ident'>CTC_2</span>, <span class='ident'>CTC_3</span>};
+<span class='kw'>pub</span> <span class='kw'>use</span> <span class='ident'>daisychain</span>::<span class='ident'>Daisychain</span>;
+</pre>
+</section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                    <dt>+</dt>
+                    <dd>Collapse/expand all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../../";
+        window.currentCrate = "rz80";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../../../jquery.js"></script>
+    <script src="../../../main.js"></script>
+    
+    <script defer src="../../../search-index.js"></script>
+</body>
+</html>

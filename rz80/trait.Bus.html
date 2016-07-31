@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Bus` trait in crate `rz80`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Bus">
+
+    <title>rz80::Bus - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>rz80</a></p><script>window.sidebarCurrent = {name: 'Bus', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content trait">
+<h1 class='fqn'><span class='in-band'>Trait <a href='index.html'>rz80</a>::<wbr><a class='trait' href=''>Bus</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a id='src-387' class='srclink' href='../src/rz80/src/bus.rs.html#13-49' title='goto source code'>[src]</a></span></h1>
+<pre class='rust trait'>pub trait Bus {
+    fn <a href='#method.cpu_inp' class='fnname'>cpu_inp</a>(&amp;self, port: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a> { ... }
+    fn <a href='#method.cpu_outp' class='fnname'>cpu_outp</a>(&amp;self, port: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) { ... }
+    fn <a href='#method.irq' class='fnname'>irq</a>(&amp;self, ctrl_id: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, vec: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a>) { ... }
+    fn <a href='#method.irq_cpu' class='fnname'>irq_cpu</a>(&amp;self) { ... }
+    fn <a href='#method.irq_ack' class='fnname'>irq_ack</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a> { ... }
+    fn <a href='#method.irq_reti' class='fnname'>irq_reti</a>(&amp;self) { ... }
+    fn <a href='#method.pio_outp' class='fnname'>pio_outp</a>(&amp;self, pio: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, chn: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, data: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) { ... }
+    fn <a href='#method.pio_inp' class='fnname'>pio_inp</a>(&amp;self, pio: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, chn: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a> { ... }
+    fn <a href='#method.pio_rdy' class='fnname'>pio_rdy</a>(&amp;self, pio: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, chn: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, rdy: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a>) { ... }
+    fn <a href='#method.pio_irq' class='fnname'>pio_irq</a>(&amp;self, pio: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, chn: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, int_vector: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) { ... }
+    fn <a href='#method.ctc_write' class='fnname'>ctc_write</a>(&amp;self, chn: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, ctc: &amp;<a class='struct' href='../rz80/struct.CTC.html' title='rz80::CTC'>CTC</a>) { ... }
+    fn <a href='#method.ctc_zero' class='fnname'>ctc_zero</a>(&amp;self, chn: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, ctc: &amp;<a class='struct' href='../rz80/struct.CTC.html' title='rz80::CTC'>CTC</a>) { ... }
+    fn <a href='#method.ctc_irq' class='fnname'>ctc_irq</a>(&amp;self, ctc: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, chn: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, int_vector: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) { ... }
+}</pre><div class='docblock'><p>system bus trait</p>
+
+<p>The system bus must be implemented by the higher level parts
+of an emulator and is used as central callback facility for the
+various Z80 chips. If anything happens in the chips that
+need to be communicated to other chips or the higher-level
+parts of the emulator (such as port I/O), one of the
+trait functions will be called.</p>
+</div>
+            <h2 id='provided-methods'>Provided Methods</h2>
+            <div class='methods'>
+        <h3 id='method.cpu_inp' class='method stab '><code>fn <a href='#method.cpu_inp' class='fnname'>cpu_inp</a>(&amp;self, port: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h3><div class='docblock'><p>CPU reads from I/O port</p>
+</div><h3 id='method.cpu_outp' class='method stab '><code>fn <a href='#method.cpu_outp' class='fnname'>cpu_outp</a>(&amp;self, port: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>, val: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h3><div class='docblock'><p>CPU writes to I/O port</p>
+</div><h3 id='method.irq' class='method stab '><code>fn <a href='#method.irq' class='fnname'>irq</a>(&amp;self, ctrl_id: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, vec: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a>)</code></h3><div class='docblock'><p>request an interrupt, called by a device to generate interrupt</p>
+</div><h3 id='method.irq_cpu' class='method stab '><code>fn <a href='#method.irq_cpu' class='fnname'>irq_cpu</a>(&amp;self)</code></h3><div class='docblock'><p>forward an interrupt-request to CPU, called by daisychain</p>
+</div><h3 id='method.irq_ack' class='method stab '><code>fn <a href='#method.irq_ack' class='fnname'>irq_ack</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h3><div class='docblock'><p>interrupt request acknowledge (called by CPU), return interrupt vector</p>
+</div><h3 id='method.irq_reti' class='method stab '><code>fn <a href='#method.irq_reti' class='fnname'>irq_reti</a>(&amp;self)</code></h3><div class='docblock'><p>notify interrupt daisy chain that CPU executed a RETI</p>
+</div><h3 id='method.pio_outp' class='method stab '><code>fn <a href='#method.pio_outp' class='fnname'>pio_outp</a>(&amp;self, pio: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, chn: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, data: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h3><div class='docblock'><p>PIO output callback</p>
+</div><h3 id='method.pio_inp' class='method stab '><code>fn <a href='#method.pio_inp' class='fnname'>pio_inp</a>(&amp;self, pio: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, chn: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h3><div class='docblock'><p>PIO input callback</p>
+</div><h3 id='method.pio_rdy' class='method stab '><code>fn <a href='#method.pio_rdy' class='fnname'>pio_rdy</a>(&amp;self, pio: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, chn: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, rdy: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a>)</code></h3><div class='docblock'><p>PIO channel rdy line has changed</p>
+</div><h3 id='method.pio_irq' class='method stab '><code>fn <a href='#method.pio_irq' class='fnname'>pio_irq</a>(&amp;self, pio: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, chn: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, int_vector: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h3><div class='docblock'><p>interrupt request from PIO</p>
+</div><h3 id='method.ctc_write' class='method stab '><code>fn <a href='#method.ctc_write' class='fnname'>ctc_write</a>(&amp;self, chn: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, ctc: &amp;<a class='struct' href='../rz80/struct.CTC.html' title='rz80::CTC'>CTC</a>)</code></h3><div class='docblock'><p>CTC write callback</p>
+</div><h3 id='method.ctc_zero' class='method stab '><code>fn <a href='#method.ctc_zero' class='fnname'>ctc_zero</a>(&amp;self, chn: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, ctc: &amp;<a class='struct' href='../rz80/struct.CTC.html' title='rz80::CTC'>CTC</a>)</code></h3><div class='docblock'><p>CTC counter/timer reached zero</p>
+</div><h3 id='method.ctc_irq' class='method stab '><code>fn <a href='#method.ctc_irq' class='fnname'>ctc_irq</a>(&amp;self, ctc: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, chn: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, int_vector: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h3><div class='docblock'><p>interrupt request from CTC</p>
+</div></div>
+        <h2 id='implementors'>Implementors</h2>
+        <ul class='item-list' id='implementors-list'>
+    </ul><script type="text/javascript" async
+                         src="../implementors/rz80/trait.Bus.js">
+                 </script></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                    <dt>+</dt>
+                    <dd>Collapse/expand all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "rz80";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Registers` struct in crate `rz80`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Registers">
+
+    <title>rz80::Registers - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>rz80</a></p><script>window.sidebarCurrent = {name: 'Registers', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>rz80</a>::<wbr><a class='struct' href=''>Registers</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a id='src-56' class='srclink' href='../src/rz80/src/registers.rs.html#106-118' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct Registers {
+    pub i: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>,
+    pub r: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>,
+    pub im: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>,
+    // some fields omitted
+}</pre><div class='docblock'><p>CPU register access</p>
+
+<h1 id='examples' class='section-header'><a href='#examples'>Examples</a></h1>
+<p>set the PC and SP registers:</p>
+
+<pre class='rust rust-example-rendered'>
+<span class='kw'>use</span> <span class='ident'>rz80</span>::<span class='ident'>CPU</span>;
+
+<span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>cpu</span> <span class='op'>=</span> <span class='ident'>CPU</span>::<span class='ident'>new</span>();
+<span class='ident'>cpu</span>.<span class='ident'>reg</span>.<span class='ident'>set_pc</span>(<span class='number'>0x0200</span>);
+<span class='ident'>cpu</span>.<span class='ident'>reg</span>.<span class='ident'>set_sp</span>(<span class='number'>0x01C0</span>);</pre>
+
+<p>get the B, C and BC registers</p>
+
+<pre class='rust rust-example-rendered'>
+<span class='kw'>use</span> <span class='ident'>rz80</span>::<span class='ident'>CPU</span>;
+
+<span class='kw'>let</span> <span class='ident'>cpu</span> <span class='op'>=</span> <span class='ident'>CPU</span>::<span class='ident'>new</span>();
+<span class='kw'>let</span> <span class='ident'>b</span> <span class='op'>=</span> <span class='ident'>cpu</span>.<span class='ident'>reg</span>.<span class='ident'>b</span>();
+<span class='kw'>let</span> <span class='ident'>c</span> <span class='op'>=</span> <span class='ident'>cpu</span>.<span class='ident'>reg</span>.<span class='ident'>c</span>();
+<span class='kw'>let</span> <span class='ident'>bc</span> <span class='op'>=</span> <span class='ident'>cpu</span>.<span class='ident'>reg</span>.<span class='ident'>bc</span>();
+<span class='macro'>println</span><span class='macro'>!</span>(<span class='string'>&quot;B: {}, C: {}, BC: {}&quot;</span>, <span class='ident'>b</span>, <span class='ident'>c</span>, <span class='ident'>bc</span>);</pre>
+
+<p>8- or 16-bit wraparound happens during the set operation:</p>
+
+<pre class='rust rust-example-rendered'>
+<span class='kw'>use</span> <span class='ident'>rz80</span>::<span class='ident'>CPU</span>;
+
+<span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>cpu</span> <span class='op'>=</span> <span class='ident'>CPU</span>::<span class='ident'>new</span>();
+
+<span class='ident'>cpu</span>.<span class='ident'>reg</span>.<span class='ident'>set_a</span>(<span class='number'>0xFF</span>);
+<span class='kw'>let</span> <span class='ident'>a</span> <span class='op'>=</span> <span class='ident'>cpu</span>.<span class='ident'>reg</span>.<span class='ident'>a</span>() <span class='op'>+</span> <span class='number'>1</span>;
+<span class='ident'>cpu</span>.<span class='ident'>reg</span>.<span class='ident'>set_a</span>(<span class='ident'>a</span>);
+<span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>cpu</span>.<span class='ident'>reg</span>.<span class='ident'>a</span>() <span class='op'>==</span> <span class='number'>0x00</span>);
+
+<span class='ident'>cpu</span>.<span class='ident'>reg</span>.<span class='ident'>set_hl</span>(<span class='number'>0x0000</span>);
+<span class='kw'>let</span> <span class='ident'>hl</span> <span class='op'>=</span> <span class='ident'>cpu</span>.<span class='ident'>reg</span>.<span class='ident'>hl</span>() <span class='op'>-</span> <span class='number'>1</span>;
+<span class='ident'>cpu</span>.<span class='ident'>reg</span>.<span class='ident'>set_hl</span>(<span class='ident'>hl</span>);
+<span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>cpu</span>.<span class='ident'>reg</span>.<span class='ident'>hl</span>() <span class='op'>==</span> <span class='number'>0xFFFF</span>);</pre>
+</div><h2 class='fields'>Fields</h2><span id='structfield.i' class='structfield'><code>i: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code>
+                           </span><span class='stab '></span><span id='structfield.r' class='structfield'><code>r: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code>
+                           </span><span class='stab '></span><span id='structfield.im' class='structfield'><code>im: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code>
+                           </span><span class='stab '></span><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl <a class='struct' href='../rz80/struct.Registers.html' title='rz80::Registers'>Registers</a></code></span><span class='out-of-band'><div class='ghost'></div><a id='src-71' class='srclink' href='../src/rz80/src/registers.rs.html#120-495' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>() -&gt; <a class='struct' href='../rz80/struct.Registers.html' title='rz80::Registers'>Registers</a></code></h4>
+<div class='docblock'><p>initialize a new Registers object</p>
+</div><h4 id='method.reset' class='method'><code>fn <a href='#method.reset' class='fnname'>reset</a>(&amp;mut self)</code></h4>
+<div class='docblock'><p>perform a CPU reset (clears some, but not all registers)</p>
+</div><h4 id='method.a' class='method'><code>fn <a href='#method.a' class='fnname'>a</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of A register</p>
+</div><h4 id='method.f' class='method'><code>fn <a href='#method.f' class='fnname'>f</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of F register (status flags)</p>
+</div><h4 id='method.b' class='method'><code>fn <a href='#method.b' class='fnname'>b</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of B register</p>
+</div><h4 id='method.c' class='method'><code>fn <a href='#method.c' class='fnname'>c</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of C register</p>
+</div><h4 id='method.d' class='method'><code>fn <a href='#method.d' class='fnname'>d</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of D register</p>
+</div><h4 id='method.e' class='method'><code>fn <a href='#method.e' class='fnname'>e</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of E register</p>
+</div><h4 id='method.h' class='method'><code>fn <a href='#method.h' class='fnname'>h</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of H register</p>
+</div><h4 id='method.l' class='method'><code>fn <a href='#method.l' class='fnname'>l</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of L register</p>
+</div><h4 id='method.w' class='method'><code>fn <a href='#method.w' class='fnname'>w</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of undocumented W register (of WZ register pair)</p>
+</div><h4 id='method.set_a' class='method'><code>fn <a href='#method.set_a' class='fnname'>set_a</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of A register</p>
+</div><h4 id='method.set_f' class='method'><code>fn <a href='#method.set_f' class='fnname'>set_f</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of F register (status flags)</p>
+</div><h4 id='method.set_b' class='method'><code>fn <a href='#method.set_b' class='fnname'>set_b</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of B register</p>
+</div><h4 id='method.set_c' class='method'><code>fn <a href='#method.set_c' class='fnname'>set_c</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of C register</p>
+</div><h4 id='method.set_d' class='method'><code>fn <a href='#method.set_d' class='fnname'>set_d</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of D register</p>
+</div><h4 id='method.set_e' class='method'><code>fn <a href='#method.set_e' class='fnname'>set_e</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of E register</p>
+</div><h4 id='method.set_h' class='method'><code>fn <a href='#method.set_h' class='fnname'>set_h</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of H register</p>
+</div><h4 id='method.set_l' class='method'><code>fn <a href='#method.set_l' class='fnname'>set_l</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of L register</p>
+</div><h4 id='method.af' class='method'><code>fn <a href='#method.af' class='fnname'>af</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of AF register pair</p>
+</div><h4 id='method.bc' class='method'><code>fn <a href='#method.bc' class='fnname'>bc</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of BC register pair</p>
+</div><h4 id='method.de' class='method'><code>fn <a href='#method.de' class='fnname'>de</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of DE register pair</p>
+</div><h4 id='method.hl' class='method'><code>fn <a href='#method.hl' class='fnname'>hl</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of HL register pair</p>
+</div><h4 id='method.ix' class='method'><code>fn <a href='#method.ix' class='fnname'>ix</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of IX register</p>
+</div><h4 id='method.iy' class='method'><code>fn <a href='#method.iy' class='fnname'>iy</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of IY register</p>
+</div><h4 id='method.sp' class='method'><code>fn <a href='#method.sp' class='fnname'>sp</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of SP register</p>
+</div><h4 id='method.wz' class='method'><code>fn <a href='#method.wz' class='fnname'>wz</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of undocumented WZ register</p>
+</div><h4 id='method.af_' class='method'><code>fn <a href='#method.af_' class='fnname'>af_</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of AF&#39; register</p>
+</div><h4 id='method.bc_' class='method'><code>fn <a href='#method.bc_' class='fnname'>bc_</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of BC&#39; register</p>
+</div><h4 id='method.de_' class='method'><code>fn <a href='#method.de_' class='fnname'>de_</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of DE&#39; register</p>
+</div><h4 id='method.hl_' class='method'><code>fn <a href='#method.hl_' class='fnname'>hl_</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of HL&#39; register</p>
+</div><h4 id='method.wz_' class='method'><code>fn <a href='#method.wz_' class='fnname'>wz_</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of undocumented WZ&#39; register</p>
+</div><h4 id='method.pc' class='method'><code>fn <a href='#method.pc' class='fnname'>pc</a>(&amp;self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get content of PC register</p>
+</div><h4 id='method.set_af' class='method'><code>fn <a href='#method.set_af' class='fnname'>set_af</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of AF register pair</p>
+</div><h4 id='method.set_bc' class='method'><code>fn <a href='#method.set_bc' class='fnname'>set_bc</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of BC register pair</p>
+</div><h4 id='method.set_de' class='method'><code>fn <a href='#method.set_de' class='fnname'>set_de</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of DE register pair</p>
+</div><h4 id='method.set_hl' class='method'><code>fn <a href='#method.set_hl' class='fnname'>set_hl</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of HL register pair</p>
+</div><h4 id='method.set_ix' class='method'><code>fn <a href='#method.set_ix' class='fnname'>set_ix</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of IX register</p>
+</div><h4 id='method.set_iy' class='method'><code>fn <a href='#method.set_iy' class='fnname'>set_iy</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of IY register</p>
+</div><h4 id='method.set_sp' class='method'><code>fn <a href='#method.set_sp' class='fnname'>set_sp</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of SP register</p>
+</div><h4 id='method.set_wz' class='method'><code>fn <a href='#method.set_wz' class='fnname'>set_wz</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of undocumented WZ register</p>
+</div><h4 id='method.set_af_' class='method'><code>fn <a href='#method.set_af_' class='fnname'>set_af_</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of AF&#39; register</p>
+</div><h4 id='method.set_bc_' class='method'><code>fn <a href='#method.set_bc_' class='fnname'>set_bc_</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of BC&#39; register</p>
+</div><h4 id='method.set_de_' class='method'><code>fn <a href='#method.set_de_' class='fnname'>set_de_</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of DE&#39; register</p>
+</div><h4 id='method.set_hl_' class='method'><code>fn <a href='#method.set_hl_' class='fnname'>set_hl_</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of HL&#39; register</p>
+</div><h4 id='method.set_wz_' class='method'><code>fn <a href='#method.set_wz_' class='fnname'>set_wz_</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of undocumented WZ&#39; register</p>
+</div><h4 id='method.set_pc' class='method'><code>fn <a href='#method.set_pc' class='fnname'>set_pc</a>(&amp;mut self, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set content of PC register</p>
+</div><h4 id='method.inc_pc' class='method'><code>fn <a href='#method.inc_pc' class='fnname'>inc_pc</a>(&amp;mut self, inc: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u16.html'>u16</a>)</code></h4>
+<div class='docblock'><p>increment the PC register by some value</p>
+</div><h4 id='method.dec_pc' class='method'><code>fn <a href='#method.dec_pc' class='fnname'>dec_pc</a>(&amp;mut self, dec: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u16.html'>u16</a>)</code></h4>
+<div class='docblock'><p>decrement the PC register by some value</p>
+</div><h4 id='method.r8' class='method'><code>fn <a href='#method.r8' class='fnname'>r8</a>(&amp;self, r: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get 8-bit register by index (where index is 3-bit register id from Z80 instruction)</p>
+</div><h4 id='method.set_r8' class='method'><code>fn <a href='#method.set_r8' class='fnname'>set_r8</a>(&amp;mut self, r: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set 8-bit register by index (where index is 3-bit register id from Z80 instruction)</p>
+</div><h4 id='method.r8i' class='method'><code>fn <a href='#method.r8i' class='fnname'>r8i</a>(&amp;self, r: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get 8-bit register by index, H,L never patched to IXH,IXL,IYH,IYL</p>
+</div><h4 id='method.set_r8i' class='method'><code>fn <a href='#method.set_r8i' class='fnname'>set_r8i</a>(&amp;mut self, r: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set 8-bit register by index, H,L never patched to IXH,IXL,IYH,IYL</p>
+</div><h4 id='method.r16i' class='method'><code>fn <a href='#method.r16i' class='fnname'>r16i</a>(&amp;self, i: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get 16-bit register by direct index (AF, BC, DE, HL, etc)</p>
+</div><h4 id='method.set_r16i' class='method'><code>fn <a href='#method.set_r16i' class='fnname'>set_r16i</a>(&amp;mut self, i: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set 16-bit register by direct index (AF, BC, DE, ...)</p>
+</div><h4 id='method.r16sp' class='method'><code>fn <a href='#method.r16sp' class='fnname'>r16sp</a>(&amp;self, r: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get 16-bit register by 2-bit index with mapping through SP-table</p>
+</div><h4 id='method.set_r16sp' class='method'><code>fn <a href='#method.set_r16sp' class='fnname'>set_r16sp</a>(&amp;mut self, r: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set 16-bit register by 2-bit index with mapping through SP-table</p>
+</div><h4 id='method.r16af' class='method'><code>fn <a href='#method.r16af' class='fnname'>r16af</a>(&amp;self, r: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>get 16-bit register by 2-bit index with mapping through AF-table</p>
+</div><h4 id='method.set_r16af' class='method'><code>fn <a href='#method.set_r16af' class='fnname'>set_r16af</a>(&amp;mut self, r: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, v: <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a>)</code></h4>
+<div class='docblock'><p>set 16-bit register by 2-bit index with mapping through AF-table</p>
+</div><h4 id='method.swap' class='method'><code>fn <a href='#method.swap' class='fnname'>swap</a>(&amp;mut self, i: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, i_: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>)</code></h4>
+<div class='docblock'><p>swap 2 16-bit registers by direct index (HL, BC, DE, ...)</p>
+</div><h4 id='method.patch_ix' class='method'><code>fn <a href='#method.patch_ix' class='fnname'>patch_ix</a>(&amp;mut self)</code></h4>
+<div class='docblock'><p>patch register mapping tables for use of IX instead of HL</p>
+</div><h4 id='method.patch_iy' class='method'><code>fn <a href='#method.patch_iy' class='fnname'>patch_iy</a>(&amp;mut self)</code></h4>
+<div class='docblock'><p>patch register mapping tables for use of IY instead of HL</p>
+</div><h4 id='method.unpatch' class='method'><code>fn <a href='#method.unpatch' class='fnname'>unpatch</a>(&amp;mut self)</code></h4>
+<div class='docblock'><p>unpatch register mapping tables to use HL instead of IX/IY</p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                    <dt>+</dt>
+                    <dd>Collapse/expand all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "rz80";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

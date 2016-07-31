@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Daisychain` struct in crate `rz80`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Daisychain">
+
+    <title>rz80::Daisychain - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>rz80</a></p><script>window.sidebarCurrent = {name: 'Daisychain', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>rz80</a>::<wbr><a class='struct' href=''>Daisychain</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a id='src-1228' class='srclink' href='../src/rz80/src/daisychain.rs.html#35-38' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct Daisychain {
+    pub num_ctrl: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>,
+    pub ctrl: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.array.html'>[</a>Controller<a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.array.html'>; 16]</a>,
+}</pre><div class='docblock'><p>interrupt controller daisychain</p>
+</div><h2 class='fields'>Fields</h2><span id='structfield.num_ctrl' class='structfield'><code>num_ctrl: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a></code>
+                           </span><span class='stab '></span><span id='structfield.ctrl' class='structfield'><code>ctrl: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.array.html'>[</a>Controller<a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.array.html'>; 16]</a></code>
+                           </span><span class='stab '></span><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl <a class='struct' href='../rz80/struct.Daisychain.html' title='rz80::Daisychain'>Daisychain</a></code></span><span class='out-of-band'><div class='ghost'></div><a id='src-1232' class='srclink' href='../src/rz80/src/daisychain.rs.html#40-108' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>(num_controllers: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>) -&gt; <a class='struct' href='../rz80/struct.Daisychain.html' title='rz80::Daisychain'>Daisychain</a></code></h4>
+<div class='docblock'><p>initialize a new daisychain</p>
+</div><h4 id='method.reset' class='method'><code>fn <a href='#method.reset' class='fnname'>reset</a>(&amp;mut self)</code></h4>
+<div class='docblock'><p>reset interrupt controllers in daisychain</p>
+</div><h4 id='method.irq' class='method'><code>fn <a href='#method.irq' class='fnname'>irq</a>(&amp;mut self, bus: &amp;<a class='trait' href='../rz80/trait.Bus.html' title='rz80::Bus'>Bus</a>, ctrl_id: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, vec: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a>)</code></h4>
+<div class='docblock'><p>request an interrupt from an interrupt controller, called by bus</p>
+</div><h4 id='method.irq_ack' class='method'><code>fn <a href='#method.irq_ack' class='fnname'>irq_ack</a>(&amp;mut self) -&gt; <a class='type' href='../rz80/type.RegT.html' title='rz80::RegT'>RegT</a></code></h4>
+<div class='docblock'><p>CPU acknowledges interrupt request, return the interrupt vector</p>
+</div><h4 id='method.irq_reti' class='method'><code>fn <a href='#method.irq_reti' class='fnname'>irq_reti</a>(&amp;mut self)</code></h4>
+<div class='docblock'><p>CPU executes a RETI, this enabled interrupts on downstream controllers</p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                    <dt>+</dt>
+                    <dd>Collapse/expand all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "rz80";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script defer src="../search-index.js"></script>
+</body>
+</html>
