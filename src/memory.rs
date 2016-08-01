@@ -114,7 +114,76 @@ impl Page {
 /// ```
 ///
 /// ## Reading and Writing Memory
-/// (TODO!)
+///
+/// The most common operations are reading and writing 8- and 16-bit unsigned values:
+///
+/// ```
+/// use rz80::Memory;
+/// // new_64k() is a shortcut method to get a 64k RAM mapping
+/// let mut mem = Memory::new_64k();
+///
+/// // write and read unsigned bytes
+/// mem.w8(0x0100, 0x23);
+/// let b = mem.r8(0x0100);
+/// assert!(b == 0x23);
+///
+/// // ...same with 16-bit unsigned words
+/// mem.w16(0x0200, 0x1234);
+/// let w = mem.r16(0x0200);
+/// assert!(w == 0x1234);
+///
+/// // memory is little endian and wraps around at 64k
+/// mem.w16(0xFFFF, 0x1122);
+/// let l = mem.r8(0xFFFF);
+/// let h = mem.r8(0x0000);
+/// assert!(l == 0x22);
+/// assert!(h == 0x11);
+/// ```
+/// There is a special method to read an 8-bit signed value. This exists for the
+/// Z80's indexed and relative addressing instructions:
+///
+/// ```
+/// use rz80::Memory;
+/// let mut mem = Memory::new_64k();
+///
+/// mem.w8(0x0100, 0xF0);
+/// let s = mem.rs8(0x0100);
+/// assert!(s == -16);
+/// ```
+///
+/// Trying to write to ROM areas will silently fail, unless the w8f() method is used:
+///
+/// ```
+/// use rz80::Memory;
+/// let mut mem = Memory::new();
+/// let rom = [0x11u8; 1024];
+/// mem.map_bytes(0, 0x00000, 0x0000, false, &rom);
+/// let b0 = mem.r8(0x0100);
+/// assert!(b0 == 0x11);
+/// 
+/// // try to write read-only memory
+/// mem.w8(0x0100, 0x33);
+/// let b1 = mem.r8(0x0100);
+/// assert!(b1 == 0x11);
+///
+/// // force-write to read-only memory
+/// mem.w8f(0x0100, 0x33);
+/// let b2 = mem.r8(0x0100);
+/// assert!(b2 == 0x33);
+/// ```
+///
+/// You can write a whole chunk of memory, ignoring write protection, this is useful
+/// to load program dumps into emulator memory:
+///
+/// ```
+/// use rz80::Memory;
+/// let mut mem = Memory::new_64k();
+/// let dump : &[u8] = &[1, 2, 3];
+/// mem.write(0x0100, dump);
+/// assert!(mem.r8(0x0100) == 1 && mem.r8(0x0101) == 2 && mem.r8(0x0102) == 3);
+///
+/// ```
+///
 pub struct Memory {
     /// currently CPU-visible pages
     pages: [Page; NUM_PAGES],
