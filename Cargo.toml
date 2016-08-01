@@ -7,6 +7,7 @@ description = "Z80 chip family emulation"
 keywords = ["Z80", "emulation", "emulator", "8-bit"]
 repository = "https://github.com/floooh/rz80"
 homepage = "https://github.com/floooh/rz80"
+documentation = "https://floooh.github.com/rz80/rz80/index.html"
 exclude = [
     ".vscode/*",
 ]
