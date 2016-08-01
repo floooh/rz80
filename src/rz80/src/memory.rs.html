@@ -430,6 +430,75 @@
 <span id="386">386</span>
 <span id="387">387</span>
 <span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
 </pre><pre class='rust '>
 <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>mem</span>;
 <span class='kw'>use</span> <span class='ident'>RegT</span>;
@@ -547,7 +616,76 @@
 <span class='doccomment'>/// ```</span>
 <span class='doccomment'>///</span>
 <span class='doccomment'>/// ## Reading and Writing Memory</span>
-<span class='doccomment'>/// (TODO!)</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// The most common operations are reading and writing 8- and 16-bit unsigned values:</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// ```</span>
+<span class='doccomment'>/// use rz80::Memory;</span>
+<span class='doccomment'>/// // new_64k() is a shortcut method to get a 64k RAM mapping</span>
+<span class='doccomment'>/// let mut mem = Memory::new_64k();</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// // write and read unsigned bytes</span>
+<span class='doccomment'>/// mem.w8(0x0100, 0x23);</span>
+<span class='doccomment'>/// let b = mem.r8(0x0100);</span>
+<span class='doccomment'>/// assert!(b == 0x23);</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// // ...same with 16-bit unsigned words</span>
+<span class='doccomment'>/// mem.w16(0x0200, 0x1234);</span>
+<span class='doccomment'>/// let w = mem.r16(0x0200);</span>
+<span class='doccomment'>/// assert!(w == 0x1234);</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// // memory is little endian and wraps around at 64k</span>
+<span class='doccomment'>/// mem.w16(0xFFFF, 0x1122);</span>
+<span class='doccomment'>/// let l = mem.r8(0xFFFF);</span>
+<span class='doccomment'>/// let h = mem.r8(0x0000);</span>
+<span class='doccomment'>/// assert!(l == 0x22);</span>
+<span class='doccomment'>/// assert!(h == 0x11);</span>
+<span class='doccomment'>/// ```</span>
+<span class='doccomment'>/// There is a special method to read an 8-bit signed value. This exists for the</span>
+<span class='doccomment'>/// Z80&#39;s indexed and relative addressing instructions:</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// ```</span>
+<span class='doccomment'>/// use rz80::Memory;</span>
+<span class='doccomment'>/// let mut mem = Memory::new_64k();</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// mem.w8(0x0100, 0xF0);</span>
+<span class='doccomment'>/// let s = mem.rs8(0x0100);</span>
+<span class='doccomment'>/// assert!(s == -16);</span>
+<span class='doccomment'>/// ```</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// Trying to write to ROM areas will silently fail, unless the w8f() method is used:</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// ```</span>
+<span class='doccomment'>/// use rz80::Memory;</span>
+<span class='doccomment'>/// let mut mem = Memory::new();</span>
+<span class='doccomment'>/// let rom = [0x11u8; 1024];</span>
+<span class='doccomment'>/// mem.map_bytes(0, 0x00000, 0x0000, false, &amp;rom);</span>
+<span class='doccomment'>/// let b0 = mem.r8(0x0100);</span>
+<span class='doccomment'>/// assert!(b0 == 0x11);</span>
+<span class='doccomment'>/// </span>
+<span class='doccomment'>/// // try to write read-only memory</span>
+<span class='doccomment'>/// mem.w8(0x0100, 0x33);</span>
+<span class='doccomment'>/// let b1 = mem.r8(0x0100);</span>
+<span class='doccomment'>/// assert!(b1 == 0x11);</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// // force-write to read-only memory</span>
+<span class='doccomment'>/// mem.w8f(0x0100, 0x33);</span>
+<span class='doccomment'>/// let b2 = mem.r8(0x0100);</span>
+<span class='doccomment'>/// assert!(b2 == 0x33);</span>
+<span class='doccomment'>/// ```</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// You can write a whole chunk of memory, ignoring write protection, this is useful</span>
+<span class='doccomment'>/// to load program dumps into emulator memory:</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// ```</span>
+<span class='doccomment'>/// use rz80::Memory;</span>
+<span class='doccomment'>/// let mut mem = Memory::new_64k();</span>
+<span class='doccomment'>/// let dump : &amp;[u8] = &amp;[1, 2, 3];</span>
+<span class='doccomment'>/// mem.write(0x0100, dump);</span>
+<span class='doccomment'>/// assert!(mem.r8(0x0100) == 1 &amp;&amp; mem.r8(0x0101) == 2 &amp;&amp; mem.r8(0x0102) == 3);</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// ```</span>
+<span class='doccomment'>///</span>
 <span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>Memory</span> {
     <span class='doccomment'>/// currently CPU-visible pages</span>
     <span class='ident'>pages</span>: [<span class='ident'>Page</span>; <span class='ident'>NUM_PAGES</span>],
