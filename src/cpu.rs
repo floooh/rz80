@@ -4,6 +4,64 @@ use registers::Registers;
 use bus::Bus;
 
 /// Z80 CPU emulation
+///
+/// The core of the CPU emulation is the **step()** method, this fetches
+/// the next instruction from the memory location pointed to by the PC
+/// register, executes the instruction, handles any pending interrupt
+/// request, and finally returns the number of cycles taken.
+///
+/// An object implementing the Bus trait must be handed to the step()
+/// method which is called if the CPU needs to communicate with the
+/// 'outside world'.
+///
+/// The CPU emulation uses an 'algorithmic decoder' as described
+/// here: http://www.z80.info/decoding.html, and implements most
+/// undocumented behaviour like the X/Y flags, the WZ register, 
+/// and all undocumented instructions. The emulation is good 
+/// enough to run the ZEXALL tests without errors.
+///
+/// What's **not** implemented:
+/// - interrupt modes 0 and 1 
+/// - non-maskable interrupts (including the RETN instruction)
+/// - extra memory wait states
+///
+/// # Examples
+/// 
+/// Load and execute a small test program:
+///
+/// ```
+/// use rz80::{CPU, Bus};
+///
+/// // a dummy Bus trait implementation
+/// struct DummyBus;
+/// impl Bus for DummyBus { };
+///
+/// let mut cpu = CPU::new();
+/// let bus = DummyBus { };
+/// 
+/// // map some writable memory to address 0x0000
+/// cpu.mem.map(0, 0x00000, 0x0000, true, 0x1000);
+///
+/// // a little Z80 machine code program to add 2 numbers
+/// let prog = [
+///     0x3E, 0x11,     // LD A,0x11 (7 cycles)
+///     0x06, 0x22,     // LD B,0x22 (7 cycles)
+///     0x80, 0x33,     // ADD A,B   (4 cycles)
+/// ];
+/// // put the program at address 0x0100
+/// cpu.mem.write(0x0100, &prog);
+/// // set PC to address 0x0100
+/// cpu.reg.set_pc(0x0100);
+///
+/// // execute 3 instructions
+/// let mut cycles = 0;
+/// for _ in 0..3 {
+///     cycles += cpu.step(&bus);
+/// }
+/// assert!(cpu.reg.a() == 0x33);
+/// assert!(cycles == 18);
+/// ```
+///
 pub struct CPU {
     pub reg: Registers,
     pub halt: bool,
@@ -30,67 +88,45 @@ use registers::ZF;
 use registers::SF;
 
 #[inline(always)]
+#[cfg_attr(rustfmt, rustfmt_skip)]
 fn flags_add(acc: RegT, add: RegT, res: RegT) -> RegT {
-    (if (res & 0xFF) == 0 {
-        ZF
-    } else {
-        res & SF
-    }) | (res & (YF | XF)) | ((res >> 8) & CF) | ((acc ^ add ^ res) & HF) |
-    ((((acc ^ add ^ 0x80) & (add ^ res)) >> 5) & VF)
+    (if (res & 0xFF) == 0 {ZF} else {res & SF}) | 
+    (res & (YF | XF)) | ((res >> 8) & CF) | 
+    ((acc ^ add ^ res) & HF) | ((((acc ^ add ^ 0x80) & (add ^ res)) >> 5) & VF)
 }
 
 #[inline(always)]
+#[cfg_attr(rustfmt, rustfmt_skip)]
 fn flags_sub(acc: RegT, sub: RegT, res: RegT) -> RegT {
-    NF |
-    (if (res & 0xFF) == 0 {
-        ZF
-    } else {
-        res & SF
-    }) | (res & (YF | XF)) | ((res >> 8) & CF) | ((acc ^ sub ^ res) & HF) |
-    ((((acc ^ sub) & (res ^ acc)) >> 5) & VF)
+    NF | (if (res & 0xFF) == 0 {ZF} else {res & SF}) | 
+    (res & (YF | XF)) | ((res >> 8) & CF) | 
+    ((acc ^ sub ^ res) & HF) | ((((acc ^ sub) & (res ^ acc)) >> 5) & VF)
 }
 
 #[inline(always)]
+#[cfg_attr(rustfmt, rustfmt_skip)]
 fn flags_cp(acc: RegT, sub: RegT, res: RegT) -> RegT {
     // the only difference to flags_sub() is that the
     // 2 undocumented flag bits X and Y are taken from the
     // sub-value, not the result
-    NF |
-    (if (res & 0xFF) == 0 {
-        ZF
-    } else {
-        res & SF
-    }) | (sub & (YF | XF)) | ((res >> 8) & CF) | ((acc ^ sub ^ res) & HF) |
-    ((((acc ^ sub) & (res ^ acc)) >> 5) & VF)
+    NF | (if (res & 0xFF) == 0 {ZF} else {res & SF}) | 
+    (sub & (YF | XF)) | ((res >> 8) & CF) | 
+    ((acc ^ sub ^ res) & HF) | ((((acc ^ sub) & (res ^ acc)) >> 5) & VF)
 }
 
+#[cfg_attr(rustfmt, rustfmt_skip)]
 #[inline(always)]
 fn flags_szp(val: RegT) -> RegT {
     let v = val & 0xFF;
-    (if (v.count_ones() & 1) == 0 {
-        PF
-    } else {
-        0
-    }) |
-    (if v == 0 {
-        ZF
-    } else {
-        v & SF
-    }) | (v & (YF | XF))
+    (if (v.count_ones() & 1) == 0 {PF} else {0}) |
+    (if v == 0 {ZF} else {v & SF}) | (v & (YF | XF))
 }
 
+#[cfg_attr(rustfmt, rustfmt_skip)]
 #[inline(always)]
 fn flags_sziff2(val: RegT, iff2: bool) -> RegT {
-    (if (val & 0xFF) == 0 {
-        ZF
-    } else {
-        val & SF
-    }) | (val & (YF | XF)) |
-    if iff2 {
-        PF
-    } else {
-        0
-    }
+    (if (val & 0xFF) == 0 {ZF} else {val & SF}) | 
+    (val & (YF | XF)) | if iff2 {PF} else {0}
 }
 
 use registers::BC;
@@ -154,7 +190,7 @@ impl CPU {
         op
     }
 
-    /// decode and execute one instruction
+    /// decode and execute one instruction, return number of cycles taken
     pub fn step(&mut self, bus: &Bus) -> i64 {
         self.invalid_op = false;
         if self.enable_interrupt {
@@ -249,7 +285,7 @@ impl CPU {
     /// * 'd'   - the d in (IX+d), (IY+d), 0 if m is HL
     ///
     /// returns number of cycles the instruction takes
-    pub fn do_op(&mut self, bus: &Bus, ext: bool) -> i64 {
+    fn do_op(&mut self, bus: &Bus, ext: bool) -> i64 {
         let (cyc, ext_cyc) = if ext {
             (4, 8)
         } else {
@@ -945,18 +981,19 @@ impl CPU {
         }
     }
 
+    /// request an interrupt (will initiate interrupt handling after next instruction) 
     pub fn irq(&mut self) {
         self.irq_received = true;
     }
 
-    pub fn reti(&mut self, bus: &Bus) -> i64 {
+    fn reti(&mut self, bus: &Bus) -> i64 {
         self.ret();
         bus.irq_reti();
         15
     }
 
     #[inline(always)]
-    pub fn handle_irq(&mut self, bus: &Bus) -> i64 {
+    fn handle_irq(&mut self, bus: &Bus) -> i64 {
         // NOTE: only interrupt mode 2 is supported at the moment
         assert!(2 == self.reg.im);
 
@@ -989,6 +1026,7 @@ impl CPU {
         cycles
     }
 
+    /// execute a halt instruction
     pub fn halt(&mut self) {
         self.halt = true;
         self.reg.dec_pc(1);
@@ -1018,7 +1056,7 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn alu8(&mut self, alu: usize, val: RegT) {
+    fn alu8(&mut self, alu: usize, val: RegT) {
         match alu {
             0 => self.add8(val),
             1 => self.adc8(val),
@@ -1100,36 +1138,25 @@ impl CPU {
     }
 
     #[inline(always)]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     pub fn inc8(&mut self, val: RegT) -> RegT {
         let res = (val + 1) & 0xFF;
-        let f = (if res == 0 {
-            ZF
-        } else {
-            res & SF
-        }) | (res & (XF | YF)) | ((res ^ val) & HF) |
-                (if res == 0x80 {
-            VF
-        } else {
-            0
-        }) | (self.reg.f() & CF);
+        let f = (if res == 0 {ZF} else {res & SF}) | 
+            (res & (XF | YF)) | ((res ^ val) & HF) |
+            (if res == 0x80 {VF} else {0}) | 
+            (self.reg.f() & CF);
         self.reg.set_f(f);
         res
     }
 
     #[inline(always)]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     pub fn dec8(&mut self, val: RegT) -> RegT {
         let res = (val - 1) & 0xFF;
-        let f = NF |
-                (if res == 0 {
-            ZF
-        } else {
-            res & SF
-        }) | (res & (XF | YF)) | ((res ^ val) & HF) |
-                (if res == 0x7F {
-            VF
-        } else {
-            0
-        }) | (self.reg.f() & CF);
+        let f = NF | (if res == 0 {ZF} else {res & SF}) | 
+            (res & (XF | YF)) | ((res ^ val) & HF) |
+            (if res == 0x7F {VF} else {0}) | 
+            (self.reg.f() & CF);
         self.reg.set_f(f);
         res
     }
@@ -1271,29 +1298,23 @@ impl CPU {
     }
 
     #[inline(always)]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     pub fn bit(&mut self, val: RegT, mask: RegT) {
         let res = val & mask;
-        let f = HF | (self.reg.f() & CF) |
-                (if res == 0 {
-            ZF | PF
-        } else {
-            res & SF
-        }) | (val & (XF | YF));
+        let f = HF | (self.reg.f() & CF) | (if res == 0 {ZF | PF} else {res & SF}) | 
+            (val & (XF | YF));
         self.reg.set_f(f)
     }
 
     #[inline(always)]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     pub fn ibit(&mut self, val: RegT, mask: RegT) {
         // special version of the BIT instruction for
         // (HL), (IX+d), (IY+d) to set the undocumented XF|YF flags
         // from high byte of HL+1 or IX/IY+d (expected in WZ)
         let res = val & mask;
-        let f = HF | (self.reg.f() & CF) |
-                (if res == 0 {
-            ZF | PF
-        } else {
-            res & SF
-        }) | (self.reg.w() & (XF | YF));
+        let f = HF | (self.reg.f() & CF) | (if res == 0 {ZF | PF} else {res & SF}) | 
+            (self.reg.w() & (XF | YF));
         self.reg.set_f(f)
     }
 
@@ -1308,30 +1329,26 @@ impl CPU {
     }
 
     #[inline(always)]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     pub fn adc16(&mut self, acc: RegT, add: RegT) -> RegT {
         self.reg.set_wz(acc + 1);
         let res = acc + add + (self.reg.f() & CF);
         self.reg.set_f((((acc ^ res ^ add) >> 8) & HF) | ((res >> 16) & CF) |
                        ((res >> 8) & (SF | XF | YF)) |
-                       (if (res & 0xFFFF) == 0 {
-            ZF
-        } else {
-            0
-        }) | (((add ^ acc ^ 0x8000) & (add ^ res) & 0x8000) >> 13));
+                       (if (res & 0xFFFF) == 0 {ZF} else {0}) | 
+                       (((add ^ acc ^ 0x8000) & (add ^ res) & 0x8000) >> 13));
         res & 0xFFFF
     }
 
     #[inline(always)]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     pub fn sbc16(&mut self, acc: RegT, sub: RegT) -> RegT {
         self.reg.set_wz(acc + 1);
         let res = acc - sub - (self.reg.f() & CF);
         self.reg.set_f(NF | (((acc ^ res ^ sub) >> 8) & HF) | ((res >> 16) & CF) |
                        ((res >> 8) & (SF | XF | YF)) |
-                       (if (res & 0xFFFF) == 0 {
-            ZF
-        } else {
-            0
-        }) | (((sub ^ acc) & (acc ^ res) & 0x8000) >> 13));
+                       (if (res & 0xFFFF) == 0 {ZF} else {0}) | 
+                       (((sub ^ acc) & (acc ^ res) & 0x8000) >> 13));
         res & 0xFFFF
     }
 
@@ -1354,6 +1371,7 @@ impl CPU {
     }
 
     #[inline(always)]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     pub fn daa(&mut self) {
         let a = self.reg.a();
         let mut val = a;
@@ -1373,12 +1391,9 @@ impl CPU {
                 val = (val + 0x60) & 0xFF;
             }
         }
-        self.reg.set_f((f & (CF | NF)) |
-                       (if a > 0x99 {
-            CF
-        } else {
-            0
-        }) | ((a ^ val) & HF) | flags_szp(val));
+        self.reg.set_f((f & (CF | NF)) | 
+                       (if a > 0x99 {CF} else {0}) | 
+                       ((a ^ val) & HF) | flags_szp(val));
         self.reg.set_a(val);
     }
 
@@ -1447,6 +1462,7 @@ impl CPU {
     }
 
     #[inline(always)]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     pub fn ldi(&mut self) {
         let hl = self.reg.hl();
         let de = self.reg.de();
@@ -1458,25 +1474,14 @@ impl CPU {
         self.reg.set_bc(bc);
         let n = (val + self.reg.a()) & 0xFF;
         let f = (self.reg.f() & (SF | ZF | CF)) |
-                (if (n & 0x02) != 0 {
-            YF
-        } else {
-            0
-        }) |
-                (if (n & 0x08) != 0 {
-            XF
-        } else {
-            0
-        }) |
-                (if bc > 0 {
-            VF
-        } else {
-            0
-        });
+                (if (n & 0x02) != 0 {YF} else {0}) |
+                (if (n & 0x08) != 0 {XF} else {0}) |
+                (if bc > 0 {VF} else {0});
         self.reg.set_f(f);
     }
 
     #[inline(always)]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     pub fn ldd(&mut self) {
         let hl = self.reg.hl();
         let de = self.reg.de();
@@ -1488,21 +1493,9 @@ impl CPU {
         self.reg.set_bc(bc);
         let n = (val + self.reg.a()) & 0xFF;
         let f = (self.reg.f() & (SF | ZF | CF)) |
-                (if (n & 0x02) != 0 {
-            YF
-        } else {
-            0
-        }) |
-                (if (n & 0x08) != 0 {
-            XF
-        } else {
-            0
-        }) |
-                (if bc > 0 {
-            VF
-        } else {
-            0
-        });
+                (if (n & 0x02) != 0 {YF} else {0}) |
+                (if (n & 0x08) != 0 {XF} else {0}) |
+                (if bc > 0 {VF} else {0});
         self.reg.set_f(f);
     }
 
@@ -1533,6 +1526,7 @@ impl CPU {
     }
 
     #[inline(always)]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     pub fn cpi(&mut self) {
         let wz = self.reg.wz();
         self.reg.set_wz(wz + 1);
@@ -1543,21 +1537,9 @@ impl CPU {
         let a = self.reg.a();
         let mut v = a - self.mem.r8(hl);
         let mut f = NF | (self.reg.f() & CF) |
-                    (if v == 0 {
-            ZF
-        } else {
-            v & SF
-        }) |
-                    (if (v & 0xF) > (a & 0xF) {
-            HF
-        } else {
-            0
-        }) |
-                    (if bc != 0 {
-            VF
-        } else {
-            0
-        });
+                    (if v == 0 {ZF} else {v & SF}) |
+                    (if (v & 0xF) > (a & 0xF) {HF} else {0}) |
+                    (if bc != 0 {VF} else {0});
         if (f & HF) != 0 {
             v -= 1;
         }
@@ -1571,6 +1553,7 @@ impl CPU {
     }
 
     #[inline(always)]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     pub fn cpd(&mut self) {
         let wz = self.reg.wz();
         self.reg.set_wz(wz - 1);
@@ -1581,21 +1564,9 @@ impl CPU {
         let a = self.reg.a();
         let mut v = a - self.mem.r8(hl);
         let mut f = NF | (self.reg.f() & CF) |
-                    (if v == 0 {
-            ZF
-        } else {
-            v & SF
-        }) |
-                    (if (v & 0xF) > (a & 0xF) {
-            HF
-        } else {
-            0
-        }) |
-                    (if bc != 0 {
-            VF
-        } else {
-            0
-        });
+                    (if v == 0 {ZF} else {v & SF}) |
+                    (if (v & 0xF) > (a & 0xF) {HF} else {0}) |
+                    (if bc != 0 {VF} else {0});
         if (f & HF) != 0 {
             v -= 1;
         }
@@ -1645,47 +1616,27 @@ impl CPU {
     }
 
     #[inline(always)]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     fn ini_ind_flags(&self, val: RegT, add: RegT) -> RegT {
         let b = self.reg.b();
         let c = self.reg.c();
         let t = ((c + add) & 0xFF) + val;
-        (if b != 0 {
-            b & SF
-        } else {
-            ZF
-        }) |
-        (if (val & SF) != 0 {
-            NF
-        } else {
-            0
-        }) |
-        (if (t & 0x100) != 0 {
-            HF | CF
-        } else {
-            0
-        }) | (flags_szp((t & 0x07) ^ b) & PF)
+        (if b != 0 {b & SF} else {ZF}) |
+            (if (val & SF) != 0 {NF} else {0}) |
+            (if (t & 0x100) != 0 {HF | CF} else {0}) | 
+            (flags_szp((t & 0x07) ^ b) & PF)
     }
 
     #[inline(always)]
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     fn outi_outd_flags(&self, val: RegT) -> RegT {
         let b = self.reg.b();
         let l = self.reg.l();
         let t = l + val;
-        (if b != 0 {
-            b & SF
-        } else {
-            ZF
-        }) |
-        (if (val & SF) != 0 {
-            NF
-        } else {
-            0
-        }) |
-        (if (t & 0x100) != 0 {
-            HF | CF
-        } else {
-            0
-        }) | (flags_szp((t & 0x07) ^ b) & PF)
+        (if b != 0 {b & SF} else {ZF}) |
+            (if (val & SF) != 0 {NF} else {0}) |
+            (if (t & 0x100) != 0 {HF | CF} else {0}) | 
+            (flags_szp((t & 0x07) ^ b) & PF)
     }
 
     #[inline(always)]
