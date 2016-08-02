@@ -4,7 +4,7 @@ use bus::Bus;
 
 /// CTC channel 0
 pub const CTC_0: usize = 0;
-/// CTC channel 1 
+/// CTC channel 1
 pub const CTC_1: usize = 1;
 /// CTC channel 2
 pub const CTC_2: usize = 2;
@@ -115,7 +115,7 @@ impl CTC {
         }
     }
 
-    /// read current counter or timer value 
+    /// read current counter or timer value
     pub fn read(&self, chn: usize) -> RegT {
         let c = self.chn[chn];
         let mut val = c.down_counter as RegT;
@@ -214,8 +214,7 @@ mod test {
         ctc_irq_called: bool,
         ctc_zero_counter: i32,
         ctc_irq_counter: i32,
-
-    } 
+    }
     struct TestBus {
         state: RefCell<TestState>,
     }
@@ -262,7 +261,7 @@ mod test {
         assert!(0 == ctc.chn[CTC_1].int_vector);
         assert!(0 == ctc.chn[CTC_2].int_vector);
         assert!(0 == ctc.chn[CTC_3].int_vector);
-        
+
         // writing int-vector to CTC_0, also automatically fills the other vectors
         ctc.write(&bus, CTC_0, 0xE0);
         assert!(0xE0 == ctc.chn[CTC_0].int_vector);
@@ -275,7 +274,8 @@ mod test {
     fn write_control_word() {
         let mut ctc = CTC::new(0);
         let bus = TestBus::new();
-        let ctrl = (CTC_CONTROL_WORD | CTC_INTERRUPT_ENABLED | CTC_MODE_COUNTER | CTC_PRESCALER_256) as RegT;
+        let ctrl = (CTC_CONTROL_WORD | CTC_INTERRUPT_ENABLED | CTC_MODE_COUNTER |
+                    CTC_PRESCALER_256) as RegT;
         ctc.write(&bus, CTC_0, ctrl);
         assert!(ctrl == ctc.chn[CTC_0].control as RegT);
         assert!(CTC_RESET == ctc.chn[CTC_1].control);
@@ -288,9 +288,11 @@ mod test {
         let mut ctc = CTC::new(0);
         let bus = TestBus::new();
         let ctrl_test = (CTC_CONTROL_WORD |
-                         if with_irq {CTC_INTERRUPT_ENABLED} else {CTC_INTERRUPT_DISABLED} | 
-                         CTC_MODE_COUNTER | 
-                         CTC_PRESCALER_256) as RegT; // NOTE: in counter mode, prescale should be ignored!
+                         if with_irq {
+            CTC_INTERRUPT_ENABLED
+        } else {
+            CTC_INTERRUPT_DISABLED
+        } | CTC_MODE_COUNTER | CTC_PRESCALER_256) as RegT;
         let ctrl = ctrl_test | (CTC_CONSTANT_FOLLOWS as RegT);
 
         ctc.write(&bus, CTC_0, ctrl);
@@ -308,7 +310,7 @@ mod test {
         assert!(bus.state.borrow().ctc_zero_counter == 0);
         assert!(bus.state.borrow().ctc_irq_counter == 0);
         assert!(0x20 == ctc.chn[CTC_0].down_counter);
-    
+
         // now trigger counters, this should update the counter and call the ctc_zero() callback
         for i in 0..0x50 {
             ctc.trigger(&bus, CTC_0);
@@ -316,7 +318,12 @@ mod test {
         assert!(bus.state.borrow().ctc_zero_called);
         assert!(bus.state.borrow().ctc_irq_called == with_irq);
         assert!(bus.state.borrow().ctc_zero_counter == 2);
-        assert!(bus.state.borrow().ctc_irq_counter == if with_irq {2} else {0});
+        assert!(bus.state.borrow().ctc_irq_counter ==
+                if with_irq {
+            2
+        } else {
+            0
+        });
         assert!(ctc.chn[CTC_0].down_counter == 0x10);
         assert!(ctc.read(CTC_0) == 0x10);
     }
@@ -335,9 +342,11 @@ mod test {
         let mut ctc = CTC::new(0);
         let bus = TestBus::new();
         let ctrl_test = (CTC_CONTROL_WORD |
-                         if with_irq {CTC_INTERRUPT_ENABLED} else {CTC_INTERRUPT_DISABLED} | 
-                         CTC_MODE_TIMER | 
-                         CTC_PRESCALER_16) as RegT;
+                         if with_irq {
+            CTC_INTERRUPT_ENABLED
+        } else {
+            CTC_INTERRUPT_DISABLED
+        } | CTC_MODE_TIMER | CTC_PRESCALER_16) as RegT;
         let ctrl = ctrl_test | (CTC_CONSTANT_FOLLOWS as RegT);
 
         ctc.write(&bus, CTC_0, ctrl);
@@ -350,12 +359,17 @@ mod test {
 
         // update the timer channels
         for i in 0..0x200 {
-            ctc.update_timers(&bus, 2);            
+            ctc.update_timers(&bus, 2);
         }
         assert!(bus.state.borrow().ctc_zero_called);
         assert!(bus.state.borrow().ctc_irq_called == with_irq);
         assert!(bus.state.borrow().ctc_zero_counter == 2);
-        assert!(bus.state.borrow().ctc_irq_counter == if with_irq {2} else {0});
+        assert!(bus.state.borrow().ctc_irq_counter ==
+                if with_irq {
+            2
+        } else {
+            0
+        });
         assert!(ctc.chn[CTC_0].down_counter == 0x200);
         assert!(ctc.read(CTC_0) == 0x20);
     }
@@ -370,4 +384,3 @@ mod test {
         ctc_timer_test(true);
     }
 }
-

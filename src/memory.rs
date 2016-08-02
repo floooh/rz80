@@ -73,14 +73,14 @@ impl Page {
 /// ```
 ///
 /// ## The Heap
-/// 
+///
 /// The Memory class will never keep references to external memory, instead it
-/// comes with it's own few hundred KBytes of embedded memory which is used 
+/// comes with it's own few hundred KBytes of embedded memory which is used
 /// as 'heap'. A single memory page maps 1 KByte of memory from the Z80
 /// address range to 1 KByte of memory somewhere on the embedded heap.
 ///
 /// ## Mapping Memory
-/// 
+///
 /// This 'maps' a chunk of memory in Z80 address range to a chunk of memory
 /// of the same size in the embedded heap on one of the four memory layers.
 ///
@@ -91,11 +91,11 @@ impl Page {
 /// use rz80::Memory;
 /// let mut mem = Memory::new();
 ///
-/// // map 32 KByte at heap address 0x08000 to CPU addr 0x0000 
+/// // map 32 KByte at heap address 0x08000 to CPU addr 0x0000
 /// // on layer 0 as writable:
 /// mem.map(0, 0x08000, 0x0000, true, 32*1024);
 ///
-/// // map another 32 KByte at heap address 0x10000 to CPU addr 0x8000 
+/// // map another 32 KByte at heap address 0x10000 to CPU addr 0x8000
 /// // on layer 1 as read-only:
 /// mem.map(1, 0x10000, 0x8000, false, 32*1024);
 /// ```
@@ -108,7 +108,7 @@ impl Page {
 /// use rz80::Memory;
 /// let mut mem = Memory::new();
 /// let rom = [0xFFu8; 4096];
-/// 
+///
 /// // assume that 'rom' is a system ROM dump, and map it as read-only to CPU address 0xF000
 /// mem.map_bytes(0, 0x00000, 0xF000, false, &rom);
 /// ```
@@ -160,7 +160,7 @@ impl Page {
 /// mem.map_bytes(0, 0x00000, 0x0000, false, &rom);
 /// let b0 = mem.r8(0x0100);
 /// assert!(b0 == 0x11);
-/// 
+///
 /// // try to write read-only memory
 /// mem.w8(0x0100, 0x33);
 /// let b1 = mem.r8(0x0100);

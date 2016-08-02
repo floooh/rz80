@@ -30,7 +30,7 @@
 //!
 //! Check out the two included example emulators:
 //!
-//! ```bash 
+//! ```bash
 //! > cargo run --release --example z1013
 //! > cargo run --release --example kc87
 //! ```

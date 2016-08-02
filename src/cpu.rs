@@ -16,17 +16,17 @@ use bus::Bus;
 ///
 /// The CPU emulation uses an 'algorithmic decoder' as described
 /// here: http://www.z80.info/decoding.html, and implements most
-/// undocumented behaviour like the X/Y flags, the WZ register, 
-/// and all undocumented instructions. The emulation is good 
+/// undocumented behaviour like the X/Y flags, the WZ register,
+/// and all undocumented instructions. The emulation is good
 /// enough to run the ZEXALL tests without errors.
 ///
 /// What's **not** implemented:
-/// - interrupt modes 0 and 1 
+/// - interrupt modes 0 and 1
 /// - non-maskable interrupts (including the RETN instruction)
 /// - extra memory wait states
 ///
 /// # Examples
-/// 
+///
 /// Load and execute a small test program:
 ///
 /// ```
@@ -38,7 +38,7 @@ use bus::Bus;
 ///
 /// let mut cpu = CPU::new();
 /// let bus = DummyBus { };
-/// 
+///
 /// // map some writable memory to address 0x0000
 /// cpu.mem.map(0, 0x00000, 0x0000, true, 0x1000);
 ///
@@ -90,16 +90,16 @@ use registers::SF;
 #[inline(always)]
 #[cfg_attr(rustfmt, rustfmt_skip)]
 fn flags_add(acc: RegT, add: RegT, res: RegT) -> RegT {
-    (if (res & 0xFF) == 0 {ZF} else {res & SF}) | 
-    (res & (YF | XF)) | ((res >> 8) & CF) | 
+    (if (res & 0xFF) == 0 {ZF} else {res & SF}) |
+    (res & (YF | XF)) | ((res >> 8) & CF) |
     ((acc ^ add ^ res) & HF) | ((((acc ^ add ^ 0x80) & (add ^ res)) >> 5) & VF)
 }
 
 #[inline(always)]
 #[cfg_attr(rustfmt, rustfmt_skip)]
 fn flags_sub(acc: RegT, sub: RegT, res: RegT) -> RegT {
-    NF | (if (res & 0xFF) == 0 {ZF} else {res & SF}) | 
-    (res & (YF | XF)) | ((res >> 8) & CF) | 
+    NF | (if (res & 0xFF) == 0 {ZF} else {res & SF}) |
+    (res & (YF | XF)) | ((res >> 8) & CF) |
     ((acc ^ sub ^ res) & HF) | ((((acc ^ sub) & (res ^ acc)) >> 5) & VF)
 }
 
@@ -109,8 +109,8 @@ fn flags_cp(acc: RegT, sub: RegT, res: RegT) -> RegT {
     // the only difference to flags_sub() is that the
     // 2 undocumented flag bits X and Y are taken from the
     // sub-value, not the result
-    NF | (if (res & 0xFF) == 0 {ZF} else {res & SF}) | 
-    (sub & (YF | XF)) | ((res >> 8) & CF) | 
+    NF | (if (res & 0xFF) == 0 {ZF} else {res & SF}) |
+    (sub & (YF | XF)) | ((res >> 8) & CF) |
     ((acc ^ sub ^ res) & HF) | ((((acc ^ sub) & (res ^ acc)) >> 5) & VF)
 }
 
@@ -125,7 +125,7 @@ fn flags_szp(val: RegT) -> RegT {
 #[cfg_attr(rustfmt, rustfmt_skip)]
 #[inline(always)]
 fn flags_sziff2(val: RegT, iff2: bool) -> RegT {
-    (if (val & 0xFF) == 0 {ZF} else {val & SF}) | 
+    (if (val & 0xFF) == 0 {ZF} else {val & SF}) |
     (val & (YF | XF)) | if iff2 {PF} else {0}
 }
 
@@ -981,7 +981,7 @@ impl CPU {
         }
     }
 
-    /// request an interrupt (will initiate interrupt handling after next instruction) 
+    /// request an interrupt (will initiate interrupt handling after next instruction)
     pub fn irq(&mut self) {
         self.irq_received = true;
     }
@@ -1141,9 +1141,9 @@ impl CPU {
     #[cfg_attr(rustfmt, rustfmt_skip)]
     pub fn inc8(&mut self, val: RegT) -> RegT {
         let res = (val + 1) & 0xFF;
-        let f = (if res == 0 {ZF} else {res & SF}) | 
+        let f = (if res == 0 {ZF} else {res & SF}) |
             (res & (XF | YF)) | ((res ^ val) & HF) |
-            (if res == 0x80 {VF} else {0}) | 
+            (if res == 0x80 {VF} else {0}) |
             (self.reg.f() & CF);
         self.reg.set_f(f);
         res
@@ -1153,9 +1153,9 @@ impl CPU {
     #[cfg_attr(rustfmt, rustfmt_skip)]
     pub fn dec8(&mut self, val: RegT) -> RegT {
         let res = (val - 1) & 0xFF;
-        let f = NF | (if res == 0 {ZF} else {res & SF}) | 
+        let f = NF | (if res == 0 {ZF} else {res & SF}) |
             (res & (XF | YF)) | ((res ^ val) & HF) |
-            (if res == 0x7F {VF} else {0}) | 
+            (if res == 0x7F {VF} else {0}) |
             (self.reg.f() & CF);
         self.reg.set_f(f);
         res
@@ -1301,7 +1301,7 @@ impl CPU {
     #[cfg_attr(rustfmt, rustfmt_skip)]
     pub fn bit(&mut self, val: RegT, mask: RegT) {
         let res = val & mask;
-        let f = HF | (self.reg.f() & CF) | (if res == 0 {ZF | PF} else {res & SF}) | 
+        let f = HF | (self.reg.f() & CF) | (if res == 0 {ZF | PF} else {res & SF}) |
             (val & (XF | YF));
         self.reg.set_f(f)
     }
@@ -1309,11 +1309,11 @@ impl CPU {
     #[inline(always)]
     #[cfg_attr(rustfmt, rustfmt_skip)]
     pub fn ibit(&mut self, val: RegT, mask: RegT) {
-        // special version of the BIT instruction for
-        // (HL), (IX+d), (IY+d) to set the undocumented XF|YF flags
-        // from high byte of HL+1 or IX/IY+d (expected in WZ)
+    // special version of the BIT instruction for
+    // (HL), (IX+d), (IY+d) to set the undocumented XF|YF flags
+    // from high byte of HL+1 or IX/IY+d (expected in WZ)
         let res = val & mask;
-        let f = HF | (self.reg.f() & CF) | (if res == 0 {ZF | PF} else {res & SF}) | 
+        let f = HF | (self.reg.f() & CF) | (if res == 0 {ZF | PF} else {res & SF}) |
             (self.reg.w() & (XF | YF));
         self.reg.set_f(f)
     }
@@ -1335,7 +1335,7 @@ impl CPU {
         let res = acc + add + (self.reg.f() & CF);
         self.reg.set_f((((acc ^ res ^ add) >> 8) & HF) | ((res >> 16) & CF) |
                        ((res >> 8) & (SF | XF | YF)) |
-                       (if (res & 0xFFFF) == 0 {ZF} else {0}) | 
+                       (if (res & 0xFFFF) == 0 {ZF} else {0}) |
                        (((add ^ acc ^ 0x8000) & (add ^ res) & 0x8000) >> 13));
         res & 0xFFFF
     }
@@ -1347,7 +1347,7 @@ impl CPU {
         let res = acc - sub - (self.reg.f() & CF);
         self.reg.set_f(NF | (((acc ^ res ^ sub) >> 8) & HF) | ((res >> 16) & CF) |
                        ((res >> 8) & (SF | XF | YF)) |
-                       (if (res & 0xFFFF) == 0 {ZF} else {0}) | 
+                       (if (res & 0xFFFF) == 0 {ZF} else {0}) |
                        (((sub ^ acc) & (acc ^ res) & 0x8000) >> 13));
         res & 0xFFFF
     }
@@ -1391,8 +1391,8 @@ impl CPU {
                 val = (val + 0x60) & 0xFF;
             }
         }
-        self.reg.set_f((f & (CF | NF)) | 
-                       (if a > 0x99 {CF} else {0}) | 
+        self.reg.set_f((f & (CF | NF)) |
+                       (if a > 0x99 {CF} else {0}) |
                        ((a ^ val) & HF) | flags_szp(val));
         self.reg.set_a(val);
     }
@@ -1623,7 +1623,7 @@ impl CPU {
         let t = ((c + add) & 0xFF) + val;
         (if b != 0 {b & SF} else {ZF}) |
             (if (val & SF) != 0 {NF} else {0}) |
-            (if (t & 0x100) != 0 {HF | CF} else {0}) | 
+            (if (t & 0x100) != 0 {HF | CF} else {0}) |
             (flags_szp((t & 0x07) ^ b) & PF)
     }
 
@@ -1635,7 +1635,7 @@ impl CPU {
         let t = l + val;
         (if b != 0 {b & SF} else {ZF}) |
             (if (val & SF) != 0 {NF} else {0}) |
-            (if (t & 0x100) != 0 {HF | CF} else {0}) | 
+            (if (t & 0x100) != 0 {HF | CF} else {0}) |
             (flags_szp((t & 0x07) ^ b) & PF)
     }
 
