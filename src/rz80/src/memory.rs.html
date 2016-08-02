@@ -575,14 +575,14 @@
 <span class='doccomment'>/// ```</span>
 <span class='doccomment'>///</span>
 <span class='doccomment'>/// ## The Heap</span>
-<span class='doccomment'>/// </span>
+<span class='doccomment'>///</span>
 <span class='doccomment'>/// The Memory class will never keep references to external memory, instead it</span>
-<span class='doccomment'>/// comes with it&#39;s own few hundred KBytes of embedded memory which is used </span>
+<span class='doccomment'>/// comes with it&#39;s own few hundred KBytes of embedded memory which is used</span>
 <span class='doccomment'>/// as &#39;heap&#39;. A single memory page maps 1 KByte of memory from the Z80</span>
 <span class='doccomment'>/// address range to 1 KByte of memory somewhere on the embedded heap.</span>
 <span class='doccomment'>///</span>
 <span class='doccomment'>/// ## Mapping Memory</span>
-<span class='doccomment'>/// </span>
+<span class='doccomment'>///</span>
 <span class='doccomment'>/// This &#39;maps&#39; a chunk of memory in Z80 address range to a chunk of memory</span>
 <span class='doccomment'>/// of the same size in the embedded heap on one of the four memory layers.</span>
 <span class='doccomment'>///</span>
@@ -593,11 +593,11 @@
 <span class='doccomment'>/// use rz80::Memory;</span>
 <span class='doccomment'>/// let mut mem = Memory::new();</span>
 <span class='doccomment'>///</span>
-<span class='doccomment'>/// // map 32 KByte at heap address 0x08000 to CPU addr 0x0000 </span>
+<span class='doccomment'>/// // map 32 KByte at heap address 0x08000 to CPU addr 0x0000</span>
 <span class='doccomment'>/// // on layer 0 as writable:</span>
 <span class='doccomment'>/// mem.map(0, 0x08000, 0x0000, true, 32*1024);</span>
 <span class='doccomment'>///</span>
-<span class='doccomment'>/// // map another 32 KByte at heap address 0x10000 to CPU addr 0x8000 </span>
+<span class='doccomment'>/// // map another 32 KByte at heap address 0x10000 to CPU addr 0x8000</span>
 <span class='doccomment'>/// // on layer 1 as read-only:</span>
 <span class='doccomment'>/// mem.map(1, 0x10000, 0x8000, false, 32*1024);</span>
 <span class='doccomment'>/// ```</span>
@@ -610,7 +610,7 @@
 <span class='doccomment'>/// use rz80::Memory;</span>
 <span class='doccomment'>/// let mut mem = Memory::new();</span>
 <span class='doccomment'>/// let rom = [0xFFu8; 4096];</span>
-<span class='doccomment'>/// </span>
+<span class='doccomment'>///</span>
 <span class='doccomment'>/// // assume that &#39;rom&#39; is a system ROM dump, and map it as read-only to CPU address 0xF000</span>
 <span class='doccomment'>/// mem.map_bytes(0, 0x00000, 0xF000, false, &amp;rom);</span>
 <span class='doccomment'>/// ```</span>
@@ -662,7 +662,7 @@
 <span class='doccomment'>/// mem.map_bytes(0, 0x00000, 0x0000, false, &amp;rom);</span>
 <span class='doccomment'>/// let b0 = mem.r8(0x0100);</span>
 <span class='doccomment'>/// assert!(b0 == 0x11);</span>
-<span class='doccomment'>/// </span>
+<span class='doccomment'>///</span>
 <span class='doccomment'>/// // try to write read-only memory</span>
 <span class='doccomment'>/// mem.w8(0x0100, 0x33);</span>
 <span class='doccomment'>/// let b1 = mem.r8(0x0100);</span>

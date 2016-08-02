@@ -2222,55 +2222,6 @@
 <span id="2178">2178</span>
 <span id="2179">2179</span>
 <span id="2180">2180</span>
-<span id="2181">2181</span>
-<span id="2182">2182</span>
-<span id="2183">2183</span>
-<span id="2184">2184</span>
-<span id="2185">2185</span>
-<span id="2186">2186</span>
-<span id="2187">2187</span>
-<span id="2188">2188</span>
-<span id="2189">2189</span>
-<span id="2190">2190</span>
-<span id="2191">2191</span>
-<span id="2192">2192</span>
-<span id="2193">2193</span>
-<span id="2194">2194</span>
-<span id="2195">2195</span>
-<span id="2196">2196</span>
-<span id="2197">2197</span>
-<span id="2198">2198</span>
-<span id="2199">2199</span>
-<span id="2200">2200</span>
-<span id="2201">2201</span>
-<span id="2202">2202</span>
-<span id="2203">2203</span>
-<span id="2204">2204</span>
-<span id="2205">2205</span>
-<span id="2206">2206</span>
-<span id="2207">2207</span>
-<span id="2208">2208</span>
-<span id="2209">2209</span>
-<span id="2210">2210</span>
-<span id="2211">2211</span>
-<span id="2212">2212</span>
-<span id="2213">2213</span>
-<span id="2214">2214</span>
-<span id="2215">2215</span>
-<span id="2216">2216</span>
-<span id="2217">2217</span>
-<span id="2218">2218</span>
-<span id="2219">2219</span>
-<span id="2220">2220</span>
-<span id="2221">2221</span>
-<span id="2222">2222</span>
-<span id="2223">2223</span>
-<span id="2224">2224</span>
-<span id="2225">2225</span>
-<span id="2226">2226</span>
-<span id="2227">2227</span>
-<span id="2228">2228</span>
-<span id="2229">2229</span>
 </pre><pre class='rust '>
 <span class='kw'>use</span> <span class='ident'>RegT</span>;
 <span class='kw'>use</span> <span class='ident'>memory</span>::<span class='ident'>Memory</span>;
@@ -2278,6 +2229,64 @@
 <span class='kw'>use</span> <span class='ident'>bus</span>::<span class='ident'>Bus</span>;
 
 <span class='doccomment'>/// Z80 CPU emulation</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// The core of the CPU emulation is the **step()** method, this fetches</span>
+<span class='doccomment'>/// the next instruction from the memory location pointed to by the PC</span>
+<span class='doccomment'>/// register, executes the instruction, handles any pending interrupt</span>
+<span class='doccomment'>/// request, and finally returns the number of cycles taken.</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// An object implementing the Bus trait must be handed to the step()</span>
+<span class='doccomment'>/// method which is called if the CPU needs to communicate with the</span>
+<span class='doccomment'>/// &#39;outside world&#39;.</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// The CPU emulation uses an &#39;algorithmic decoder&#39; as described</span>
+<span class='doccomment'>/// here: http://www.z80.info/decoding.html, and implements most</span>
+<span class='doccomment'>/// undocumented behaviour like the X/Y flags, the WZ register,</span>
+<span class='doccomment'>/// and all undocumented instructions. The emulation is good</span>
+<span class='doccomment'>/// enough to run the ZEXALL tests without errors.</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// What&#39;s **not** implemented:</span>
+<span class='doccomment'>/// - interrupt modes 0 and 1</span>
+<span class='doccomment'>/// - non-maskable interrupts (including the RETN instruction)</span>
+<span class='doccomment'>/// - extra memory wait states</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// # Examples</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// Load and execute a small test program:</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// ```</span>
+<span class='doccomment'>/// use rz80::{CPU, Bus};</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// // a dummy Bus trait implementation</span>
+<span class='doccomment'>/// struct DummyBus;</span>
+<span class='doccomment'>/// impl Bus for DummyBus { };</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// let mut cpu = CPU::new();</span>
+<span class='doccomment'>/// let bus = DummyBus { };</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// // map some writable memory to address 0x0000</span>
+<span class='doccomment'>/// cpu.mem.map(0, 0x00000, 0x0000, true, 0x1000);</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// // a little Z80 machine code program to add 2 numbers</span>
+<span class='doccomment'>/// let prog = [</span>
+<span class='doccomment'>///     0x3E, 0x11,     // LD A,0x11 (7 cycles)</span>
+<span class='doccomment'>///     0x06, 0x22,     // LD B,0x22 (7 cycles)</span>
+<span class='doccomment'>///     0x80, 0x33,     // ADD A,B   (4 cycles)</span>
+<span class='doccomment'>/// ];</span>
+<span class='doccomment'>/// // put the program at address 0x0100</span>
+<span class='doccomment'>/// cpu.mem.write(0x0100, &amp;prog);</span>
+<span class='doccomment'>/// // set PC to address 0x0100</span>
+<span class='doccomment'>/// cpu.reg.set_pc(0x0100);</span>
+<span class='doccomment'>///</span>
+<span class='doccomment'>/// // execute 3 instructions</span>
+<span class='doccomment'>/// let mut cycles = 0;</span>
+<span class='doccomment'>/// for _ in 0..3 {</span>
+<span class='doccomment'>///     cycles += cpu.step(&amp;bus);</span>
+<span class='doccomment'>/// }</span>
+<span class='doccomment'>/// assert!(cpu.reg.a() == 0x33);</span>
+<span class='doccomment'>/// assert!(cycles == 18);</span>
+<span class='doccomment'>/// ```</span>
+<span class='doccomment'>///</span>
 <span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>CPU</span> {
     <span class='kw'>pub</span> <span class='ident'>reg</span>: <span class='ident'>Registers</span>,
     <span class='kw'>pub</span> <span class='ident'>halt</span>: <span class='ident'>bool</span>,
@@ -2304,67 +2313,45 @@
 <span class='kw'>use</span> <span class='ident'>registers</span>::<span class='ident'>SF</span>;
 
 <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
+<span class='attribute'>#[<span class='ident'>cfg_attr</span>(<span class='ident'>rustfmt</span>, <span class='ident'>rustfmt_skip</span>)]</span>
 <span class='kw'>fn</span> <span class='ident'>flags_add</span>(<span class='ident'>acc</span>: <span class='ident'>RegT</span>, <span class='ident'>add</span>: <span class='ident'>RegT</span>, <span class='ident'>res</span>: <span class='ident'>RegT</span>) <span class='op'>-&gt;</span> <span class='ident'>RegT</span> {
-    (<span class='kw'>if</span> (<span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='number'>0xFF</span>) <span class='op'>==</span> <span class='number'>0</span> {
-        <span class='ident'>ZF</span>
-    } <span class='kw'>else</span> {
-        <span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>
-    }) <span class='op'>|</span> (<span class='ident'>res</span> <span class='kw-2'>&amp;</span> (<span class='ident'>YF</span> <span class='op'>|</span> <span class='ident'>XF</span>)) <span class='op'>|</span> ((<span class='ident'>res</span> <span class='op'>&gt;&gt;</span> <span class='number'>8</span>) <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>) <span class='op'>|</span> ((<span class='ident'>acc</span> <span class='op'>^</span> <span class='ident'>add</span> <span class='op'>^</span> <span class='ident'>res</span>) <span class='kw-2'>&amp;</span> <span class='ident'>HF</span>) <span class='op'>|</span>
-    ((((<span class='ident'>acc</span> <span class='op'>^</span> <span class='ident'>add</span> <span class='op'>^</span> <span class='number'>0x80</span>) <span class='kw-2'>&amp;</span> (<span class='ident'>add</span> <span class='op'>^</span> <span class='ident'>res</span>)) <span class='op'>&gt;&gt;</span> <span class='number'>5</span>) <span class='kw-2'>&amp;</span> <span class='ident'>VF</span>)
+    (<span class='kw'>if</span> (<span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='number'>0xFF</span>) <span class='op'>==</span> <span class='number'>0</span> {<span class='ident'>ZF</span>} <span class='kw'>else</span> {<span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>}) <span class='op'>|</span>
+    (<span class='ident'>res</span> <span class='kw-2'>&amp;</span> (<span class='ident'>YF</span> <span class='op'>|</span> <span class='ident'>XF</span>)) <span class='op'>|</span> ((<span class='ident'>res</span> <span class='op'>&gt;&gt;</span> <span class='number'>8</span>) <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>) <span class='op'>|</span>
+    ((<span class='ident'>acc</span> <span class='op'>^</span> <span class='ident'>add</span> <span class='op'>^</span> <span class='ident'>res</span>) <span class='kw-2'>&amp;</span> <span class='ident'>HF</span>) <span class='op'>|</span> ((((<span class='ident'>acc</span> <span class='op'>^</span> <span class='ident'>add</span> <span class='op'>^</span> <span class='number'>0x80</span>) <span class='kw-2'>&amp;</span> (<span class='ident'>add</span> <span class='op'>^</span> <span class='ident'>res</span>)) <span class='op'>&gt;&gt;</span> <span class='number'>5</span>) <span class='kw-2'>&amp;</span> <span class='ident'>VF</span>)
 }
 
 <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
+<span class='attribute'>#[<span class='ident'>cfg_attr</span>(<span class='ident'>rustfmt</span>, <span class='ident'>rustfmt_skip</span>)]</span>
 <span class='kw'>fn</span> <span class='ident'>flags_sub</span>(<span class='ident'>acc</span>: <span class='ident'>RegT</span>, <span class='ident'>sub</span>: <span class='ident'>RegT</span>, <span class='ident'>res</span>: <span class='ident'>RegT</span>) <span class='op'>-&gt;</span> <span class='ident'>RegT</span> {
-    <span class='ident'>NF</span> <span class='op'>|</span>
-    (<span class='kw'>if</span> (<span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='number'>0xFF</span>) <span class='op'>==</span> <span class='number'>0</span> {
-        <span class='ident'>ZF</span>
-    } <span class='kw'>else</span> {
-        <span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>
-    }) <span class='op'>|</span> (<span class='ident'>res</span> <span class='kw-2'>&amp;</span> (<span class='ident'>YF</span> <span class='op'>|</span> <span class='ident'>XF</span>)) <span class='op'>|</span> ((<span class='ident'>res</span> <span class='op'>&gt;&gt;</span> <span class='number'>8</span>) <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>) <span class='op'>|</span> ((<span class='ident'>acc</span> <span class='op'>^</span> <span class='ident'>sub</span> <span class='op'>^</span> <span class='ident'>res</span>) <span class='kw-2'>&amp;</span> <span class='ident'>HF</span>) <span class='op'>|</span>
-    ((((<span class='ident'>acc</span> <span class='op'>^</span> <span class='ident'>sub</span>) <span class='kw-2'>&amp;</span> (<span class='ident'>res</span> <span class='op'>^</span> <span class='ident'>acc</span>)) <span class='op'>&gt;&gt;</span> <span class='number'>5</span>) <span class='kw-2'>&amp;</span> <span class='ident'>VF</span>)
+    <span class='ident'>NF</span> <span class='op'>|</span> (<span class='kw'>if</span> (<span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='number'>0xFF</span>) <span class='op'>==</span> <span class='number'>0</span> {<span class='ident'>ZF</span>} <span class='kw'>else</span> {<span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>}) <span class='op'>|</span>
+    (<span class='ident'>res</span> <span class='kw-2'>&amp;</span> (<span class='ident'>YF</span> <span class='op'>|</span> <span class='ident'>XF</span>)) <span class='op'>|</span> ((<span class='ident'>res</span> <span class='op'>&gt;&gt;</span> <span class='number'>8</span>) <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>) <span class='op'>|</span>
+    ((<span class='ident'>acc</span> <span class='op'>^</span> <span class='ident'>sub</span> <span class='op'>^</span> <span class='ident'>res</span>) <span class='kw-2'>&amp;</span> <span class='ident'>HF</span>) <span class='op'>|</span> ((((<span class='ident'>acc</span> <span class='op'>^</span> <span class='ident'>sub</span>) <span class='kw-2'>&amp;</span> (<span class='ident'>res</span> <span class='op'>^</span> <span class='ident'>acc</span>)) <span class='op'>&gt;&gt;</span> <span class='number'>5</span>) <span class='kw-2'>&amp;</span> <span class='ident'>VF</span>)
 }
 
 <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
+<span class='attribute'>#[<span class='ident'>cfg_attr</span>(<span class='ident'>rustfmt</span>, <span class='ident'>rustfmt_skip</span>)]</span>
 <span class='kw'>fn</span> <span class='ident'>flags_cp</span>(<span class='ident'>acc</span>: <span class='ident'>RegT</span>, <span class='ident'>sub</span>: <span class='ident'>RegT</span>, <span class='ident'>res</span>: <span class='ident'>RegT</span>) <span class='op'>-&gt;</span> <span class='ident'>RegT</span> {
     <span class='comment'>// the only difference to flags_sub() is that the</span>
     <span class='comment'>// 2 undocumented flag bits X and Y are taken from the</span>
     <span class='comment'>// sub-value, not the result</span>
-    <span class='ident'>NF</span> <span class='op'>|</span>
-    (<span class='kw'>if</span> (<span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='number'>0xFF</span>) <span class='op'>==</span> <span class='number'>0</span> {
-        <span class='ident'>ZF</span>
-    } <span class='kw'>else</span> {
-        <span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>
-    }) <span class='op'>|</span> (<span class='ident'>sub</span> <span class='kw-2'>&amp;</span> (<span class='ident'>YF</span> <span class='op'>|</span> <span class='ident'>XF</span>)) <span class='op'>|</span> ((<span class='ident'>res</span> <span class='op'>&gt;&gt;</span> <span class='number'>8</span>) <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>) <span class='op'>|</span> ((<span class='ident'>acc</span> <span class='op'>^</span> <span class='ident'>sub</span> <span class='op'>^</span> <span class='ident'>res</span>) <span class='kw-2'>&amp;</span> <span class='ident'>HF</span>) <span class='op'>|</span>
-    ((((<span class='ident'>acc</span> <span class='op'>^</span> <span class='ident'>sub</span>) <span class='kw-2'>&amp;</span> (<span class='ident'>res</span> <span class='op'>^</span> <span class='ident'>acc</span>)) <span class='op'>&gt;&gt;</span> <span class='number'>5</span>) <span class='kw-2'>&amp;</span> <span class='ident'>VF</span>)
+    <span class='ident'>NF</span> <span class='op'>|</span> (<span class='kw'>if</span> (<span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='number'>0xFF</span>) <span class='op'>==</span> <span class='number'>0</span> {<span class='ident'>ZF</span>} <span class='kw'>else</span> {<span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>}) <span class='op'>|</span>
+    (<span class='ident'>sub</span> <span class='kw-2'>&amp;</span> (<span class='ident'>YF</span> <span class='op'>|</span> <span class='ident'>XF</span>)) <span class='op'>|</span> ((<span class='ident'>res</span> <span class='op'>&gt;&gt;</span> <span class='number'>8</span>) <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>) <span class='op'>|</span>
+    ((<span class='ident'>acc</span> <span class='op'>^</span> <span class='ident'>sub</span> <span class='op'>^</span> <span class='ident'>res</span>) <span class='kw-2'>&amp;</span> <span class='ident'>HF</span>) <span class='op'>|</span> ((((<span class='ident'>acc</span> <span class='op'>^</span> <span class='ident'>sub</span>) <span class='kw-2'>&amp;</span> (<span class='ident'>res</span> <span class='op'>^</span> <span class='ident'>acc</span>)) <span class='op'>&gt;&gt;</span> <span class='number'>5</span>) <span class='kw-2'>&amp;</span> <span class='ident'>VF</span>)
 }
 
+<span class='attribute'>#[<span class='ident'>cfg_attr</span>(<span class='ident'>rustfmt</span>, <span class='ident'>rustfmt_skip</span>)]</span>
 <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
 <span class='kw'>fn</span> <span class='ident'>flags_szp</span>(<span class='ident'>val</span>: <span class='ident'>RegT</span>) <span class='op'>-&gt;</span> <span class='ident'>RegT</span> {
     <span class='kw'>let</span> <span class='ident'>v</span> <span class='op'>=</span> <span class='ident'>val</span> <span class='kw-2'>&amp;</span> <span class='number'>0xFF</span>;
-    (<span class='kw'>if</span> (<span class='ident'>v</span>.<span class='ident'>count_ones</span>() <span class='kw-2'>&amp;</span> <span class='number'>1</span>) <span class='op'>==</span> <span class='number'>0</span> {
-        <span class='ident'>PF</span>
-    } <span class='kw'>else</span> {
-        <span class='number'>0</span>
-    }) <span class='op'>|</span>
-    (<span class='kw'>if</span> <span class='ident'>v</span> <span class='op'>==</span> <span class='number'>0</span> {
-        <span class='ident'>ZF</span>
-    } <span class='kw'>else</span> {
-        <span class='ident'>v</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>
-    }) <span class='op'>|</span> (<span class='ident'>v</span> <span class='kw-2'>&amp;</span> (<span class='ident'>YF</span> <span class='op'>|</span> <span class='ident'>XF</span>))
+    (<span class='kw'>if</span> (<span class='ident'>v</span>.<span class='ident'>count_ones</span>() <span class='kw-2'>&amp;</span> <span class='number'>1</span>) <span class='op'>==</span> <span class='number'>0</span> {<span class='ident'>PF</span>} <span class='kw'>else</span> {<span class='number'>0</span>}) <span class='op'>|</span>
+    (<span class='kw'>if</span> <span class='ident'>v</span> <span class='op'>==</span> <span class='number'>0</span> {<span class='ident'>ZF</span>} <span class='kw'>else</span> {<span class='ident'>v</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>}) <span class='op'>|</span> (<span class='ident'>v</span> <span class='kw-2'>&amp;</span> (<span class='ident'>YF</span> <span class='op'>|</span> <span class='ident'>XF</span>))
 }
 
+<span class='attribute'>#[<span class='ident'>cfg_attr</span>(<span class='ident'>rustfmt</span>, <span class='ident'>rustfmt_skip</span>)]</span>
 <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
 <span class='kw'>fn</span> <span class='ident'>flags_sziff2</span>(<span class='ident'>val</span>: <span class='ident'>RegT</span>, <span class='ident'>iff2</span>: <span class='ident'>bool</span>) <span class='op'>-&gt;</span> <span class='ident'>RegT</span> {
-    (<span class='kw'>if</span> (<span class='ident'>val</span> <span class='kw-2'>&amp;</span> <span class='number'>0xFF</span>) <span class='op'>==</span> <span class='number'>0</span> {
-        <span class='ident'>ZF</span>
-    } <span class='kw'>else</span> {
-        <span class='ident'>val</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>
-    }) <span class='op'>|</span> (<span class='ident'>val</span> <span class='kw-2'>&amp;</span> (<span class='ident'>YF</span> <span class='op'>|</span> <span class='ident'>XF</span>)) <span class='op'>|</span>
-    <span class='kw'>if</span> <span class='ident'>iff2</span> {
-        <span class='ident'>PF</span>
-    } <span class='kw'>else</span> {
-        <span class='number'>0</span>
-    }
+    (<span class='kw'>if</span> (<span class='ident'>val</span> <span class='kw-2'>&amp;</span> <span class='number'>0xFF</span>) <span class='op'>==</span> <span class='number'>0</span> {<span class='ident'>ZF</span>} <span class='kw'>else</span> {<span class='ident'>val</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>}) <span class='op'>|</span>
+    (<span class='ident'>val</span> <span class='kw-2'>&amp;</span> (<span class='ident'>YF</span> <span class='op'>|</span> <span class='ident'>XF</span>)) <span class='op'>|</span> <span class='kw'>if</span> <span class='ident'>iff2</span> {<span class='ident'>PF</span>} <span class='kw'>else</span> {<span class='number'>0</span>}
 }
 
 <span class='kw'>use</span> <span class='ident'>registers</span>::<span class='ident'>BC</span>;
@@ -2428,7 +2415,7 @@
         <span class='ident'>op</span>
     }
 
-    <span class='doccomment'>/// decode and execute one instruction</span>
+    <span class='doccomment'>/// decode and execute one instruction, return number of cycles taken</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>step</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>bus</span>: <span class='kw-2'>&amp;</span><span class='ident'>Bus</span>) <span class='op'>-&gt;</span> <span class='ident'>i64</span> {
         <span class='self'>self</span>.<span class='ident'>invalid_op</span> <span class='op'>=</span> <span class='bool-val'>false</span>;
         <span class='kw'>if</span> <span class='self'>self</span>.<span class='ident'>enable_interrupt</span> {
@@ -2523,7 +2510,7 @@
     <span class='doccomment'>/// * &#39;d&#39;   - the d in (IX+d), (IY+d), 0 if m is HL</span>
     <span class='doccomment'>///</span>
     <span class='doccomment'>/// returns number of cycles the instruction takes</span>
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>do_op</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>bus</span>: <span class='kw-2'>&amp;</span><span class='ident'>Bus</span>, <span class='ident'>ext</span>: <span class='ident'>bool</span>) <span class='op'>-&gt;</span> <span class='ident'>i64</span> {
+    <span class='kw'>fn</span> <span class='ident'>do_op</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>bus</span>: <span class='kw-2'>&amp;</span><span class='ident'>Bus</span>, <span class='ident'>ext</span>: <span class='ident'>bool</span>) <span class='op'>-&gt;</span> <span class='ident'>i64</span> {
         <span class='kw'>let</span> (<span class='ident'>cyc</span>, <span class='ident'>ext_cyc</span>) <span class='op'>=</span> <span class='kw'>if</span> <span class='ident'>ext</span> {
             (<span class='number'>4</span>, <span class='number'>8</span>)
         } <span class='kw'>else</span> {
@@ -3219,18 +3206,19 @@
         }
     }
 
+    <span class='doccomment'>/// request an interrupt (will initiate interrupt handling after next instruction)</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>irq</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>) {
         <span class='self'>self</span>.<span class='ident'>irq_received</span> <span class='op'>=</span> <span class='bool-val'>true</span>;
     }
 
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>reti</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>bus</span>: <span class='kw-2'>&amp;</span><span class='ident'>Bus</span>) <span class='op'>-&gt;</span> <span class='ident'>i64</span> {
+    <span class='kw'>fn</span> <span class='ident'>reti</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>bus</span>: <span class='kw-2'>&amp;</span><span class='ident'>Bus</span>) <span class='op'>-&gt;</span> <span class='ident'>i64</span> {
         <span class='self'>self</span>.<span class='ident'>ret</span>();
         <span class='ident'>bus</span>.<span class='ident'>irq_reti</span>();
         <span class='number'>15</span>
     }
 
     <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>handle_irq</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>bus</span>: <span class='kw-2'>&amp;</span><span class='ident'>Bus</span>) <span class='op'>-&gt;</span> <span class='ident'>i64</span> {
+    <span class='kw'>fn</span> <span class='ident'>handle_irq</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>bus</span>: <span class='kw-2'>&amp;</span><span class='ident'>Bus</span>) <span class='op'>-&gt;</span> <span class='ident'>i64</span> {
         <span class='comment'>// NOTE: only interrupt mode 2 is supported at the moment</span>
         <span class='macro'>assert</span><span class='macro'>!</span>(<span class='number'>2</span> <span class='op'>==</span> <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>im</span>);
 
@@ -3263,6 +3251,7 @@
         <span class='ident'>cycles</span>
     }
 
+    <span class='doccomment'>/// execute a halt instruction</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>halt</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>) {
         <span class='self'>self</span>.<span class='ident'>halt</span> <span class='op'>=</span> <span class='bool-val'>true</span>;
         <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>dec_pc</span>(<span class='number'>1</span>);
@@ -3292,7 +3281,7 @@
     }
 
     <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>alu8</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>alu</span>: <span class='ident'>usize</span>, <span class='ident'>val</span>: <span class='ident'>RegT</span>) {
+    <span class='kw'>fn</span> <span class='ident'>alu8</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>alu</span>: <span class='ident'>usize</span>, <span class='ident'>val</span>: <span class='ident'>RegT</span>) {
         <span class='kw'>match</span> <span class='ident'>alu</span> {
             <span class='number'>0</span> <span class='op'>=&gt;</span> <span class='self'>self</span>.<span class='ident'>add8</span>(<span class='ident'>val</span>),
             <span class='number'>1</span> <span class='op'>=&gt;</span> <span class='self'>self</span>.<span class='ident'>adc8</span>(<span class='ident'>val</span>),
@@ -3374,36 +3363,25 @@
     }
 
     <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
+    <span class='attribute'>#[<span class='ident'>cfg_attr</span>(<span class='ident'>rustfmt</span>, <span class='ident'>rustfmt_skip</span>)]</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>inc8</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>val</span>: <span class='ident'>RegT</span>) <span class='op'>-&gt;</span> <span class='ident'>RegT</span> {
         <span class='kw'>let</span> <span class='ident'>res</span> <span class='op'>=</span> (<span class='ident'>val</span> <span class='op'>+</span> <span class='number'>1</span>) <span class='kw-2'>&amp;</span> <span class='number'>0xFF</span>;
-        <span class='kw'>let</span> <span class='ident'>f</span> <span class='op'>=</span> (<span class='kw'>if</span> <span class='ident'>res</span> <span class='op'>==</span> <span class='number'>0</span> {
-            <span class='ident'>ZF</span>
-        } <span class='kw'>else</span> {
-            <span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>
-        }) <span class='op'>|</span> (<span class='ident'>res</span> <span class='kw-2'>&amp;</span> (<span class='ident'>XF</span> <span class='op'>|</span> <span class='ident'>YF</span>)) <span class='op'>|</span> ((<span class='ident'>res</span> <span class='op'>^</span> <span class='ident'>val</span>) <span class='kw-2'>&amp;</span> <span class='ident'>HF</span>) <span class='op'>|</span>
-                (<span class='kw'>if</span> <span class='ident'>res</span> <span class='op'>==</span> <span class='number'>0x80</span> {
-            <span class='ident'>VF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        }) <span class='op'>|</span> (<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>f</span>() <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>);
+        <span class='kw'>let</span> <span class='ident'>f</span> <span class='op'>=</span> (<span class='kw'>if</span> <span class='ident'>res</span> <span class='op'>==</span> <span class='number'>0</span> {<span class='ident'>ZF</span>} <span class='kw'>else</span> {<span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>}) <span class='op'>|</span>
+            (<span class='ident'>res</span> <span class='kw-2'>&amp;</span> (<span class='ident'>XF</span> <span class='op'>|</span> <span class='ident'>YF</span>)) <span class='op'>|</span> ((<span class='ident'>res</span> <span class='op'>^</span> <span class='ident'>val</span>) <span class='kw-2'>&amp;</span> <span class='ident'>HF</span>) <span class='op'>|</span>
+            (<span class='kw'>if</span> <span class='ident'>res</span> <span class='op'>==</span> <span class='number'>0x80</span> {<span class='ident'>VF</span>} <span class='kw'>else</span> {<span class='number'>0</span>}) <span class='op'>|</span>
+            (<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>f</span>() <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>);
         <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>set_f</span>(<span class='ident'>f</span>);
         <span class='ident'>res</span>
     }
 
     <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
+    <span class='attribute'>#[<span class='ident'>cfg_attr</span>(<span class='ident'>rustfmt</span>, <span class='ident'>rustfmt_skip</span>)]</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>dec8</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>val</span>: <span class='ident'>RegT</span>) <span class='op'>-&gt;</span> <span class='ident'>RegT</span> {
         <span class='kw'>let</span> <span class='ident'>res</span> <span class='op'>=</span> (<span class='ident'>val</span> <span class='op'>-</span> <span class='number'>1</span>) <span class='kw-2'>&amp;</span> <span class='number'>0xFF</span>;
-        <span class='kw'>let</span> <span class='ident'>f</span> <span class='op'>=</span> <span class='ident'>NF</span> <span class='op'>|</span>
-                (<span class='kw'>if</span> <span class='ident'>res</span> <span class='op'>==</span> <span class='number'>0</span> {
-            <span class='ident'>ZF</span>
-        } <span class='kw'>else</span> {
-            <span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>
-        }) <span class='op'>|</span> (<span class='ident'>res</span> <span class='kw-2'>&amp;</span> (<span class='ident'>XF</span> <span class='op'>|</span> <span class='ident'>YF</span>)) <span class='op'>|</span> ((<span class='ident'>res</span> <span class='op'>^</span> <span class='ident'>val</span>) <span class='kw-2'>&amp;</span> <span class='ident'>HF</span>) <span class='op'>|</span>
-                (<span class='kw'>if</span> <span class='ident'>res</span> <span class='op'>==</span> <span class='number'>0x7F</span> {
-            <span class='ident'>VF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        }) <span class='op'>|</span> (<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>f</span>() <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>);
+        <span class='kw'>let</span> <span class='ident'>f</span> <span class='op'>=</span> <span class='ident'>NF</span> <span class='op'>|</span> (<span class='kw'>if</span> <span class='ident'>res</span> <span class='op'>==</span> <span class='number'>0</span> {<span class='ident'>ZF</span>} <span class='kw'>else</span> {<span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>}) <span class='op'>|</span>
+            (<span class='ident'>res</span> <span class='kw-2'>&amp;</span> (<span class='ident'>XF</span> <span class='op'>|</span> <span class='ident'>YF</span>)) <span class='op'>|</span> ((<span class='ident'>res</span> <span class='op'>^</span> <span class='ident'>val</span>) <span class='kw-2'>&amp;</span> <span class='ident'>HF</span>) <span class='op'>|</span>
+            (<span class='kw'>if</span> <span class='ident'>res</span> <span class='op'>==</span> <span class='number'>0x7F</span> {<span class='ident'>VF</span>} <span class='kw'>else</span> {<span class='number'>0</span>}) <span class='op'>|</span>
+            (<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>f</span>() <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>);
         <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>set_f</span>(<span class='ident'>f</span>);
         <span class='ident'>res</span>
     }
@@ -3545,29 +3523,23 @@
     }
 
     <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
+    <span class='attribute'>#[<span class='ident'>cfg_attr</span>(<span class='ident'>rustfmt</span>, <span class='ident'>rustfmt_skip</span>)]</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>bit</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>val</span>: <span class='ident'>RegT</span>, <span class='ident'>mask</span>: <span class='ident'>RegT</span>) {
         <span class='kw'>let</span> <span class='ident'>res</span> <span class='op'>=</span> <span class='ident'>val</span> <span class='kw-2'>&amp;</span> <span class='ident'>mask</span>;
-        <span class='kw'>let</span> <span class='ident'>f</span> <span class='op'>=</span> <span class='ident'>HF</span> <span class='op'>|</span> (<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>f</span>() <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>) <span class='op'>|</span>
-                (<span class='kw'>if</span> <span class='ident'>res</span> <span class='op'>==</span> <span class='number'>0</span> {
-            <span class='ident'>ZF</span> <span class='op'>|</span> <span class='ident'>PF</span>
-        } <span class='kw'>else</span> {
-            <span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>
-        }) <span class='op'>|</span> (<span class='ident'>val</span> <span class='kw-2'>&amp;</span> (<span class='ident'>XF</span> <span class='op'>|</span> <span class='ident'>YF</span>));
+        <span class='kw'>let</span> <span class='ident'>f</span> <span class='op'>=</span> <span class='ident'>HF</span> <span class='op'>|</span> (<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>f</span>() <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>) <span class='op'>|</span> (<span class='kw'>if</span> <span class='ident'>res</span> <span class='op'>==</span> <span class='number'>0</span> {<span class='ident'>ZF</span> <span class='op'>|</span> <span class='ident'>PF</span>} <span class='kw'>else</span> {<span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>}) <span class='op'>|</span>
+            (<span class='ident'>val</span> <span class='kw-2'>&amp;</span> (<span class='ident'>XF</span> <span class='op'>|</span> <span class='ident'>YF</span>));
         <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>set_f</span>(<span class='ident'>f</span>)
     }
 
     <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
+    <span class='attribute'>#[<span class='ident'>cfg_attr</span>(<span class='ident'>rustfmt</span>, <span class='ident'>rustfmt_skip</span>)]</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>ibit</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>val</span>: <span class='ident'>RegT</span>, <span class='ident'>mask</span>: <span class='ident'>RegT</span>) {
-        <span class='comment'>// special version of the BIT instruction for</span>
-        <span class='comment'>// (HL), (IX+d), (IY+d) to set the undocumented XF|YF flags</span>
-        <span class='comment'>// from high byte of HL+1 or IX/IY+d (expected in WZ)</span>
+    <span class='comment'>// special version of the BIT instruction for</span>
+    <span class='comment'>// (HL), (IX+d), (IY+d) to set the undocumented XF|YF flags</span>
+    <span class='comment'>// from high byte of HL+1 or IX/IY+d (expected in WZ)</span>
         <span class='kw'>let</span> <span class='ident'>res</span> <span class='op'>=</span> <span class='ident'>val</span> <span class='kw-2'>&amp;</span> <span class='ident'>mask</span>;
-        <span class='kw'>let</span> <span class='ident'>f</span> <span class='op'>=</span> <span class='ident'>HF</span> <span class='op'>|</span> (<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>f</span>() <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>) <span class='op'>|</span>
-                (<span class='kw'>if</span> <span class='ident'>res</span> <span class='op'>==</span> <span class='number'>0</span> {
-            <span class='ident'>ZF</span> <span class='op'>|</span> <span class='ident'>PF</span>
-        } <span class='kw'>else</span> {
-            <span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>
-        }) <span class='op'>|</span> (<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>w</span>() <span class='kw-2'>&amp;</span> (<span class='ident'>XF</span> <span class='op'>|</span> <span class='ident'>YF</span>));
+        <span class='kw'>let</span> <span class='ident'>f</span> <span class='op'>=</span> <span class='ident'>HF</span> <span class='op'>|</span> (<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>f</span>() <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>) <span class='op'>|</span> (<span class='kw'>if</span> <span class='ident'>res</span> <span class='op'>==</span> <span class='number'>0</span> {<span class='ident'>ZF</span> <span class='op'>|</span> <span class='ident'>PF</span>} <span class='kw'>else</span> {<span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>}) <span class='op'>|</span>
+            (<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>w</span>() <span class='kw-2'>&amp;</span> (<span class='ident'>XF</span> <span class='op'>|</span> <span class='ident'>YF</span>));
         <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>set_f</span>(<span class='ident'>f</span>)
     }
 
@@ -3582,30 +3554,26 @@
     }
 
     <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
+    <span class='attribute'>#[<span class='ident'>cfg_attr</span>(<span class='ident'>rustfmt</span>, <span class='ident'>rustfmt_skip</span>)]</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>adc16</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>acc</span>: <span class='ident'>RegT</span>, <span class='ident'>add</span>: <span class='ident'>RegT</span>) <span class='op'>-&gt;</span> <span class='ident'>RegT</span> {
         <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>set_wz</span>(<span class='ident'>acc</span> <span class='op'>+</span> <span class='number'>1</span>);
         <span class='kw'>let</span> <span class='ident'>res</span> <span class='op'>=</span> <span class='ident'>acc</span> <span class='op'>+</span> <span class='ident'>add</span> <span class='op'>+</span> (<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>f</span>() <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>);
         <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>set_f</span>((((<span class='ident'>acc</span> <span class='op'>^</span> <span class='ident'>res</span> <span class='op'>^</span> <span class='ident'>add</span>) <span class='op'>&gt;&gt;</span> <span class='number'>8</span>) <span class='kw-2'>&amp;</span> <span class='ident'>HF</span>) <span class='op'>|</span> ((<span class='ident'>res</span> <span class='op'>&gt;&gt;</span> <span class='number'>16</span>) <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>) <span class='op'>|</span>
                        ((<span class='ident'>res</span> <span class='op'>&gt;&gt;</span> <span class='number'>8</span>) <span class='kw-2'>&amp;</span> (<span class='ident'>SF</span> <span class='op'>|</span> <span class='ident'>XF</span> <span class='op'>|</span> <span class='ident'>YF</span>)) <span class='op'>|</span>
-                       (<span class='kw'>if</span> (<span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='number'>0xFFFF</span>) <span class='op'>==</span> <span class='number'>0</span> {
-            <span class='ident'>ZF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        }) <span class='op'>|</span> (((<span class='ident'>add</span> <span class='op'>^</span> <span class='ident'>acc</span> <span class='op'>^</span> <span class='number'>0x8000</span>) <span class='kw-2'>&amp;</span> (<span class='ident'>add</span> <span class='op'>^</span> <span class='ident'>res</span>) <span class='kw-2'>&amp;</span> <span class='number'>0x8000</span>) <span class='op'>&gt;&gt;</span> <span class='number'>13</span>));
+                       (<span class='kw'>if</span> (<span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='number'>0xFFFF</span>) <span class='op'>==</span> <span class='number'>0</span> {<span class='ident'>ZF</span>} <span class='kw'>else</span> {<span class='number'>0</span>}) <span class='op'>|</span>
+                       (((<span class='ident'>add</span> <span class='op'>^</span> <span class='ident'>acc</span> <span class='op'>^</span> <span class='number'>0x8000</span>) <span class='kw-2'>&amp;</span> (<span class='ident'>add</span> <span class='op'>^</span> <span class='ident'>res</span>) <span class='kw-2'>&amp;</span> <span class='number'>0x8000</span>) <span class='op'>&gt;&gt;</span> <span class='number'>13</span>));
         <span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='number'>0xFFFF</span>
     }
 
     <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
+    <span class='attribute'>#[<span class='ident'>cfg_attr</span>(<span class='ident'>rustfmt</span>, <span class='ident'>rustfmt_skip</span>)]</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>sbc16</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>acc</span>: <span class='ident'>RegT</span>, <span class='ident'>sub</span>: <span class='ident'>RegT</span>) <span class='op'>-&gt;</span> <span class='ident'>RegT</span> {
         <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>set_wz</span>(<span class='ident'>acc</span> <span class='op'>+</span> <span class='number'>1</span>);
         <span class='kw'>let</span> <span class='ident'>res</span> <span class='op'>=</span> <span class='ident'>acc</span> <span class='op'>-</span> <span class='ident'>sub</span> <span class='op'>-</span> (<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>f</span>() <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>);
         <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>set_f</span>(<span class='ident'>NF</span> <span class='op'>|</span> (((<span class='ident'>acc</span> <span class='op'>^</span> <span class='ident'>res</span> <span class='op'>^</span> <span class='ident'>sub</span>) <span class='op'>&gt;&gt;</span> <span class='number'>8</span>) <span class='kw-2'>&amp;</span> <span class='ident'>HF</span>) <span class='op'>|</span> ((<span class='ident'>res</span> <span class='op'>&gt;&gt;</span> <span class='number'>16</span>) <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>) <span class='op'>|</span>
                        ((<span class='ident'>res</span> <span class='op'>&gt;&gt;</span> <span class='number'>8</span>) <span class='kw-2'>&amp;</span> (<span class='ident'>SF</span> <span class='op'>|</span> <span class='ident'>XF</span> <span class='op'>|</span> <span class='ident'>YF</span>)) <span class='op'>|</span>
-                       (<span class='kw'>if</span> (<span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='number'>0xFFFF</span>) <span class='op'>==</span> <span class='number'>0</span> {
-            <span class='ident'>ZF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        }) <span class='op'>|</span> (((<span class='ident'>sub</span> <span class='op'>^</span> <span class='ident'>acc</span>) <span class='kw-2'>&amp;</span> (<span class='ident'>acc</span> <span class='op'>^</span> <span class='ident'>res</span>) <span class='kw-2'>&amp;</span> <span class='number'>0x8000</span>) <span class='op'>&gt;&gt;</span> <span class='number'>13</span>));
+                       (<span class='kw'>if</span> (<span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='number'>0xFFFF</span>) <span class='op'>==</span> <span class='number'>0</span> {<span class='ident'>ZF</span>} <span class='kw'>else</span> {<span class='number'>0</span>}) <span class='op'>|</span>
+                       (((<span class='ident'>sub</span> <span class='op'>^</span> <span class='ident'>acc</span>) <span class='kw-2'>&amp;</span> (<span class='ident'>acc</span> <span class='op'>^</span> <span class='ident'>res</span>) <span class='kw-2'>&amp;</span> <span class='number'>0x8000</span>) <span class='op'>&gt;&gt;</span> <span class='number'>13</span>));
         <span class='ident'>res</span> <span class='kw-2'>&amp;</span> <span class='number'>0xFFFF</span>
     }
 
@@ -3628,6 +3596,7 @@
     }
 
     <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
+    <span class='attribute'>#[<span class='ident'>cfg_attr</span>(<span class='ident'>rustfmt</span>, <span class='ident'>rustfmt_skip</span>)]</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>daa</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>) {
         <span class='kw'>let</span> <span class='ident'>a</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>a</span>();
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>val</span> <span class='op'>=</span> <span class='ident'>a</span>;
@@ -3648,11 +3617,8 @@
             }
         }
         <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>set_f</span>((<span class='ident'>f</span> <span class='kw-2'>&amp;</span> (<span class='ident'>CF</span> <span class='op'>|</span> <span class='ident'>NF</span>)) <span class='op'>|</span>
-                       (<span class='kw'>if</span> <span class='ident'>a</span> <span class='op'>&gt;</span> <span class='number'>0x99</span> {
-            <span class='ident'>CF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        }) <span class='op'>|</span> ((<span class='ident'>a</span> <span class='op'>^</span> <span class='ident'>val</span>) <span class='kw-2'>&amp;</span> <span class='ident'>HF</span>) <span class='op'>|</span> <span class='ident'>flags_szp</span>(<span class='ident'>val</span>));
+                       (<span class='kw'>if</span> <span class='ident'>a</span> <span class='op'>&gt;</span> <span class='number'>0x99</span> {<span class='ident'>CF</span>} <span class='kw'>else</span> {<span class='number'>0</span>}) <span class='op'>|</span>
+                       ((<span class='ident'>a</span> <span class='op'>^</span> <span class='ident'>val</span>) <span class='kw-2'>&amp;</span> <span class='ident'>HF</span>) <span class='op'>|</span> <span class='ident'>flags_szp</span>(<span class='ident'>val</span>));
         <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>set_a</span>(<span class='ident'>val</span>);
     }
 
@@ -3721,6 +3687,7 @@
     }
 
     <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
+    <span class='attribute'>#[<span class='ident'>cfg_attr</span>(<span class='ident'>rustfmt</span>, <span class='ident'>rustfmt_skip</span>)]</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>ldi</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>) {
         <span class='kw'>let</span> <span class='ident'>hl</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>hl</span>();
         <span class='kw'>let</span> <span class='ident'>de</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>de</span>();
@@ -3732,25 +3699,14 @@
         <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>set_bc</span>(<span class='ident'>bc</span>);
         <span class='kw'>let</span> <span class='ident'>n</span> <span class='op'>=</span> (<span class='ident'>val</span> <span class='op'>+</span> <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>a</span>()) <span class='kw-2'>&amp;</span> <span class='number'>0xFF</span>;
         <span class='kw'>let</span> <span class='ident'>f</span> <span class='op'>=</span> (<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>f</span>() <span class='kw-2'>&amp;</span> (<span class='ident'>SF</span> <span class='op'>|</span> <span class='ident'>ZF</span> <span class='op'>|</span> <span class='ident'>CF</span>)) <span class='op'>|</span>
-                (<span class='kw'>if</span> (<span class='ident'>n</span> <span class='kw-2'>&amp;</span> <span class='number'>0x02</span>) <span class='op'>!=</span> <span class='number'>0</span> {
-            <span class='ident'>YF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        }) <span class='op'>|</span>
-                (<span class='kw'>if</span> (<span class='ident'>n</span> <span class='kw-2'>&amp;</span> <span class='number'>0x08</span>) <span class='op'>!=</span> <span class='number'>0</span> {
-            <span class='ident'>XF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        }) <span class='op'>|</span>
-                (<span class='kw'>if</span> <span class='ident'>bc</span> <span class='op'>&gt;</span> <span class='number'>0</span> {
-            <span class='ident'>VF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        });
+                (<span class='kw'>if</span> (<span class='ident'>n</span> <span class='kw-2'>&amp;</span> <span class='number'>0x02</span>) <span class='op'>!=</span> <span class='number'>0</span> {<span class='ident'>YF</span>} <span class='kw'>else</span> {<span class='number'>0</span>}) <span class='op'>|</span>
+                (<span class='kw'>if</span> (<span class='ident'>n</span> <span class='kw-2'>&amp;</span> <span class='number'>0x08</span>) <span class='op'>!=</span> <span class='number'>0</span> {<span class='ident'>XF</span>} <span class='kw'>else</span> {<span class='number'>0</span>}) <span class='op'>|</span>
+                (<span class='kw'>if</span> <span class='ident'>bc</span> <span class='op'>&gt;</span> <span class='number'>0</span> {<span class='ident'>VF</span>} <span class='kw'>else</span> {<span class='number'>0</span>});
         <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>set_f</span>(<span class='ident'>f</span>);
     }
 
     <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
+    <span class='attribute'>#[<span class='ident'>cfg_attr</span>(<span class='ident'>rustfmt</span>, <span class='ident'>rustfmt_skip</span>)]</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>ldd</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>) {
         <span class='kw'>let</span> <span class='ident'>hl</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>hl</span>();
         <span class='kw'>let</span> <span class='ident'>de</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>de</span>();
@@ -3762,21 +3718,9 @@
         <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>set_bc</span>(<span class='ident'>bc</span>);
         <span class='kw'>let</span> <span class='ident'>n</span> <span class='op'>=</span> (<span class='ident'>val</span> <span class='op'>+</span> <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>a</span>()) <span class='kw-2'>&amp;</span> <span class='number'>0xFF</span>;
         <span class='kw'>let</span> <span class='ident'>f</span> <span class='op'>=</span> (<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>f</span>() <span class='kw-2'>&amp;</span> (<span class='ident'>SF</span> <span class='op'>|</span> <span class='ident'>ZF</span> <span class='op'>|</span> <span class='ident'>CF</span>)) <span class='op'>|</span>
-                (<span class='kw'>if</span> (<span class='ident'>n</span> <span class='kw-2'>&amp;</span> <span class='number'>0x02</span>) <span class='op'>!=</span> <span class='number'>0</span> {
-            <span class='ident'>YF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        }) <span class='op'>|</span>
-                (<span class='kw'>if</span> (<span class='ident'>n</span> <span class='kw-2'>&amp;</span> <span class='number'>0x08</span>) <span class='op'>!=</span> <span class='number'>0</span> {
-            <span class='ident'>XF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        }) <span class='op'>|</span>
-                (<span class='kw'>if</span> <span class='ident'>bc</span> <span class='op'>&gt;</span> <span class='number'>0</span> {
-            <span class='ident'>VF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        });
+                (<span class='kw'>if</span> (<span class='ident'>n</span> <span class='kw-2'>&amp;</span> <span class='number'>0x02</span>) <span class='op'>!=</span> <span class='number'>0</span> {<span class='ident'>YF</span>} <span class='kw'>else</span> {<span class='number'>0</span>}) <span class='op'>|</span>
+                (<span class='kw'>if</span> (<span class='ident'>n</span> <span class='kw-2'>&amp;</span> <span class='number'>0x08</span>) <span class='op'>!=</span> <span class='number'>0</span> {<span class='ident'>XF</span>} <span class='kw'>else</span> {<span class='number'>0</span>}) <span class='op'>|</span>
+                (<span class='kw'>if</span> <span class='ident'>bc</span> <span class='op'>&gt;</span> <span class='number'>0</span> {<span class='ident'>VF</span>} <span class='kw'>else</span> {<span class='number'>0</span>});
         <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>set_f</span>(<span class='ident'>f</span>);
     }
 
@@ -3807,6 +3751,7 @@
     }
 
     <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
+    <span class='attribute'>#[<span class='ident'>cfg_attr</span>(<span class='ident'>rustfmt</span>, <span class='ident'>rustfmt_skip</span>)]</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>cpi</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>) {
         <span class='kw'>let</span> <span class='ident'>wz</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>wz</span>();
         <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>set_wz</span>(<span class='ident'>wz</span> <span class='op'>+</span> <span class='number'>1</span>);
@@ -3817,21 +3762,9 @@
         <span class='kw'>let</span> <span class='ident'>a</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>a</span>();
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>v</span> <span class='op'>=</span> <span class='ident'>a</span> <span class='op'>-</span> <span class='self'>self</span>.<span class='ident'>mem</span>.<span class='ident'>r8</span>(<span class='ident'>hl</span>);
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>f</span> <span class='op'>=</span> <span class='ident'>NF</span> <span class='op'>|</span> (<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>f</span>() <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>) <span class='op'>|</span>
-                    (<span class='kw'>if</span> <span class='ident'>v</span> <span class='op'>==</span> <span class='number'>0</span> {
-            <span class='ident'>ZF</span>
-        } <span class='kw'>else</span> {
-            <span class='ident'>v</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>
-        }) <span class='op'>|</span>
-                    (<span class='kw'>if</span> (<span class='ident'>v</span> <span class='kw-2'>&amp;</span> <span class='number'>0xF</span>) <span class='op'>&gt;</span> (<span class='ident'>a</span> <span class='kw-2'>&amp;</span> <span class='number'>0xF</span>) {
-            <span class='ident'>HF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        }) <span class='op'>|</span>
-                    (<span class='kw'>if</span> <span class='ident'>bc</span> <span class='op'>!=</span> <span class='number'>0</span> {
-            <span class='ident'>VF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        });
+                    (<span class='kw'>if</span> <span class='ident'>v</span> <span class='op'>==</span> <span class='number'>0</span> {<span class='ident'>ZF</span>} <span class='kw'>else</span> {<span class='ident'>v</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>}) <span class='op'>|</span>
+                    (<span class='kw'>if</span> (<span class='ident'>v</span> <span class='kw-2'>&amp;</span> <span class='number'>0xF</span>) <span class='op'>&gt;</span> (<span class='ident'>a</span> <span class='kw-2'>&amp;</span> <span class='number'>0xF</span>) {<span class='ident'>HF</span>} <span class='kw'>else</span> {<span class='number'>0</span>}) <span class='op'>|</span>
+                    (<span class='kw'>if</span> <span class='ident'>bc</span> <span class='op'>!=</span> <span class='number'>0</span> {<span class='ident'>VF</span>} <span class='kw'>else</span> {<span class='number'>0</span>});
         <span class='kw'>if</span> (<span class='ident'>f</span> <span class='kw-2'>&amp;</span> <span class='ident'>HF</span>) <span class='op'>!=</span> <span class='number'>0</span> {
             <span class='ident'>v</span> <span class='op'>-=</span> <span class='number'>1</span>;
         }
@@ -3845,6 +3778,7 @@
     }
 
     <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
+    <span class='attribute'>#[<span class='ident'>cfg_attr</span>(<span class='ident'>rustfmt</span>, <span class='ident'>rustfmt_skip</span>)]</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>cpd</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>) {
         <span class='kw'>let</span> <span class='ident'>wz</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>wz</span>();
         <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>set_wz</span>(<span class='ident'>wz</span> <span class='op'>-</span> <span class='number'>1</span>);
@@ -3855,21 +3789,9 @@
         <span class='kw'>let</span> <span class='ident'>a</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>a</span>();
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>v</span> <span class='op'>=</span> <span class='ident'>a</span> <span class='op'>-</span> <span class='self'>self</span>.<span class='ident'>mem</span>.<span class='ident'>r8</span>(<span class='ident'>hl</span>);
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>f</span> <span class='op'>=</span> <span class='ident'>NF</span> <span class='op'>|</span> (<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>f</span>() <span class='kw-2'>&amp;</span> <span class='ident'>CF</span>) <span class='op'>|</span>
-                    (<span class='kw'>if</span> <span class='ident'>v</span> <span class='op'>==</span> <span class='number'>0</span> {
-            <span class='ident'>ZF</span>
-        } <span class='kw'>else</span> {
-            <span class='ident'>v</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>
-        }) <span class='op'>|</span>
-                    (<span class='kw'>if</span> (<span class='ident'>v</span> <span class='kw-2'>&amp;</span> <span class='number'>0xF</span>) <span class='op'>&gt;</span> (<span class='ident'>a</span> <span class='kw-2'>&amp;</span> <span class='number'>0xF</span>) {
-            <span class='ident'>HF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        }) <span class='op'>|</span>
-                    (<span class='kw'>if</span> <span class='ident'>bc</span> <span class='op'>!=</span> <span class='number'>0</span> {
-            <span class='ident'>VF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        });
+                    (<span class='kw'>if</span> <span class='ident'>v</span> <span class='op'>==</span> <span class='number'>0</span> {<span class='ident'>ZF</span>} <span class='kw'>else</span> {<span class='ident'>v</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>}) <span class='op'>|</span>
+                    (<span class='kw'>if</span> (<span class='ident'>v</span> <span class='kw-2'>&amp;</span> <span class='number'>0xF</span>) <span class='op'>&gt;</span> (<span class='ident'>a</span> <span class='kw-2'>&amp;</span> <span class='number'>0xF</span>) {<span class='ident'>HF</span>} <span class='kw'>else</span> {<span class='number'>0</span>}) <span class='op'>|</span>
+                    (<span class='kw'>if</span> <span class='ident'>bc</span> <span class='op'>!=</span> <span class='number'>0</span> {<span class='ident'>VF</span>} <span class='kw'>else</span> {<span class='number'>0</span>});
         <span class='kw'>if</span> (<span class='ident'>f</span> <span class='kw-2'>&amp;</span> <span class='ident'>HF</span>) <span class='op'>!=</span> <span class='number'>0</span> {
             <span class='ident'>v</span> <span class='op'>-=</span> <span class='number'>1</span>;
         }
@@ -3919,47 +3841,27 @@
     }
 
     <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
+    <span class='attribute'>#[<span class='ident'>cfg_attr</span>(<span class='ident'>rustfmt</span>, <span class='ident'>rustfmt_skip</span>)]</span>
     <span class='kw'>fn</span> <span class='ident'>ini_ind_flags</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>val</span>: <span class='ident'>RegT</span>, <span class='ident'>add</span>: <span class='ident'>RegT</span>) <span class='op'>-&gt;</span> <span class='ident'>RegT</span> {
         <span class='kw'>let</span> <span class='ident'>b</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>b</span>();
         <span class='kw'>let</span> <span class='ident'>c</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>c</span>();
         <span class='kw'>let</span> <span class='ident'>t</span> <span class='op'>=</span> ((<span class='ident'>c</span> <span class='op'>+</span> <span class='ident'>add</span>) <span class='kw-2'>&amp;</span> <span class='number'>0xFF</span>) <span class='op'>+</span> <span class='ident'>val</span>;
-        (<span class='kw'>if</span> <span class='ident'>b</span> <span class='op'>!=</span> <span class='number'>0</span> {
-            <span class='ident'>b</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>
-        } <span class='kw'>else</span> {
-            <span class='ident'>ZF</span>
-        }) <span class='op'>|</span>
-        (<span class='kw'>if</span> (<span class='ident'>val</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>) <span class='op'>!=</span> <span class='number'>0</span> {
-            <span class='ident'>NF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        }) <span class='op'>|</span>
-        (<span class='kw'>if</span> (<span class='ident'>t</span> <span class='kw-2'>&amp;</span> <span class='number'>0x100</span>) <span class='op'>!=</span> <span class='number'>0</span> {
-            <span class='ident'>HF</span> <span class='op'>|</span> <span class='ident'>CF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        }) <span class='op'>|</span> (<span class='ident'>flags_szp</span>((<span class='ident'>t</span> <span class='kw-2'>&amp;</span> <span class='number'>0x07</span>) <span class='op'>^</span> <span class='ident'>b</span>) <span class='kw-2'>&amp;</span> <span class='ident'>PF</span>)
+        (<span class='kw'>if</span> <span class='ident'>b</span> <span class='op'>!=</span> <span class='number'>0</span> {<span class='ident'>b</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>} <span class='kw'>else</span> {<span class='ident'>ZF</span>}) <span class='op'>|</span>
+            (<span class='kw'>if</span> (<span class='ident'>val</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>) <span class='op'>!=</span> <span class='number'>0</span> {<span class='ident'>NF</span>} <span class='kw'>else</span> {<span class='number'>0</span>}) <span class='op'>|</span>
+            (<span class='kw'>if</span> (<span class='ident'>t</span> <span class='kw-2'>&amp;</span> <span class='number'>0x100</span>) <span class='op'>!=</span> <span class='number'>0</span> {<span class='ident'>HF</span> <span class='op'>|</span> <span class='ident'>CF</span>} <span class='kw'>else</span> {<span class='number'>0</span>}) <span class='op'>|</span>
+            (<span class='ident'>flags_szp</span>((<span class='ident'>t</span> <span class='kw-2'>&amp;</span> <span class='number'>0x07</span>) <span class='op'>^</span> <span class='ident'>b</span>) <span class='kw-2'>&amp;</span> <span class='ident'>PF</span>)
     }
 
     <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>
+    <span class='attribute'>#[<span class='ident'>cfg_attr</span>(<span class='ident'>rustfmt</span>, <span class='ident'>rustfmt_skip</span>)]</span>
     <span class='kw'>fn</span> <span class='ident'>outi_outd_flags</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>val</span>: <span class='ident'>RegT</span>) <span class='op'>-&gt;</span> <span class='ident'>RegT</span> {
         <span class='kw'>let</span> <span class='ident'>b</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>b</span>();
         <span class='kw'>let</span> <span class='ident'>l</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>l</span>();
         <span class='kw'>let</span> <span class='ident'>t</span> <span class='op'>=</span> <span class='ident'>l</span> <span class='op'>+</span> <span class='ident'>val</span>;
-        (<span class='kw'>if</span> <span class='ident'>b</span> <span class='op'>!=</span> <span class='number'>0</span> {
-            <span class='ident'>b</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>
-        } <span class='kw'>else</span> {
-            <span class='ident'>ZF</span>
-        }) <span class='op'>|</span>
-        (<span class='kw'>if</span> (<span class='ident'>val</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>) <span class='op'>!=</span> <span class='number'>0</span> {
-            <span class='ident'>NF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        }) <span class='op'>|</span>
-        (<span class='kw'>if</span> (<span class='ident'>t</span> <span class='kw-2'>&amp;</span> <span class='number'>0x100</span>) <span class='op'>!=</span> <span class='number'>0</span> {
-            <span class='ident'>HF</span> <span class='op'>|</span> <span class='ident'>CF</span>
-        } <span class='kw'>else</span> {
-            <span class='number'>0</span>
-        }) <span class='op'>|</span> (<span class='ident'>flags_szp</span>((<span class='ident'>t</span> <span class='kw-2'>&amp;</span> <span class='number'>0x07</span>) <span class='op'>^</span> <span class='ident'>b</span>) <span class='kw-2'>&amp;</span> <span class='ident'>PF</span>)
+        (<span class='kw'>if</span> <span class='ident'>b</span> <span class='op'>!=</span> <span class='number'>0</span> {<span class='ident'>b</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>} <span class='kw'>else</span> {<span class='ident'>ZF</span>}) <span class='op'>|</span>
+            (<span class='kw'>if</span> (<span class='ident'>val</span> <span class='kw-2'>&amp;</span> <span class='ident'>SF</span>) <span class='op'>!=</span> <span class='number'>0</span> {<span class='ident'>NF</span>} <span class='kw'>else</span> {<span class='number'>0</span>}) <span class='op'>|</span>
+            (<span class='kw'>if</span> (<span class='ident'>t</span> <span class='kw-2'>&amp;</span> <span class='number'>0x100</span>) <span class='op'>!=</span> <span class='number'>0</span> {<span class='ident'>HF</span> <span class='op'>|</span> <span class='ident'>CF</span>} <span class='kw'>else</span> {<span class='number'>0</span>}) <span class='op'>|</span>
+            (<span class='ident'>flags_szp</span>((<span class='ident'>t</span> <span class='kw-2'>&amp;</span> <span class='number'>0x07</span>) <span class='op'>^</span> <span class='ident'>b</span>) <span class='kw-2'>&amp;</span> <span class='ident'>PF</span>)
     }
 
     <span class='attribute'>#[<span class='ident'>inline</span>(<span class='ident'>always</span>)]</span>

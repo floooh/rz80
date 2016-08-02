@@ -85,7 +85,7 @@ CPU VISIBLE:    |3333333|22222|000000000|3333333|1111111|
 
 <h2 id='the-heap' class='section-header'><a href='#the-heap'>The Heap</a></h2>
 <p>The Memory class will never keep references to external memory, instead it
-comes with it&#39;s own few hundred KBytes of embedded memory which is used 
+comes with it&#39;s own few hundred KBytes of embedded memory which is used
 as &#39;heap&#39;. A single memory page maps 1 KByte of memory from the Z80
 address range to 1 KByte of memory somewhere on the embedded heap.</p>
 
@@ -100,11 +100,11 @@ any data into the mapped memory region:</p>
 <span class='kw'>use</span> <span class='ident'>rz80</span>::<span class='ident'>Memory</span>;
 <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>mem</span> <span class='op'>=</span> <span class='ident'>Memory</span>::<span class='ident'>new</span>();
 
-<span class='comment'>// map 32 KByte at heap address 0x08000 to CPU addr 0x0000 </span>
+<span class='comment'>// map 32 KByte at heap address 0x08000 to CPU addr 0x0000</span>
 <span class='comment'>// on layer 0 as writable:</span>
 <span class='ident'>mem</span>.<span class='ident'>map</span>(<span class='number'>0</span>, <span class='number'>0x08000</span>, <span class='number'>0x0000</span>, <span class='bool-val'>true</span>, <span class='number'>32</span><span class='op'>*</span><span class='number'>1024</span>);
 
-<span class='comment'>// map another 32 KByte at heap address 0x10000 to CPU addr 0x8000 </span>
+<span class='comment'>// map another 32 KByte at heap address 0x10000 to CPU addr 0x8000</span>
 <span class='comment'>// on layer 1 as read-only:</span>
 <span class='ident'>mem</span>.<span class='ident'>map</span>(<span class='number'>1</span>, <span class='number'>0x10000</span>, <span class='number'>0x8000</span>, <span class='bool-val'>false</span>, <span class='number'>32</span><span class='op'>*</span><span class='number'>1024</span>);</pre>
 
@@ -116,7 +116,7 @@ useful to initialize the memory with a ROM dump.</p>
 <span class='kw'>use</span> <span class='ident'>rz80</span>::<span class='ident'>Memory</span>;
 <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>mem</span> <span class='op'>=</span> <span class='ident'>Memory</span>::<span class='ident'>new</span>();
 <span class='kw'>let</span> <span class='ident'>rom</span> <span class='op'>=</span> [<span class='number'>0xFFu8</span>; <span class='number'>4096</span>];
- 
+
 <span class='comment'>// assume that &#39;rom&#39; is a system ROM dump, and map it as read-only to CPU address 0xF000</span>
 <span class='ident'>mem</span>.<span class='ident'>map_bytes</span>(<span class='number'>0</span>, <span class='number'>0x00000</span>, <span class='number'>0xF000</span>, <span class='bool-val'>false</span>, <span class='kw-2'>&amp;</span><span class='ident'>rom</span>);</pre>
 
@@ -165,7 +165,7 @@ Z80&#39;s indexed and relative addressing instructions:</p>
 <span class='ident'>mem</span>.<span class='ident'>map_bytes</span>(<span class='number'>0</span>, <span class='number'>0x00000</span>, <span class='number'>0x0000</span>, <span class='bool-val'>false</span>, <span class='kw-2'>&amp;</span><span class='ident'>rom</span>);
 <span class='kw'>let</span> <span class='ident'>b0</span> <span class='op'>=</span> <span class='ident'>mem</span>.<span class='ident'>r8</span>(<span class='number'>0x0100</span>);
 <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>b0</span> <span class='op'>==</span> <span class='number'>0x11</span>);
- 
+
 <span class='comment'>// try to write read-only memory</span>
 <span class='ident'>mem</span>.<span class='ident'>w8</span>(<span class='number'>0x0100</span>, <span class='number'>0x33</span>);
 <span class='kw'>let</span> <span class='ident'>b1</span> <span class='op'>=</span> <span class='ident'>mem</span>.<span class='ident'>r8</span>(<span class='number'>0x0100</span>);
