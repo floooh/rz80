@@ -5,7 +5,7 @@
             "name": "Debug",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceRoot}/target/debug/rz80-e1beb2b189db6167",
+            "program": "${workspaceRoot}/target/debug/examples/kc87",
             "args": []
         }
     ]

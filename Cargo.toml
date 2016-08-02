@@ -15,6 +15,7 @@ exclude = [
 [dev-dependencies]
 time="0.1"
 minifb="0.8.3"
+rand="0.3"
 
 [profile.release]
 lto = true
