@@ -73,10 +73,6 @@ pub struct CPU {
     pub mem: Memory,
 }
 
-fn canthappen() -> ! {
-    panic!("Can't happen!");
-}
-
 use registers::CF;
 use registers::NF;
 use registers::VF;
@@ -453,7 +449,7 @@ impl CPU {
                         self.reg.set_wz(addr + 1);
                         7
                     }
-                    (_, _) => canthappen(),
+                    (_, _) => unreachable!(),
                 }
             }
             (0, _, 3) => {
@@ -529,7 +525,7 @@ impl CPU {
                     5 => self.cpl(),
                     6 => self.scf(),
                     7 => self.ccf(),
-                    _ => canthappen(),
+                    _ => unreachable!(),
                 }
                 4
             }
@@ -572,7 +568,7 @@ impl CPU {
                         self.reg.set_sp(v);
                         6
                     }
-                    (_, _) => canthappen(),
+                    (_, _) => unreachable!(),
                 }
             }
             (3, _, 2) => {
@@ -635,7 +631,7 @@ impl CPU {
                         self.enable_interrupt = true;
                         4
                     }
-                    _ => canthappen(),
+                    _ => unreachable!(),
                 }
             }
             (3, _, 4) => {
@@ -674,7 +670,7 @@ impl CPU {
                         self.reg.unpatch();
                         cycles
                     }
-                    (_, _) => canthappen(),
+                    (_, _) => unreachable!(),
                 }
             }
             // ALU n
@@ -689,9 +685,7 @@ impl CPU {
                 11
             }
             // not implemented
-            _ => {
-                panic!("Invalid instruction!");
-            }
+            _ => panic!("Invalid instruction!")
         }
     }
 
@@ -827,9 +821,7 @@ impl CPU {
                     3 | 7 => {
                         self.reg.im = 2;
                     }
-                    _ => {
-                        canthappen();
-                    }
+                    _ => unreachable!()
                 }
                 8
             }
@@ -977,7 +969,7 @@ impl CPU {
                     8
                 }
             }
-            _ => canthappen(),
+            _ => unreachable!(),
         }
     }
 
@@ -1066,7 +1058,7 @@ impl CPU {
             5 => self.xor8(val),
             6 => self.or8(val),
             7 => self.cp8(val),
-            _ => panic!("Can't happen!"),
+            _ => unreachable!() 
         }
     }
 
@@ -1172,7 +1164,7 @@ impl CPU {
             5 => self.sra8(val),
             6 => self.sll8(val),
             7 => self.srl8(val),
-            _ => panic!("Can't happen"),
+            _ => unreachable!() 
         }
     }
 
