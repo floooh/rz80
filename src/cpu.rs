@@ -1,7 +1,7 @@
 use RegT;
 use memory::Memory;
 use registers::Registers;
-use bus::Bus;
+use bus::CpuBus;
 
 /// Z80 CPU emulation
 ///
@@ -191,7 +191,7 @@ impl CPU {
     }
 
     /// decode and execute one instruction, return number of cycles taken
-    pub fn step(&mut self, bus: &Bus) -> i64 {
+    pub fn step(&mut self, bus: &mut CpuBus) -> i64 {
         self.invalid_op = false;
         if self.enable_interrupt {
             self.iff1 = true;
@@ -285,7 +285,7 @@ impl CPU {
     /// * 'd'   - the d in (IX+d), (IY+d), 0 if m is HL
     ///
     /// returns number of cycles the instruction takes
-    fn do_op(&mut self, bus: &Bus, ext: bool) -> i64 {
+    fn do_op(&mut self, bus: &mut CpuBus, ext: bool) -> i64 {
         let (cyc, ext_cyc) = if ext {
             (4, 8)
         } else {
@@ -696,7 +696,7 @@ impl CPU {
     }
 
     /// fetch and execute ED prefix instruction
-    fn do_ed_op(&mut self, bus: &Bus) -> i64 {
+    fn do_ed_op(&mut self, bus: &mut CpuBus) -> i64 {
         let op = self.fetch_op();
 
         // split instruction byte into bit groups
@@ -986,14 +986,14 @@ impl CPU {
         self.irq_received = true;
     }
 
-    fn reti(&mut self, bus: &Bus) -> i64 {
+    fn reti(&mut self, bus: &mut CpuBus) -> i64 {
         self.ret();
         bus.irq_reti();
         15
     }
 
     #[inline(always)]
-    fn handle_irq(&mut self, bus: &Bus) -> i64 {
+    fn handle_irq(&mut self, bus: &mut CpuBus) -> i64 {
         // NOTE: only interrupt mode 2 is supported at the moment
         assert!(2 == self.reg.im);
 
@@ -1606,12 +1606,12 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn inp(&mut self, bus: &Bus, port: RegT) -> RegT {
+    pub fn inp(&mut self, bus: &mut CpuBus, port: RegT) -> RegT {
         bus.cpu_inp(port) & 0xFF
     }
 
     #[inline(always)]
-    pub fn outp(&mut self, bus: &Bus, port: RegT, val: RegT) {
+    pub fn outp(&mut self, bus: &mut CpuBus, port: RegT, val: RegT) {
         bus.cpu_outp(port, val);
     }
 
@@ -1640,7 +1640,7 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn ini(&mut self, bus: &Bus) {
+    pub fn ini(&mut self, bus: &mut CpuBus) {
         let bc = self.reg.bc();
         let io_val = self.inp(bus, bc);
         self.reg.set_wz(bc + 1);
@@ -1654,7 +1654,7 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn ind(&mut self, bus: &Bus) {
+    pub fn ind(&mut self, bus: &mut CpuBus) {
         let bc = self.reg.bc();
         let io_val = self.inp(bus, bc);
         self.reg.set_wz(bc - 1);
@@ -1668,7 +1668,7 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn inir(&mut self, bus: &Bus) -> i64 {
+    pub fn inir(&mut self, bus: &mut CpuBus) -> i64 {
         self.ini(bus);
         if self.reg.b() != 0 {
             self.reg.dec_pc(2);
@@ -1679,7 +1679,7 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn indr(&mut self, bus: &Bus) -> i64 {
+    pub fn indr(&mut self, bus: &mut CpuBus) -> i64 {
         self.ind(bus);
         if self.reg.b() != 0 {
             self.reg.dec_pc(2);
@@ -1690,7 +1690,7 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn outi(&mut self, bus: &Bus) {
+    pub fn outi(&mut self, bus: &mut CpuBus) {
         let hl = self.reg.hl();
         let io_val = self.mem.r8(hl);
         self.reg.set_hl(hl + 1);
@@ -1704,7 +1704,7 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn outd(&mut self, bus: &Bus) {
+    pub fn outd(&mut self, bus: &mut CpuBus) {
         let hl = self.reg.hl();
         let io_val = self.mem.r8(hl);
         self.reg.set_hl(hl - 1);
@@ -1718,7 +1718,7 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn otir(&mut self, bus: &Bus) -> i64 {
+    pub fn otir(&mut self, bus: &mut CpuBus) -> i64 {
         self.outi(bus);
         if self.reg.b() != 0 {
             self.reg.dec_pc(2);
@@ -1729,7 +1729,7 @@ impl CPU {
     }
 
     #[inline(always)]
-    pub fn otdr(&mut self, bus: &Bus) -> i64 {
+    pub fn otdr(&mut self, bus: &mut CpuBus) -> i64 {
         self.outd(bus);
         if self.reg.b() != 0 {
             self.reg.dec_pc(2);

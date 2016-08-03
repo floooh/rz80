@@ -30,7 +30,7 @@ extern crate rz80;
 extern crate time;
 extern crate minifb;
 
-use rz80::{CPU, PIO, Bus, RegT, PIO_A, PIO_B};
+use rz80::{CPU, PIO, CpuBus, Bus, RegT, PIO_A, PIO_B};
 use minifb::{Key, Window, Scale, WindowOptions};
 use time::PreciseTime;
 use std::cell::RefCell;
@@ -185,15 +185,21 @@ impl Z1013 {
 // Bus trait, which implements the emulator-specific 'wiring'.
 // The use of RefCell here is a bit smelly :/
 struct System {
-    pub cpu: RefCell<CPU>,
-    pub pio: RefCell<PIO>,
-    pub z1013: RefCell<Z1013>,
+    pub cpu: CPU,
+    pub pio: PIO,
+    pub z1013: Z1013,
 }
 
-// The Bus trait, implemented for the Z1013. This defines how the
-// various hardware components in an emulated system talk to each other.
-impl Bus for System {
+struct LayerA<'a> {
+    pio: &'a mut PIO,
+    b: LayerB<'a>,
+}
 
+struct LayerB<'a> {
+    z1013: &'a mut Z1013,
+}
+
+impl<'a> CpuBus for LayerA<'a> {
     // cpu_outp() is called when the CPU executes an OUT instruction, on the
     // Z1013 there are 5 important output ports:
     //
@@ -207,14 +213,14 @@ impl Bus for System {
     // the output value to the respective PIO write function. For
     // port 0x08, the requested keyboard column is stored for later
     // when the CPU reads back the keyboard matrix line state.
-    fn cpu_outp(&self, port: RegT, val: RegT) {
+    fn cpu_outp(&mut self, port: RegT, val: RegT) {
         match port & 0xFF {
-            0x00 => self.pio.borrow_mut().write_data(self, PIO_A, val),
-            0x01 => self.pio.borrow_mut().write_control(PIO_A, val),
-            0x02 => self.pio.borrow_mut().write_data(self, PIO_B, val),
-            0x03 => self.pio.borrow_mut().write_control(PIO_B, val),
+            0x00 => self.pio.write_data(&mut self.b, PIO_A, val),
+            0x01 => self.pio.write_control(PIO_A, val),
+            0x02 => self.pio.write_data(&mut self.b, PIO_B, val),
+            0x03 => self.pio.write_control(PIO_B, val),
             0x08 => {
-                let mut z1013 = self.z1013.borrow_mut();
+                let mut z1013 = &mut self.b.z1013;
                 if val == 0 {
                     // OS starts reading out a new key
                     z1013.kbd_matrix_bits = z1013.next_kbd_matrix_bits;
@@ -224,18 +230,23 @@ impl Bus for System {
             _ => ()
         }
     }
-    
+
     // cpu_inp() is called when the CPU executes an IN instruction,
     // it simply reads the PIO data and control registers back
-    fn cpu_inp(&self, port: RegT) -> RegT {
+    fn cpu_inp(&mut self, port: RegT) -> RegT {
         match port & 0xFF {
-            0x00 => self.pio.borrow_mut().read_data(self, PIO_A),
-            0x01 => self.pio.borrow_mut().read_control(),
-            0x02 => self.pio.borrow_mut().read_data(self, PIO_B),
-            0x03 => self.pio.borrow_mut().read_control(),
+            0x00 => self.pio.read_data(&mut self.b, PIO_A),
+            0x01 => self.pio.read_control(),
+            0x02 => self.pio.read_data(&mut self.b, PIO_B),
+            0x03 => self.pio.read_control(),
             _ => 0xFF
         }
     }
+}
+
+// The Bus trait, implemented for the Z1013. This defines how the
+// various hardware components in an emulated system talk to each other.
+impl<'a> Bus for LayerB<'a> {
 
     // pio_outp() is called when a PIO data register is written,
     // the second '_' parameter is an ID for the PIO, this is
@@ -244,10 +255,9 @@ impl Bus for System {
     // bit 4 is set when writing to PIO-B, this tells us whether
     // the lower or upper 4 keyboard matrix lines are requested
     // in the next read of PIO-B
-    fn pio_outp(&self, _: usize, chn: usize, data: RegT) {
+    fn pio_outp(&mut self, _: usize, chn: usize, data: RegT) {
         if chn == PIO_B {
-            let mut z1013 = self.z1013.borrow_mut();
-            z1013.kbd_high_lines_requested = 0 != (data & (1<<4));
+            self.z1013.kbd_high_lines_requested = 0 != (data & (1<<4));
         }
     }
 
@@ -255,9 +265,9 @@ impl Bus for System {
     // is the final piece in the keyboard emulation puzzle
     // where the upper or lower 4 lines of the keyboard matrix
     // are returned
-    fn pio_inp(&self, _: usize, chn: usize) -> RegT {
+    fn pio_inp(&mut self, _: usize, chn: usize) -> RegT {
         if chn == PIO_B {
-            let z1013 = self.z1013.borrow();
+            let z1013 = &self.z1013;
             let col = z1013.kbd_column_nr_requested & 7;
             let mut val = z1013.kbd_matrix_bits >> (col*8);
             if z1013.kbd_high_lines_requested {
@@ -280,38 +290,43 @@ impl Bus for System {
 impl System {
     pub fn new() -> System {
         System {
-            cpu: RefCell::new(CPU::new()),
-            pio: RefCell::new(PIO::new(0)),
-            z1013: RefCell::new(Z1013::new()),
+            cpu: CPU::new(),
+            pio: PIO::new(0),
+            z1013: Z1013::new(),
         }
     }
 
     // first-time init of the emulator 
-    pub fn poweron(&self) {
-        let mut cpu = self.cpu.borrow_mut();
-        
+    pub fn poweron(&mut self) {
+
         // map 64 KByte RAM at memory layer 1
-        cpu.mem.map(1, 0x00000, 0x0000, true, 0x10000);
+        self.cpu.mem.map(1, 0x00000, 0x0000, true, 0x10000);
 
         // map the 2 KByte OS ROM at higher prio memory layer 0
-        cpu.mem.map_bytes(0, 0x10000, 0xF000, false, &OS);
+        self.cpu.mem.map_bytes(0, 0x10000, 0xF000, false, &OS);
 
         // copy BASIC interpreter dump into RAM at address 0x100, 
         // skip the first 0x20 bytes, these are used as header
         // of the '.z80' file format
-        cpu.mem.write(0x0100, &BASIC[0x20..]);
+        self.cpu.mem.write(0x0100, &BASIC[0x20..]);
 
         // start execution at address 0xF000
-        cpu.reg.set_pc(0xF000);
+        self.cpu.reg.set_pc(0xF000);
     }
 
     // run the emulator for one frame
-    pub fn step_frame(&self, micro_seconds: i64) {
+    pub fn step_frame(&mut self, micro_seconds: i64) {
         let num_cycles = (FREQ_KHZ * micro_seconds) / 1000;
         let mut cur_cycles = 0;
-        let mut cpu = self.cpu.borrow_mut();
+        let mut cpu = &mut self.cpu;
         while cur_cycles < num_cycles {
-            cur_cycles += cpu.step(self);
+            let mut a = LayerA {
+                pio: &mut self.pio,
+                b: LayerB {
+                    z1013: &mut self.z1013
+                }
+            };
+            cur_cycles += cpu.step(&mut a);
         }
     }
 
@@ -321,8 +336,7 @@ impl System {
     // by the CPU.
     pub fn decode_framebuffer(&self, fb: &mut [u32]) {
         let mut fb_iter = fb.iter_mut();
-        let cpu = self.cpu.borrow();
-        let vid_mem = &cpu.mem.heap[0xEC00..0xF000];
+        let vid_mem = &self.cpu.mem.heap[0xEC00..0xF000];
         for y in 0..32 {
             for py in 0..8 {
                 for x in 0..32 {
@@ -344,8 +358,7 @@ impl System {
 
     // forward a new host ASCII key code to the emulator
     pub fn put_key(&mut self, ascii: u8) {
-        let mut z1013 = self.z1013.borrow_mut();
-        z1013.put_key(ascii);
+        self.z1013.put_key(ascii);
     }
 }
 
