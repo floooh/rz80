@@ -21,6 +21,7 @@ use bus::Bus;
 /// enough to run the ZEXALL tests without errors.
 ///
 /// What's **not** implemented:
+///
 /// - interrupt modes 0 and 1
 /// - non-maskable interrupts (including the RETN instruction)
 /// - extra memory wait states
