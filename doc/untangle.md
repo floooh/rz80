@@ -6,7 +6,7 @@ caller (the snake bites its own tail...), also: RefCells :/
 
 Here's a new idea: instead of the slightly messy callbacks where everything
 can call into anything else at any time, per-chip work happens strictly sequential
-within one 'opcode frame', for instance for a a system with a CPU, 1 PIO
+within one 'opcode frame', for instance for a system with a CPU, 1 PIO
 and 1 CTC:
 
 1. first the CPU does its thing
@@ -16,7 +16,7 @@ and 1 CTC:
 5.      CTC channel 1 ...
 6.                  2 ...
 7.                  3 ...
-4. finally the CPU processes interrupt requests from step 2 and 3
+4. finally the CPU processes interrupt requests from step 2 to 7
 
 The order in which those processing steps happen should follow 
 the interrupt controller daisychain priorities in the system.
@@ -43,6 +43,7 @@ Chips basically communicate now by writing values, or flipping bits
 in the Bus struct. A bit like deferred event handling, but without the 
 overhead of creating and dispatching event objects.
 
+```
                   Bus (just a simple data store now)
     +-----+      +---+                  
     | CPU |<---->|   |    +-------+     
@@ -62,6 +63,7 @@ overhead of creating and dispatching event objects.
     | IRQ?|      |   |
     +-----+      \   /
                   \ /
+```
 
 So Bus is now simply a struct with a number of simple data items. Each chip
 gets a mut& to Bus, but only during it's 'dowork()' function, only one chip
