@@ -4,7 +4,7 @@ extern crate time;
 extern crate minifb;
 extern crate rand;
 
-use rz80::{CPU,PIO,CTC,Daisychain,Bus,RegT,PIO_A,PIO_B};
+use rz80::{CPU,PIO,CTC,Daisychain,Bus,RegT,PIO_A,PIO_B,CTC_0,CTC_1,CTC_2,CTC_3};
 use minifb::{Key, Window, Scale, WindowOptions};
 use time::PreciseTime;
 use std::cell::RefCell;
@@ -74,9 +74,10 @@ impl System {
     pub fn step_frame(&self, micro_seconds: i64) {
         let num_cycles = (FREQ_KHZ * micro_seconds) / 1000;
         let mut cur_cycles = 0;
-        let mut cpu = self.cpu.borrow_mut();
         while cur_cycles < num_cycles {
-            cur_cycles += cpu.step(self);
+            let op_cycles = self.cpu.borrow_mut().step(self);
+            self.ctc.borrow_mut().update_timers(self, op_cycles);
+            cur_cycles += op_cycles;
         }
     }
 
@@ -124,14 +125,84 @@ impl System {
 }
 
 impl Bus for System {
-    fn pio_outp(&self, _: usize, chn: usize, data: RegT) {
-        println!("pio_outp called!");
+
+    fn cpu_outp(&self, port: RegT, val: RegT) {
+        println!("cpu_outp: port={:x} val={:x}", port & 0xFF, val);
+        match port & 0xFF {
+            0x80|0x84 => self.ctc.borrow_mut().write(self, CTC_0, val),
+            0x81|0x85 => self.ctc.borrow_mut().write(self, CTC_1, val),
+            0x82|0x86 => self.ctc.borrow_mut().write(self, CTC_2, val),
+            0x83|0x87 => self.ctc.borrow_mut().write(self, CTC_3, val),
+            0x88|0x8C => self.pio1.borrow_mut().write_data(self, PIO_A, val),
+            0x89|0x8D => self.pio1.borrow_mut().write_data(self, PIO_B, val),
+            0x8A|0x8E => self.pio1.borrow_mut().write_control(PIO_A, val),
+            0x8B|0x8F => self.pio1.borrow_mut().write_control(PIO_B, val),
+            0x90|0x94 => self.pio2.borrow_mut().write_data(self, PIO_A, val),
+            0x91|0x95 => self.pio2.borrow_mut().write_data(self, PIO_B, val),
+            0x92|0x96 => self.pio2.borrow_mut().write_control(PIO_A, val),
+            0x93|0x97 => self.pio2.borrow_mut().write_control(PIO_B, val),
+            _ => (),
+            
+        }
     }
-    fn pio_inp(&self, _: usize, chn: usize) -> RegT {
-        println!("pio_inp called!");
+
+    fn cpu_inp(&self, port: RegT) -> RegT {
+        println!("cpu_inp: port={:x}", port & 0xFF);
+        match port & 0xFF {
+            0x80|0x84 => self.ctc.borrow().read(CTC_0),
+            0x81|0x85 => self.ctc.borrow().read(CTC_1),
+            0x82|0x86 => self.ctc.borrow().read(CTC_2),
+            0x83|0x87 => self.ctc.borrow().read(CTC_3),
+            0x88|0x8C => self.pio1.borrow_mut().read_data(self, PIO_A),
+            0x89|0x8D => self.pio1.borrow_mut().read_data(self, PIO_B),
+            0x8A|0x8E|0x8B|0x8F => self.pio1.borrow().read_control(),
+            0x90|0x94 => self.pio2.borrow_mut().read_data(self, PIO_A),
+            0x91|0x95 => self.pio2.borrow_mut().read_data(self, PIO_B),
+            0x92|0x96|0x93|0x97 => self.pio2.borrow().read_control(),
+            _ => 0xFF,
+        }
+    }
+
+    fn irq(&self, ctrl_id: usize, vec: u8) {
+        println!("irq: ctrl_id={:x} vec={:x}", ctrl_id, vec);
+    }
+    fn irq_cpu(&self) {
+        println!("irq_cpu")
+    }
+    fn irq_ack(&self) -> RegT {
+        println!("irq_ack");
         0
     }
-    
+    fn irq_reti(&self) {
+        println!("irq_reti");
+    }
+
+    fn pio_outp(&self, pio: usize, chn: usize, data: RegT) {
+        println!("pio_outp: pio={:x} chn={:x} data={:x}", pio, chn, data);
+    }
+    fn pio_inp(&self, pio: usize, chn: usize) -> RegT {
+        println!("pio_in: pio={:x} chn={:x}", pio, chn);
+        0
+    }
+    fn pio_rdy(&self, pio: usize, chn: usize, rdy: bool) {
+        println!("pio_rdy: pio={:x} chn={:x} rdy={:}", pio, chn, rdy);
+    }
+    fn pio_irq(&self, pio: usize, chn: usize, int_vector: RegT) {
+        println!("pio_irq: pio={:x} chn={:x} int_vector{:x}", pio, chn, int_vector);
+    }
+
+    fn ctc_write(&self, chn: usize, ctc: &CTC) {
+        println!("ctc_write: chn={:x}", chn);
+    }
+    fn ctc_zero(&self, chn: usize, ctc: &CTC) {
+        // blargh, and here we are stuck... CTC2 output trigger is connected
+        // CTC3 input trigger, and here the snake baits its tail...
+        // ...back to the drawing board...
+        println!("ctc_zero: chn={:x}", chn);
+    }
+    fn ctc_irq(&self, ctc: usize, chn: usize, int_vector: RegT) {
+        println!("ctc_irq: ctc={:x}, chn={:x}, int_vector={:x}", ctc, chn, int_vector);
+    }
 }
 
 fn main() {
