@@ -120,9 +120,8 @@ struct Z1013 {
     pub write_pio_a_data : Option<RegT>,
     pub write_pio_b_ctrl : Option<RegT>,
     pub write_pio_b_data : Option<RegT>,
-    pub read_pio_a_ctrl : RegT,
+    pub read_pio_ctrl : RegT,
     pub read_pio_a_data : RegT,
-    pub read_pio_b_ctrl : RegT,
     pub read_pio_b_data : RegT,
     pub kbd_column_nr_requested: usize,     // kbd matrix column 'lit up' by CPU
     pub kbd_high_lines_requested: bool,     // get upper or lower 4 kbd matrix lines
@@ -138,9 +137,8 @@ impl Z1013 {
             write_pio_a_data: None,
             write_pio_b_ctrl: None,
             write_pio_b_data: None,
-            read_pio_a_ctrl: 0,
+            read_pio_ctrl: 0,
             read_pio_a_data: 0,
-            read_pio_b_ctrl: 0,
             read_pio_b_data: 0,
             kbd_column_nr_requested: 0,
             kbd_high_lines_requested: false,
@@ -236,9 +234,9 @@ impl Bus for Z1013 {
     fn cpu_inp(&mut self, port: RegT) -> RegT {
         match port & 0xFF {
             0x00 => self.read_pio_a_data, 
-            0x01 => self.read_pio_a_ctrl,
+            0x01 => self.read_pio_ctrl,
             0x02 => self.read_pio_b_data,
-            0x03 => self.read_pio_b_ctrl,
+            0x03 => self.read_pio_ctrl,
             _ => 0xFF
         }
     }
@@ -283,7 +281,6 @@ impl Bus for Z1013 {
  
 // The System struct owns all the hardware components and implements the 
 // Bus trait, which implements the emulator-specific 'wiring'.
-// The use of RefCell here is a bit smelly :/
 struct System {
     pub cpu: CPU,
     pub pio: PIO,
@@ -322,6 +319,39 @@ impl System {
         let mut cur_cycles = 0;
         while cur_cycles < num_cycles {
             cur_cycles += self.cpu.step(&mut self.z1013);
+            // FIXME
+            match self.z1013.write_pio_a_ctrl {
+                Some(val) => {
+                    self.pio.write_control(PIO_A, val);
+                    self.z1013.read_pio_ctrl = self.pio.read_control();
+                    self.z1013.read_pio_a_data = self.pio.read_data(&mut self.z1013, PIO_A);
+                    self.z1013.write_pio_a_ctrl = None;
+                },
+                None => ()
+            };
+            match self.z1013.write_pio_b_ctrl {
+                Some(val) => {
+                    self.pio.write_control(PIO_B, val);
+                    self.z1013.read_pio_ctrl = self.pio.read_control();
+                    self.z1013.read_pio_b_data = self.pio.read_data(&mut self.z1013, PIO_B);
+                    self.z1013.write_pio_b_ctrl = None;
+                },
+                None => ()
+            };
+            match self.z1013.write_pio_a_data {
+                Some(val) => {
+                    self.pio.write_data(&mut self.z1013, PIO_A, val);
+                    self.z1013.read_pio_a_data = self.pio.read_data(&mut self.z1013, PIO_A);
+                },
+                None => ()
+            };
+            match self.z1013.write_pio_b_data {
+                Some(val) => {
+                    self.pio.write_data(&mut self.z1013, PIO_B, val);
+                    self.z1013.read_pio_b_data = self.pio.read_data(&mut self.z1013, PIO_B);
+                },
+                None => ()
+            }
         }
     }
 
