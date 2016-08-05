@@ -147,7 +147,7 @@ impl PIO {
     }
 
     /// set rdy flag on channel, and call pio_rdy callback on bus if changed
-    fn set_rdy(&mut self, bus: &Bus, chn: usize, rdy: bool) {
+    fn set_rdy(&mut self, bus: &mut Bus, chn: usize, rdy: bool) {
         let c = &mut self.chn[chn];
         if c.rdy != rdy {
             c.rdy = rdy;
@@ -156,7 +156,7 @@ impl PIO {
     }
 
     /// write data to PIO channel
-    pub fn write_data(&mut self, bus: &Bus, chn: usize, data: RegT) {
+    pub fn write_data(&mut self, bus: &mut Bus, chn: usize, data: RegT) {
         match self.chn[chn].mode {
             Mode::Output => {
                 self.set_rdy(bus, chn, false);
@@ -183,7 +183,7 @@ impl PIO {
     }
 
     /// read data from PIO channel
-    pub fn read_data(&mut self, bus: &Bus, chn: usize) -> RegT {
+    pub fn read_data(&mut self, bus: &mut Bus, chn: usize) -> RegT {
         match self.chn[chn].mode {
             Mode::Output => self.chn[chn].output as RegT,
             Mode::Input => {
@@ -208,7 +208,7 @@ impl PIO {
     }
 
     /// write data from peripheral device into PIO
-    pub fn write(&mut self, bus: &Bus, chn: usize, data: RegT) {
+    pub fn write(&mut self, bus: &mut Bus, chn: usize, data: RegT) {
         let mut c = self.chn[chn];
         if c.mode == Mode::Bitcontrol {
             c.input = data as u8;

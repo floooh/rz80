@@ -80,7 +80,7 @@ impl CTC {
     }
 
     /// write a CTC control register
-    pub fn write(&mut self, bus: &Bus, chn: usize, val: RegT) {
+    pub fn write(&mut self, bus: &mut Bus, chn: usize, val: RegT) {
         let mut notify_bus = false;
         let old_ctrl = self.chn[chn].control;
         let new_ctrl = val as u8;
@@ -126,7 +126,7 @@ impl CTC {
     }
 
     /// externally provided trigger/pulse signal, updates counters
-    pub fn trigger(&mut self, bus: &Bus, chn: usize) {
+    pub fn trigger(&mut self, bus: &mut Bus, chn: usize) {
         let ctrl = self.chn[chn].control;
         if (ctrl & (CTC_RESET | CTC_CONSTANT_FOLLOWS)) == 0 {
             self.chn[chn].down_counter -= 1;
@@ -140,7 +140,7 @@ impl CTC {
 
     /// update the CTC channel timers
     #[inline(always)]
-    pub fn update_timers(&mut self, bus: &Bus, cycles: i64) {
+    pub fn update_timers(&mut self, bus: &mut Bus, cycles: i64) {
         for chn in 0..NUM_CHANNELS {
             let ctrl = self.chn[chn].control;
             let waiting = self.chn[chn].waiting_for_trigger;
@@ -179,7 +179,7 @@ impl CTC {
     }
 
     /// trigger interrupt and/or callback when downcounter reaches 0
-    fn down_counter_trigger(&self, bus: &Bus, chn: usize) {
+    fn down_counter_trigger(&self, bus: &mut Bus, chn: usize) {
         if (self.chn[chn].control & CTC_INTERRUPT_BIT) == CTC_INTERRUPT_ENABLED {
             bus.ctc_irq(self.id, chn, self.chn[chn].int_vector as RegT);
         }
@@ -189,7 +189,6 @@ impl CTC {
 
 #[cfg(test)]
 mod test {
-    use std::cell::RefCell;
     use super::*;
     use Bus;
     use RegT;
@@ -216,54 +215,51 @@ mod test {
         ctc_irq_counter: i32,
     }
     struct TestBus {
-        state: RefCell<TestState>,
+        state: TestState,
     }
     impl TestBus {
         pub fn new() -> TestBus {
             TestBus {
-                state: RefCell::new(TestState {
+                state: TestState {
                     ctc_write_called: false,
                     ctc_zero_called: false,
                     ctc_irq_called: false,
                     ctc_zero_counter: 0,
                     ctc_irq_counter: 0,
-                }),
+                },
             }
         }
     }
     impl Bus for TestBus {
-        fn ctc_write(&self, chn: usize, ctc: &CTC) {
-            let mut state = self.state.borrow_mut();
-            state.ctc_write_called = true;
+        fn ctc_write(&mut self, chn: usize, ctc: &CTC) {
+            self.state.ctc_write_called = true;
         }
-        fn ctc_zero(&self, chn: usize, ctc: &CTC) {
-            let mut state = self.state.borrow_mut();
-            state.ctc_zero_called = true;
-            state.ctc_zero_counter += 1;
+        fn ctc_zero(&mut self, chn: usize, ctc: &CTC) {
+            self.state.ctc_zero_called = true;
+            self.state.ctc_zero_counter += 1;
         }
-        fn ctc_irq(&self, ctc: usize, chn: usize, int_vector: RegT) {
-            let mut state = self.state.borrow_mut();
-            state.ctc_irq_called = true;
-            state.ctc_irq_counter += 1;
+        fn ctc_irq(&mut self, ctc: usize, chn: usize, int_vector: RegT) {
+            self.state.ctc_irq_called = true;
+            self.state.ctc_irq_counter += 1;
         }
     }
 
     #[test]
     fn write_int_vector() {
         let mut ctc = CTC::new(0);
-        let bus = TestBus::new();
+        let mut bus = TestBus::new();
         assert!(0 == ctc.chn[CTC_0].int_vector);
 
         // interrupt vector must be written to CTC_0, any other channel
         // is ignored
-        ctc.write(&bus, CTC_1, 0xE0);
+        ctc.write(&mut bus, CTC_1, 0xE0);
         assert!(0 == ctc.chn[CTC_0].int_vector);
         assert!(0 == ctc.chn[CTC_1].int_vector);
         assert!(0 == ctc.chn[CTC_2].int_vector);
         assert!(0 == ctc.chn[CTC_3].int_vector);
 
         // writing int-vector to CTC_0, also automatically fills the other vectors
-        ctc.write(&bus, CTC_0, 0xE0);
+        ctc.write(&mut bus, CTC_0, 0xE0);
         assert!(0xE0 == ctc.chn[CTC_0].int_vector);
         assert!(0xE2 == ctc.chn[CTC_1].int_vector);
         assert!(0xE4 == ctc.chn[CTC_2].int_vector);
@@ -273,30 +269,28 @@ mod test {
     #[test]
     fn write_control_word() {
         let mut ctc = CTC::new(0);
-        let bus = TestBus::new();
+        let mut bus = TestBus::new();
         let ctrl = (CTC_CONTROL_WORD | CTC_INTERRUPT_ENABLED | CTC_MODE_COUNTER |
                     CTC_PRESCALER_256) as RegT;
-        ctc.write(&bus, CTC_0, ctrl);
+        ctc.write(&mut bus, CTC_0, ctrl);
         assert!(ctrl == ctc.chn[CTC_0].control as RegT);
         assert!(CTC_RESET == ctc.chn[CTC_1].control);
         assert!(CTC_RESET == ctc.chn[CTC_2].control);
         assert!(CTC_RESET == ctc.chn[CTC_2].control);
-        assert!(bus.state.borrow().ctc_write_called);
+        assert!(bus.state.ctc_write_called);
     }
 
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     fn ctc_counter_test(with_irq: bool) {
         let mut ctc = CTC::new(0);
-        let bus = TestBus::new();
+        let mut bus = TestBus::new();
         let ctrl_test = (CTC_CONTROL_WORD |
-                         if with_irq {
-            CTC_INTERRUPT_ENABLED
-        } else {
-            CTC_INTERRUPT_DISABLED
-        } | CTC_MODE_COUNTER | CTC_PRESCALER_256) as RegT;
+                         if with_irq {CTC_INTERRUPT_ENABLED} else {CTC_INTERRUPT_DISABLED} | 
+                         CTC_MODE_COUNTER | CTC_PRESCALER_256) as RegT;
         let ctrl = ctrl_test | (CTC_CONSTANT_FOLLOWS as RegT);
 
-        ctc.write(&bus, CTC_0, ctrl);
-        ctc.write(&bus, CTC_0, 0x20);       // write constant following control word
+        ctc.write(&mut bus, CTC_0, ctrl);
+        ctc.write(&mut bus, CTC_0, 0x20);       // write constant following control word
         assert!(ctrl_test == ctc.chn[CTC_0].control as RegT);
         assert!(0x20 == ctc.chn[CTC_0].constant);
         assert!(0x20 == ctc.chn[CTC_0].down_counter);
@@ -305,20 +299,20 @@ mod test {
 
         // update timer channels, this should *NOT* update the counters
         for i in 0..256 {
-            ctc.update_timers(&bus, 10);
+            ctc.update_timers(&mut bus, 10);
         }
-        assert!(bus.state.borrow().ctc_zero_counter == 0);
-        assert!(bus.state.borrow().ctc_irq_counter == 0);
+        assert!(bus.state.ctc_zero_counter == 0);
+        assert!(bus.state.ctc_irq_counter == 0);
         assert!(0x20 == ctc.chn[CTC_0].down_counter);
 
         // now trigger counters, this should update the counter and call the ctc_zero() callback
         for i in 0..0x50 {
-            ctc.trigger(&bus, CTC_0);
+            ctc.trigger(&mut bus, CTC_0);
         }
-        assert!(bus.state.borrow().ctc_zero_called);
-        assert!(bus.state.borrow().ctc_irq_called == with_irq);
-        assert!(bus.state.borrow().ctc_zero_counter == 2);
-        assert!(bus.state.borrow().ctc_irq_counter ==
+        assert!(bus.state.ctc_zero_called);
+        assert!(bus.state.ctc_irq_called == with_irq);
+        assert!(bus.state.ctc_zero_counter == 2);
+        assert!(bus.state.ctc_irq_counter ==
                 if with_irq {
             2
         } else {
@@ -338,19 +332,17 @@ mod test {
         ctc_counter_test(true);
     }
 
+    #[cfg_attr(rustfmt, rustfmt_skip)]
     fn ctc_timer_test(with_irq: bool) {
         let mut ctc = CTC::new(0);
-        let bus = TestBus::new();
+        let mut bus = TestBus::new();
         let ctrl_test = (CTC_CONTROL_WORD |
-                         if with_irq {
-            CTC_INTERRUPT_ENABLED
-        } else {
-            CTC_INTERRUPT_DISABLED
-        } | CTC_MODE_TIMER | CTC_PRESCALER_16) as RegT;
+                         if with_irq {CTC_INTERRUPT_ENABLED} else {CTC_INTERRUPT_DISABLED} | 
+                         CTC_MODE_TIMER | CTC_PRESCALER_16) as RegT;
         let ctrl = ctrl_test | (CTC_CONSTANT_FOLLOWS as RegT);
 
-        ctc.write(&bus, CTC_0, ctrl);
-        ctc.write(&bus, CTC_0, 0x20);       // write constant following control word
+        ctc.write(&mut bus, CTC_0, ctrl);
+        ctc.write(&mut bus, CTC_0, 0x20);       // write constant following control word
         assert!(ctrl_test == ctc.chn[CTC_0].control as RegT);
         assert!(0x20 == ctc.chn[CTC_0].constant);
         assert!(0x200 == ctc.chn[CTC_0].down_counter);
@@ -359,17 +351,12 @@ mod test {
 
         // update the timer channels
         for i in 0..0x200 {
-            ctc.update_timers(&bus, 2);
+            ctc.update_timers(&mut bus, 2);
         }
-        assert!(bus.state.borrow().ctc_zero_called);
-        assert!(bus.state.borrow().ctc_irq_called == with_irq);
-        assert!(bus.state.borrow().ctc_zero_counter == 2);
-        assert!(bus.state.borrow().ctc_irq_counter ==
-                if with_irq {
-            2
-        } else {
-            0
-        });
+        assert!(bus.state.ctc_zero_called);
+        assert!(bus.state.ctc_irq_called == with_irq);
+        assert!(bus.state.ctc_zero_counter == 2);
+        assert!(bus.state.ctc_irq_counter == if with_irq {2} else {0});
         assert!(ctc.chn[CTC_0].down_counter == 0x200);
         assert!(ctc.read(CTC_0) == 0x20);
     }

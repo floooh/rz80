@@ -54,7 +54,7 @@ impl Daisychain {
     }
 
     /// request an interrupt from an interrupt controller, called by bus
-    pub fn irq(&mut self, bus: &Bus, ctrl_id: usize, vec: u8) {
+    pub fn irq(&mut self, bus: &mut Bus, ctrl_id: usize, vec: u8) {
         if self.ctrl[ctrl_id].int_enabled {
             {
                 let ctrl = &mut self.ctrl[ctrl_id];
@@ -150,68 +150,63 @@ mod test {
         pub irq_vec: u8,
         pub irq_cpu_called: bool,
     }
-    struct TestBus {
-        pub state: RefCell<State>,
-        pub daisy: RefCell<Daisychain>,
-        pub cpu: RefCell<CPU>,
+    struct System {
+        pub state: State,
+        pub daisy: Daisychain,
+        pub cpu: CPU,
     }
-    impl TestBus {
-        pub fn new() -> TestBus {
-            TestBus {
-                state: RefCell::new(State {
+    impl System {
+        pub fn new() -> System {
+            System {
+                state: State {
                     irq_received: false,
                     irq_ctrl_id: 0xFF,
                     irq_vec: 0,
                     irq_cpu_called: false,
-                }),
-                daisy: RefCell::new(Daisychain::new(NUM_DEVS)),
-                cpu: RefCell::new(CPU::new()),
+                },
+                daisy: Daisychain::new(NUM_DEVS),
+                cpu: CPU::new(),
             }
         }
     }
 
-    impl Bus for TestBus {
-        fn irq(&self, ctrl_id: usize, vec: u8) {
-            let mut state = self.state.borrow_mut();
-            state.irq_received = true;
-            state.irq_ctrl_id = ctrl_id;
-            state.irq_vec = vec;
+    impl Bus for State {
+        fn irq(&mut self, ctrl_id: usize, vec: u8) {
+            self.irq_received = true;
+            self.irq_ctrl_id = ctrl_id;
+            self.irq_vec = vec;
         }
-        fn irq_cpu(&self) {
-            let mut state = self.state.borrow_mut();
-            state.irq_cpu_called = true;
+        fn irq_cpu(&mut self) {
+            self.irq_cpu_called = true;
         }
     }
 
     #[test]
     fn irq_ack() {
-        let bus = TestBus::new();
-        let mut daisy = bus.daisy.borrow_mut();
+        let mut system = System::new();
         // test with interrupt disabled
-        daisy.ctrl[DEV0].int_enabled = false;
-        daisy.irq(&bus, DEV0, 0x10);
+        system.daisy.ctrl[DEV0].int_enabled = false;
+        system.daisy.irq(&mut system.state, DEV0, 0x10);
         {
-            let dev0 = &daisy.ctrl[DEV0];
-            let state = bus.state.borrow();
+            let dev0 = &system.daisy.ctrl[DEV0];
             assert!(!dev0.int_enabled);
             assert!(!dev0.int_requested);
             assert!(!dev0.int_pending);
             assert!(dev0.int_vec == 0x00);
-            assert!(!state.irq_received);
+            assert!(!system.state.irq_received);
         }
         // test with interrupt enabled
-        daisy.ctrl[DEV0].int_enabled = true;
-        daisy.irq(&bus, DEV0, 0x10);
+        system.daisy.ctrl[DEV0].int_enabled = true;
+        system.daisy.irq(&mut system.state, DEV0, 0x10);
         {
-            let dev0 = &daisy.ctrl[DEV0];
-            let dev1 = &daisy.ctrl[DEV1];
-            let dev2 = &daisy.ctrl[DEV2];
-            let state = bus.state.borrow();
+            let dev0 = &system.daisy.ctrl[DEV0];
+            let dev1 = &system.daisy.ctrl[DEV1];
+            let dev2 = &system.daisy.ctrl[DEV2];
             assert!(!dev0.int_enabled);
             assert!(dev0.int_requested);
             assert!(!dev0.int_pending);
             assert!(dev0.int_vec == 0x10);
-            assert!(state.irq_cpu_called);
+            assert!(system.state.irq_cpu_called);
             assert!(!dev1.int_enabled);
             assert!(!dev2.int_enabled);
         }

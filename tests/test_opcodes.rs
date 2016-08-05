@@ -17,24 +17,24 @@ mod test_opcodes {
     use rz80::SF as SF;
 
     struct TestBus { 
-        pub port: Cell<RegT>,
-        pub val: Cell<RegT>,
+        pub port: RegT,
+        pub val: RegT,
     }
     impl TestBus {
         pub fn new() -> TestBus {
             TestBus {
-                port: Cell::new(0),
-                val: Cell::new(0),
+                port: 0,
+                val: 0,
             }
         }
     }
     impl rz80::Bus for TestBus {
-        fn cpu_inp(&self, port: RegT) -> RegT {
+        fn cpu_inp(&mut self, port: RegT) -> RegT {
             (port * 2) & 0xFF
         }
-        fn cpu_outp(&self, port: RegT, val: RegT) {
-            self.port.set(port);
-            self.val.set(val);
+        fn cpu_outp(&mut self, port: RegT, val: RegT) {
+            self.port = port;
+            self.val = val;
         }
     }
 
@@ -45,7 +45,7 @@ mod test_opcodes {
     #[test]
     fn test_ld_r_s() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x47,       // LD B,A
             0x4F,       // LD C,A
@@ -85,7 +85,7 @@ mod test_opcodes {
     #[test]
     fn test_ld_ihl() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x77,       // LD (HL),A
             0x46,       // LD B,(HL)
@@ -110,7 +110,7 @@ mod test_opcodes {
     #[test]
     fn test_ld_ihl_n() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x21, 0x00, 0x20,   // LD HL,0x2000
             0x36, 0x33,         // LD (HL),0x33
@@ -128,7 +128,7 @@ mod test_opcodes {
     #[test]
     fn test_ld_ixiy_n() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0xDD, 0x21, 0x00, 0x20,     // LD IX,0x2000
             0xDD, 0x36, 0x02, 0x33,     // LD (IX+2),0x33
@@ -150,7 +150,7 @@ mod test_opcodes {
     #[test]
     fn test_ld_ddixiy_nn() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x01, 0x34, 0x12,       // LD BC,0x1234
             0x11, 0x78, 0x56,       // LD DE,0x5678
@@ -172,7 +172,7 @@ mod test_opcodes {
     #[test]
     fn test_ld_hlddixiy_inn() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [
             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
         ];
@@ -201,7 +201,7 @@ mod test_opcodes {
     #[test]
     fn test_ld_sp_hlixiy() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x21, 0x34, 0x12,           // LD HL,0x1234
             0xDD, 0x21, 0x78, 0x56,     // LD IX,0x5678
@@ -223,7 +223,7 @@ mod test_opcodes {
     #[test]
     fn test_ld_r_ixiy() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [
             1, 2, 3, 4, 5, 6, 7, 8
         ];
@@ -271,7 +271,7 @@ mod test_opcodes {
     #[test]
     fn test_ld_ixiy_r() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0xDD, 0x21, 0x03, 0x10,     // LD IX,0x1003
             0x3E, 0x12,                 // LD A,0x12
@@ -341,7 +341,7 @@ mod test_opcodes {
     #[test]
     fn test_push_pop() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x01, 0x34, 0x12,       // LD BC,0x1234
             0x11, 0x78, 0x56,       // LD DE,0x5678
@@ -389,7 +389,7 @@ mod test_opcodes {
     #[test]
     fn test_add_r() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x3E, 0x0F,     // LD A,0x0F
             0x87,           // ADD A,A
@@ -431,7 +431,7 @@ mod test_opcodes {
     #[test]
     fn test_add_ihlixiy() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x41, 0x61, 0x81 ];
         cpu.mem.write(0x1000, &data);
 
@@ -458,7 +458,7 @@ mod test_opcodes {
     #[test]
     fn test_adc_r() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x3E, 0x00,         // LD A,0x00
             0x06, 0x41,         // LD B,0x41
@@ -498,7 +498,7 @@ mod test_opcodes {
     #[test]
     fn test_adc_ihlixiy() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x41, 0x61, 0x81, 0x2 ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -526,7 +526,7 @@ mod test_opcodes {
     #[test]
     fn test_sub_r() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x3E, 0x04,     // LD A,0x04
             0x06, 0x01,     // LD B,0x01
@@ -568,7 +568,7 @@ mod test_opcodes {
     #[test]
     fn test_cp_r() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x3E, 0x04,     // LD A,0x04
             0x06, 0x05,     // LD B,0x05
@@ -608,7 +608,7 @@ mod test_opcodes {
     #[test]
     fn test_sub_ihlixiy() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x41, 0x61, 0x81 ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -634,7 +634,7 @@ mod test_opcodes {
     #[test]
     fn test_cp_ihlixiy() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x41, 0x61, 0x22 ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -660,7 +660,7 @@ mod test_opcodes {
     #[test]
     fn test_sbc_r() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x3E, 0x04,     // LD A,0x04
             0x06, 0x01,     // LD B,0x01
@@ -698,7 +698,7 @@ mod test_opcodes {
     #[test]
     fn test_sbc_ihlixiy() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x41, 0x61, 0x81 ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -724,7 +724,7 @@ mod test_opcodes {
     #[test]
     fn test_or_r() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x97,           // SUB A
             0x06, 0x01,     // LD B,0x01
@@ -762,7 +762,7 @@ mod test_opcodes {
     #[test]
     fn test_xor_r() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x97,           // SUB A
             0x06, 0x01,     // LD B,0x01
@@ -800,7 +800,7 @@ mod test_opcodes {
     #[test]
     fn test_or_xor_ihlixiy() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x41, 0x62, 0x84 ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -831,7 +831,7 @@ mod test_opcodes {
     #[test]
     fn test_and_r() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x3E, 0xFF,             // LD A,0xFF
             0x06, 0x01,             // LD B,0x01
@@ -881,7 +881,7 @@ mod test_opcodes {
     #[test]
     fn test_and_ihlixiy() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0xFE, 0xAA, 0x99 ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -907,7 +907,7 @@ mod test_opcodes {
     #[test]
     fn test_inc_dec_r() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x3e, 0x00,         // LD A,0x00
             0x06, 0xFF,         // LD B,0xFF
@@ -957,7 +957,7 @@ mod test_opcodes {
     #[test]
     fn test_inc_dec_ihlixiy() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x00, 0x3F, 0x7F ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -988,7 +988,7 @@ mod test_opcodes {
     #[test]
     fn test_inc_dec_ssixiy() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x01, 0x00, 0x00,       // LD BC,0x0000
             0x11, 0xFF, 0xFF,       // LD DE,0xffff
@@ -1031,7 +1031,7 @@ mod test_opcodes {
     #[test]
     fn test_djnz() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x06, 0x03,     // LD BC,0x03
             0x97,           // SUB A
@@ -1055,7 +1055,7 @@ mod test_opcodes {
     #[test]
     fn test_jr_cc() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x97,           //      SUB A
             0x20, 0x03,     //      JR NZ l0
@@ -1088,7 +1088,7 @@ mod test_opcodes {
     #[test]
     fn test_ihl_r() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x21, 0x00, 0x10,   // LD HL,0x1000
             0x3E, 0x12,         // LD A,0x12
@@ -1124,7 +1124,7 @@ mod test_opcodes {
     #[test]
     fn test_inc_dec_ss() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x01, 0x00, 0x00,       // LD BC,0x0000
             0x11, 0xFF, 0xFF,       // LD DE,0xffff
@@ -1157,7 +1157,7 @@ mod test_opcodes {
     #[test]
     fn test_ld_a_ibcdenn() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x11, 0x22, 0x33];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -1179,7 +1179,7 @@ mod test_opcodes {
     #[test]
     fn test_ld_ibcdenn_a() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x01, 0x00, 0x10,   // LD BC,0x1000
             0x11, 0x01, 0x10,   // LD DE,0x1001
@@ -1201,7 +1201,7 @@ mod test_opcodes {
     #[test]
     fn test_rlca_rla_rrca_rra() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x3E, 0xA0,     // LD A,0xA0
             0x07,           // RLCA
@@ -1229,7 +1229,7 @@ mod test_opcodes {
     #[test]
     fn test_daa() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x3E, 0x15,     // LD A,0x15
             0x06, 0x27,     // LD B,0x27
@@ -1262,7 +1262,7 @@ mod test_opcodes {
     #[test]
     fn test_cpl() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x97,           // SUB A
             0x2F,           // CPL
@@ -1284,7 +1284,7 @@ mod test_opcodes {
     #[test]
     fn test_ccf_scf() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x97,           // SUB A
             0x37,           // SCF
@@ -1306,7 +1306,7 @@ mod test_opcodes {
     #[test]
     fn test_call_ret() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0xCD, 0x0A, 0x02,   // CALL l0
             0xCD, 0x0A, 0x02,   // CALL l0
@@ -1334,7 +1334,7 @@ mod test_opcodes {
     #[test]
     fn test_call_cc_ret_cc() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
 			0x97,               //      SUB A
 			0xC4, 0x29, 0x02,   //      CALL NZ,l0
@@ -1395,7 +1395,7 @@ mod test_opcodes {
     #[test]
     fn test_halt() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x76,       // HALT
         ];
@@ -1408,7 +1408,7 @@ mod test_opcodes {
     #[test]
     fn test_ex() {
         let mut cpu = rz80::CPU::new_64k(); 
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x21, 0x34, 0x12,       // LD HL,0x1234
             0x11, 0x78, 0x56,       // LD DE,0x5678
@@ -1464,7 +1464,7 @@ mod test_opcodes {
     #[test]
     fn test_jp_cc_nn() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x97,               //          SUB A
             0xC2, 0x0C, 0x02,   //          JP NZ,label0
@@ -1508,7 +1508,7 @@ mod test_opcodes {
     #[test]
     fn test_jp_jr() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x21, 0x16, 0x02,           //      LD HL,l3
             0xDD, 0x21, 0x19, 0x02,     //      LD IX,l4
@@ -1543,7 +1543,7 @@ mod test_opcodes {
     #[test]
     fn test_ldi() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x01, 0x02, 0x03 ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -1583,7 +1583,7 @@ mod test_opcodes {
     #[test]
     fn test_ldir() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x01, 0x02, 0x03 ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -1623,7 +1623,7 @@ mod test_opcodes {
     #[test]
     fn test_ldd() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x01, 0x02, 0x03 ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -1663,7 +1663,7 @@ mod test_opcodes {
     #[test]
     fn test_lddr() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x01, 0x02, 0x03 ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -1703,7 +1703,7 @@ mod test_opcodes {
     #[test]
     fn test_cpi() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x01, 0x02, 0x03, 0x04 ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -1744,7 +1744,7 @@ mod test_opcodes {
     #[test]
     fn test_cpir() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x01, 0x02, 0x03, 0x04 ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -1783,7 +1783,7 @@ mod test_opcodes {
     #[test]
     fn test_cpd() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x01, 0x02, 0x03, 0x04 ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -1824,7 +1824,7 @@ mod test_opcodes {
     #[test]
     fn test_cpdr() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x01, 0x02, 0x03, 0x04 ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -1863,7 +1863,7 @@ mod test_opcodes {
     #[test]
     fn test_add_adc_sbc_16() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x21, 0xFC, 0x00,       // LD HL,0x00FC
             0x01, 0x08, 0x00,       // LD BC,0x0008
@@ -1913,7 +1913,7 @@ mod test_opcodes {
     #[test]
     fn ld_hlddixiy_inn() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [
             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
         ];
@@ -1941,7 +1941,7 @@ mod test_opcodes {
     #[test]
     fn ld_inn_hlddixiy() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x21, 0x01, 0x02,           // LD HL,0x0201
             0x22, 0x00, 0x10,           // LD (0x1000),HL
@@ -1979,7 +1979,7 @@ mod test_opcodes {
     #[test]
     fn test_neg() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x3E, 0x01,         // LD A,0x01
             0xED, 0x44,         // NEG
@@ -2005,7 +2005,7 @@ mod test_opcodes {
     #[test]
     fn test_ld_a_ir() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         cpu.iff1 = true;
         cpu.iff2 = true;
         cpu.reg.r = 0x34;
@@ -2026,7 +2026,7 @@ mod test_opcodes {
     #[test]
     fn test_ld_ir_a() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x3E, 0x45,     // LD A,0x45
             0xED, 0x47,     // LD I,A
@@ -2041,7 +2041,7 @@ mod test_opcodes {
     #[test]
     fn test_rlc_rl_rrc_rr_r() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x3E, 0x01,     // LD A,0x01
             0x06, 0xFF,     // LD B,0xFF
@@ -2120,7 +2120,7 @@ mod test_opcodes {
     #[test]
     fn test_rrc_rlc_rr_rl_ihlixiy() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x01, 0xFF, 0x11 ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -2187,7 +2187,7 @@ mod test_opcodes {
     #[test]
     fn test_sla_r() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x3E, 0x01,         // LD A,0x01
             0x06, 0x80,         // LD B,0x80
@@ -2222,7 +2222,7 @@ mod test_opcodes {
     #[test]
     fn test_sra_r() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x3E, 0x01,         // LD A,0x01
             0x06, 0x80,         // LD B,0x80
@@ -2257,7 +2257,7 @@ mod test_opcodes {
     #[test]
     fn test_srl_r() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x3E, 0x01,         // LD A,0x01
             0x06, 0x80,         // LD B,0x80
@@ -2292,7 +2292,7 @@ mod test_opcodes {
     #[test]
     fn test_sla_ihlixiy() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x01, 0x80, 0xAA ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -2323,7 +2323,7 @@ mod test_opcodes {
     #[test]
     fn test_sra_ihlixiy() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x01, 0x80, 0xAA ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -2354,7 +2354,7 @@ mod test_opcodes {
     #[test]
     fn test_srl_ihlixiy() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x01, 0x80, 0xAA ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -2385,7 +2385,7 @@ mod test_opcodes {
     #[test]
     fn test_rld_rrd() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x3E, 0x12,         // LD A,0x12
             0x21, 0x00, 0x10,   // LD HL,0x1000
@@ -2429,7 +2429,7 @@ mod test_opcodes {
     #[test]
     fn test_in() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x3E, 0x01,         // LD A,0x01
             0xDB, 0x03,         // IN A,(0x03)
@@ -2470,7 +2470,7 @@ mod test_opcodes {
     #[test]
     fn test_out() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x3E, 0x01,         // LD A,0x01
             0xD3, 0x01,         // OUT (0x01),A
@@ -2489,24 +2489,24 @@ mod test_opcodes {
         cpu.mem.write(0x0000, &prog);
 
         assert!(7 ==cpu.step(bus)); assert!(0x01 == cpu.reg.a());
-        assert!(11==cpu.step(bus)); assert!(0x0101 == bus.port.get()); assert!(0x01 == bus.val.get());
-        assert!(11==cpu.step(bus)); assert!(0x0102 == bus.port.get()); assert!(0x01 == bus.val.get());
+        assert!(11==cpu.step(bus)); assert!(0x0101 == bus.port); assert!(0x01 == bus.val);
+        assert!(11==cpu.step(bus)); assert!(0x0102 == bus.port); assert!(0x01 == bus.val);
         assert!(10==cpu.step(bus)); assert!(0x1234 == cpu.reg.bc());
         assert!(10==cpu.step(bus)); assert!(0x5678 == cpu.reg.de());
         assert!(10==cpu.step(bus)); assert!(0xABCD == cpu.reg.hl());
-        assert!(12==cpu.step(bus)); assert!(0x1234 == bus.port.get()); assert!(0x01 == bus.val.get());
-        assert!(12==cpu.step(bus)); assert!(0x1234 == bus.port.get()); assert!(0x12 == bus.val.get());
-        assert!(12==cpu.step(bus)); assert!(0x1234 == bus.port.get()); assert!(0x34 == bus.val.get());
-        assert!(12==cpu.step(bus)); assert!(0x1234 == bus.port.get()); assert!(0x56 == bus.val.get());
-        assert!(12==cpu.step(bus)); assert!(0x1234 == bus.port.get()); assert!(0x78 == bus.val.get());
-        assert!(12==cpu.step(bus)); assert!(0x1234 == bus.port.get()); assert!(0xAB == bus.val.get());
-        assert!(12==cpu.step(bus)); assert!(0x1234 == bus.port.get()); assert!(0xCD == bus.val.get());
+        assert!(12==cpu.step(bus)); assert!(0x1234 == bus.port); assert!(0x01 == bus.val);
+        assert!(12==cpu.step(bus)); assert!(0x1234 == bus.port); assert!(0x12 == bus.val);
+        assert!(12==cpu.step(bus)); assert!(0x1234 == bus.port); assert!(0x34 == bus.val);
+        assert!(12==cpu.step(bus)); assert!(0x1234 == bus.port); assert!(0x56 == bus.val);
+        assert!(12==cpu.step(bus)); assert!(0x1234 == bus.port); assert!(0x78 == bus.val);
+        assert!(12==cpu.step(bus)); assert!(0x1234 == bus.port); assert!(0xAB == bus.val);
+        assert!(12==cpu.step(bus)); assert!(0x1234 == bus.port); assert!(0xCD == bus.val);
     }
 
     #[test]
     fn test_inir_indr() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let prog = [
             0x21, 0x00, 0x10,       // LD HL,0x1000
             0x01, 0x02, 0x03,       // LD BC,0x0302
@@ -2556,7 +2556,7 @@ mod test_opcodes {
     #[test]
     fn test_otir_otdr() {
         let mut cpu = rz80::CPU::new_64k();
-        let bus = &TestBus::new();
+        let bus = &mut TestBus::new();
         let data = [ 0x01, 0x02, 0x03, 0x04 ];
         cpu.mem.write(0x1000, &data);
         let prog = [
@@ -2573,33 +2573,33 @@ mod test_opcodes {
         assert!(21==cpu.step(bus));
         assert!(0x1001 == cpu.reg.hl());
         assert!(0x0202 == cpu.reg.bc());
-        assert!(0x0202 == bus.port.get()); assert!(0x01 == bus.val.get());
+        assert!(0x0202 == bus.port); assert!(0x01 == bus.val);
         assert!((cpu.reg.f() & ZF) == 0);
         assert!(21==cpu.step(bus));
         assert!(0x1002 == cpu.reg.hl());
         assert!(0x0102 == cpu.reg.bc());
-        assert!(0x0102 == bus.port.get()); assert!(0x02 == bus.val.get());
+        assert!(0x0102 == bus.port); assert!(0x02 == bus.val);
         assert!((cpu.reg.f() & ZF) == 0);
         assert!(16==cpu.step(bus));
         assert!(0x1003 == cpu.reg.hl());
         assert!(0x0002 == cpu.reg.bc());
-        assert!(0x0002 == bus.port.get()); assert!(0x03 == bus.val.get());
+        assert!(0x0002 == bus.port); assert!(0x03 == bus.val);
         assert!((cpu.reg.f() & ZF) != 0);
         assert!(10 == cpu.step(bus)); assert!(0x0303 == cpu.reg.bc());
         assert!(21==cpu.step(bus));
         assert!(0x1002 == cpu.reg.hl());
         assert!(0x0203 == cpu.reg.bc());
-        assert!(0x0203 == bus.port.get()); assert!(0x04 == bus.val.get());
+        assert!(0x0203 == bus.port); assert!(0x04 == bus.val);
         assert!((cpu.reg.f() & ZF) == 0);
         assert!(21==cpu.step(bus));
         assert!(0x1001 == cpu.reg.hl());
         assert!(0x0103 == cpu.reg.bc());
-        assert!(0x0103 == bus.port.get()); assert!(0x03 == bus.val.get());
+        assert!(0x0103 == bus.port); assert!(0x03 == bus.val);
         assert!((cpu.reg.f() & ZF) == 0);
         assert!(16==cpu.step(bus));
         assert!(0x1000 == cpu.reg.hl());
         assert!(0x0003 == cpu.reg.bc());
-        assert!(0x0003 == bus.port.get()); assert!(0x02 == bus.val.get());
+        assert!(0x0003 == bus.port); assert!(0x02 == bus.val);
         assert!((cpu.reg.f() & ZF) != 0);
     }
 }

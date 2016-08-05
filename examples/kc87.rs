@@ -1,3 +1,4 @@
+/*
 #![allow(unused)]
 extern crate rz80;
 extern crate time;
@@ -204,8 +205,10 @@ impl Bus for System {
         println!("ctc_irq: ctc={:x}, chn={:x}, int_vector={:x}", ctc, chn, int_vector);
     }
 }
+*/
 
 fn main() {
+/*
     // create a window via minifb
     let mut window = match Window::new("rz80 KC87 example (WIP)",
            WIDTH, HEIGHT,
@@ -239,5 +242,5 @@ fn main() {
         let frame_time = start.to(PreciseTime::now());
         micro_seconds_per_frame = frame_time.num_microseconds().unwrap();
     }
+*/
 }
-

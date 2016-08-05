@@ -1,3 +1,4 @@
+#![allow(unused)]
 //
 // A minimal Z1013 emulator.
 //
@@ -33,7 +34,6 @@ extern crate minifb;
 use rz80::{CPU, PIO, Bus, RegT, PIO_A, PIO_B};
 use minifb::{Key, Window, Scale, WindowOptions};
 use time::PreciseTime;
-use std::cell::RefCell;
 
 // import binary dumps of the operating system, font data and BASIC interpreter
 static OS:      &'static [u8] = include_bytes!("dumps/z1013_mon_a2.bin");
@@ -116,16 +116,32 @@ static KEY_MATRIX: &'static [u8] =
 // bits to return when the CPU reads from PIO channel B.
 //
 struct Z1013 {
-    kbd_column_nr_requested: usize,     // kbd matrix column 'lit up' by CPU
-    kbd_high_lines_requested: bool,     // get upper or lower 4 kbd matrix lines
-    next_kbd_matrix_bits: u64,          // kbd matrix state of 'next' key
-    kbd_matrix_bits: u64,               // kbd matrix state of current key
-    key_map: [u64; MAX_KEYS],           // kbd matrix state table for all keys
+    pub write_pio_a_ctrl : Option<RegT>,
+    pub write_pio_a_data : Option<RegT>,
+    pub write_pio_b_ctrl : Option<RegT>,
+    pub write_pio_b_data : Option<RegT>,
+    pub read_pio_a_ctrl : RegT,
+    pub read_pio_a_data : RegT,
+    pub read_pio_b_ctrl : RegT,
+    pub read_pio_b_data : RegT,
+    pub kbd_column_nr_requested: usize,     // kbd matrix column 'lit up' by CPU
+    pub kbd_high_lines_requested: bool,     // get upper or lower 4 kbd matrix lines
+    pub next_kbd_matrix_bits: u64,          // kbd matrix state of 'next' key
+    pub kbd_matrix_bits: u64,               // kbd matrix state of current key
+    pub key_map: [u64; MAX_KEYS],           // kbd matrix state table for all keys
 }
 
 impl Z1013 {
     pub fn new() -> Z1013 {
         Z1013 {
+            write_pio_a_ctrl: None,
+            write_pio_a_data: None,
+            write_pio_b_ctrl: None,
+            write_pio_b_data: None,
+            read_pio_a_ctrl: 0,
+            read_pio_a_data: 0,
+            read_pio_b_ctrl: 0,
+            read_pio_b_data: 0,
             kbd_column_nr_requested: 0,
             kbd_high_lines_requested: false,
             next_kbd_matrix_bits: 0,
@@ -181,18 +197,9 @@ impl Z1013 {
     }
 }
 
-// The System struct owns all the hardware components and implements the 
-// Bus trait, which implements the emulator-specific 'wiring'.
-// The use of RefCell here is a bit smelly :/
-struct System {
-    pub cpu: RefCell<CPU>,
-    pub pio: RefCell<PIO>,
-    pub z1013: RefCell<Z1013>,
-}
-
 // The Bus trait, implemented for the Z1013. This defines how the
 // various hardware components in an emulated system talk to each other.
-impl Bus for System {
+impl Bus for Z1013 {
 
     // cpu_outp() is called when the CPU executes an OUT instruction, on the
     // Z1013 there are 5 important output ports:
@@ -207,19 +214,18 @@ impl Bus for System {
     // the output value to the respective PIO write function. For
     // port 0x08, the requested keyboard column is stored for later
     // when the CPU reads back the keyboard matrix line state.
-    fn cpu_outp(&self, port: RegT, val: RegT) {
+    fn cpu_outp(&mut self, port: RegT, val: RegT) {
         match port & 0xFF {
-            0x00 => self.pio.borrow_mut().write_data(self, PIO_A, val),
-            0x01 => self.pio.borrow_mut().write_control(PIO_A, val),
-            0x02 => self.pio.borrow_mut().write_data(self, PIO_B, val),
-            0x03 => self.pio.borrow_mut().write_control(PIO_B, val),
+            0x00 => self.write_pio_a_data = Some(val),
+            0x01 => self.write_pio_a_ctrl = Some(val),
+            0x02 => self.write_pio_b_data = Some(val),
+            0x03 => self.write_pio_b_ctrl = Some(val),
             0x08 => {
-                let mut z1013 = self.z1013.borrow_mut();
                 if val == 0 {
                     // OS starts reading out a new key
-                    z1013.kbd_matrix_bits = z1013.next_kbd_matrix_bits;
+                    self.kbd_matrix_bits = self.next_kbd_matrix_bits;
                 }
-                z1013.kbd_column_nr_requested = val as usize;
+                self.kbd_column_nr_requested = val as usize;
             },
             _ => ()
         }
@@ -227,12 +233,12 @@ impl Bus for System {
     
     // cpu_inp() is called when the CPU executes an IN instruction,
     // it simply reads the PIO data and control registers back
-    fn cpu_inp(&self, port: RegT) -> RegT {
+    fn cpu_inp(&mut self, port: RegT) -> RegT {
         match port & 0xFF {
-            0x00 => self.pio.borrow_mut().read_data(self, PIO_A),
-            0x01 => self.pio.borrow_mut().read_control(),
-            0x02 => self.pio.borrow_mut().read_data(self, PIO_B),
-            0x03 => self.pio.borrow_mut().read_control(),
+            0x00 => self.read_pio_a_data, 
+            0x01 => self.read_pio_a_ctrl,
+            0x02 => self.read_pio_b_data,
+            0x03 => self.read_pio_b_ctrl,
             _ => 0xFF
         }
     }
@@ -244,10 +250,9 @@ impl Bus for System {
     // bit 4 is set when writing to PIO-B, this tells us whether
     // the lower or upper 4 keyboard matrix lines are requested
     // in the next read of PIO-B
-    fn pio_outp(&self, _: usize, chn: usize, data: RegT) {
+    fn pio_outp(&mut self, _: usize, chn: usize, data: RegT) {
         if chn == PIO_B {
-            let mut z1013 = self.z1013.borrow_mut();
-            z1013.kbd_high_lines_requested = 0 != (data & (1<<4));
+            self.kbd_high_lines_requested = 0 != (data & (1<<4));
         }
     }
 
@@ -255,12 +260,11 @@ impl Bus for System {
     // is the final piece in the keyboard emulation puzzle
     // where the upper or lower 4 lines of the keyboard matrix
     // are returned
-    fn pio_inp(&self, _: usize, chn: usize) -> RegT {
+    fn pio_inp(&mut self, _: usize, chn: usize) -> RegT {
         if chn == PIO_B {
-            let z1013 = self.z1013.borrow();
-            let col = z1013.kbd_column_nr_requested & 7;
-            let mut val = z1013.kbd_matrix_bits >> (col*8);
-            if z1013.kbd_high_lines_requested {
+            let col = self.kbd_column_nr_requested & 7;
+            let mut val = self.kbd_matrix_bits >> (col*8);
+            if self.kbd_high_lines_requested {
                 // upper 4 keyboard matrix lines are requested,
                 // shift the bits down into place
                 val >>= 4;
@@ -277,41 +281,47 @@ impl Bus for System {
     }
 }
  
+// The System struct owns all the hardware components and implements the 
+// Bus trait, which implements the emulator-specific 'wiring'.
+// The use of RefCell here is a bit smelly :/
+struct System {
+    pub cpu: CPU,
+    pub pio: PIO,
+    pub z1013: Z1013,
+}
+
 impl System {
     pub fn new() -> System {
         System {
-            cpu: RefCell::new(CPU::new()),
-            pio: RefCell::new(PIO::new(0)),
-            z1013: RefCell::new(Z1013::new()),
+            cpu: CPU::new(),
+            pio: PIO::new(0),
+            z1013: Z1013::new(),
         }
     }
 
     // first-time init of the emulator 
-    pub fn poweron(&self) {
-        let mut cpu = self.cpu.borrow_mut();
-        
+    pub fn poweron(&mut self) {
         // map 64 KByte RAM at memory layer 1
-        cpu.mem.map(1, 0x00000, 0x0000, true, 0x10000);
+        self.cpu.mem.map(1, 0x00000, 0x0000, true, 0x10000);
 
         // map the 2 KByte OS ROM at higher prio memory layer 0
-        cpu.mem.map_bytes(0, 0x10000, 0xF000, false, &OS);
+        self.cpu.mem.map_bytes(0, 0x10000, 0xF000, false, &OS);
 
         // copy BASIC interpreter dump into RAM at address 0x100, 
         // skip the first 0x20 bytes, these are used as header
         // of the '.z80' file format
-        cpu.mem.write(0x0100, &BASIC[0x20..]);
+        self.cpu.mem.write(0x0100, &BASIC[0x20..]);
 
         // start execution at address 0xF000
-        cpu.reg.set_pc(0xF000);
+        self.cpu.reg.set_pc(0xF000);
     }
 
     // run the emulator for one frame
-    pub fn step_frame(&self, micro_seconds: i64) {
+    pub fn step_frame(&mut self, micro_seconds: i64) {
         let num_cycles = (FREQ_KHZ * micro_seconds) / 1000;
         let mut cur_cycles = 0;
-        let mut cpu = self.cpu.borrow_mut();
         while cur_cycles < num_cycles {
-            cur_cycles += cpu.step(self);
+            cur_cycles += self.cpu.step(&mut self.z1013);
         }
     }
 
@@ -321,8 +331,7 @@ impl System {
     // by the CPU.
     pub fn decode_framebuffer(&self, fb: &mut [u32]) {
         let mut fb_iter = fb.iter_mut();
-        let cpu = self.cpu.borrow();
-        let vid_mem = &cpu.mem.heap[0xEC00..0xF000];
+        let vid_mem = &self.cpu.mem.heap[0xEC00..0xF000];
         for y in 0..32 {
             for py in 0..8 {
                 for x in 0..32 {
@@ -344,8 +353,7 @@ impl System {
 
     // forward a new host ASCII key code to the emulator
     pub fn put_key(&mut self, ascii: u8) {
-        let mut z1013 = self.z1013.borrow_mut();
-        z1013.put_key(ascii);
+        self.z1013.put_key(ascii);
     }
 }
 
