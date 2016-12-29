@@ -202,10 +202,10 @@ mod test {
         ctc.chn[CTC_0].int_vector = 0xE0;
         ctc.chn[CTC_2].control = CTC_EDGE_RISING | CTC_PRESCALER_16;
         ctc.reset();
-        assert!(ctc.chn[CTC_0].control == CTC_RESET);
-        assert!(ctc.chn[CTC_0].constant == 0);
-        assert!(ctc.chn[CTC_0].int_vector == 0xE0);
-        assert!(ctc.chn[CTC_2].control == CTC_RESET);
+        assert_eq!(ctc.chn[CTC_0].control, CTC_RESET);
+        assert_eq!(ctc.chn[CTC_0].constant, 0);
+        assert_eq!(ctc.chn[CTC_0].int_vector, 0xE0);
+        assert_eq!(ctc.chn[CTC_2].control, CTC_RESET);
     }
 
     struct TestState {
@@ -252,22 +252,22 @@ mod test {
     fn write_int_vector() {
         let mut ctc = CTC::new(0);
         let bus = TestBus::new();
-        assert!(0 == ctc.chn[CTC_0].int_vector);
+        assert_eq!(0, ctc.chn[CTC_0].int_vector);
 
         // interrupt vector must be written to CTC_0, any other channel
         // is ignored
         ctc.write(&bus, CTC_1, 0xE0);
-        assert!(0 == ctc.chn[CTC_0].int_vector);
-        assert!(0 == ctc.chn[CTC_1].int_vector);
-        assert!(0 == ctc.chn[CTC_2].int_vector);
-        assert!(0 == ctc.chn[CTC_3].int_vector);
+        assert_eq!(0, ctc.chn[CTC_0].int_vector);
+        assert_eq!(0, ctc.chn[CTC_1].int_vector);
+        assert_eq!(0, ctc.chn[CTC_2].int_vector);
+        assert_eq!(0, ctc.chn[CTC_3].int_vector);
 
         // writing int-vector to CTC_0, also automatically fills the other vectors
         ctc.write(&bus, CTC_0, 0xE0);
-        assert!(0xE0 == ctc.chn[CTC_0].int_vector);
-        assert!(0xE2 == ctc.chn[CTC_1].int_vector);
-        assert!(0xE4 == ctc.chn[CTC_2].int_vector);
-        assert!(0xE6 == ctc.chn[CTC_3].int_vector);
+        assert_eq!(0xE0, ctc.chn[CTC_0].int_vector);
+        assert_eq!(0xE2, ctc.chn[CTC_1].int_vector);
+        assert_eq!(0xE4, ctc.chn[CTC_2].int_vector);
+        assert_eq!(0xE6, ctc.chn[CTC_3].int_vector);
     }
 
     #[test]
@@ -277,10 +277,10 @@ mod test {
         let ctrl = (CTC_CONTROL_WORD | CTC_INTERRUPT_ENABLED | CTC_MODE_COUNTER |
                     CTC_PRESCALER_256) as RegT;
         ctc.write(&bus, CTC_0, ctrl);
-        assert!(ctrl == ctc.chn[CTC_0].control as RegT);
-        assert!(CTC_RESET == ctc.chn[CTC_1].control);
-        assert!(CTC_RESET == ctc.chn[CTC_2].control);
-        assert!(CTC_RESET == ctc.chn[CTC_2].control);
+        assert_eq!(ctrl, ctc.chn[CTC_0].control as RegT);
+        assert_eq!(CTC_RESET, ctc.chn[CTC_1].control);
+        assert_eq!(CTC_RESET, ctc.chn[CTC_2].control);
+        assert_eq!(CTC_RESET, ctc.chn[CTC_2].control);
         assert!(bus.state.borrow().ctc_write_called);
     }
 
@@ -297,35 +297,35 @@ mod test {
 
         ctc.write(&bus, CTC_0, ctrl);
         ctc.write(&bus, CTC_0, 0x20);       // write constant following control word
-        assert!(ctrl_test == ctc.chn[CTC_0].control as RegT);
-        assert!(0x20 == ctc.chn[CTC_0].constant);
-        assert!(0x20 == ctc.chn[CTC_0].down_counter);
-        assert!(0x20 == ctc.read(CTC_0));
+        assert_eq!(ctrl_test, ctc.chn[CTC_0].control as RegT);
+        assert_eq!(0x20, ctc.chn[CTC_0].constant);
+        assert_eq!(0x20, ctc.chn[CTC_0].down_counter);
+        assert_eq!(0x20, ctc.read(CTC_0));
         assert!(!ctc.chn[CTC_0].waiting_for_trigger);
 
         // update timer channels, this should *NOT* update the counters
         for i in 0..256 {
             ctc.update_timers(&bus, 10);
         }
-        assert!(bus.state.borrow().ctc_zero_counter == 0);
-        assert!(bus.state.borrow().ctc_irq_counter == 0);
-        assert!(0x20 == ctc.chn[CTC_0].down_counter);
+        assert_eq!(bus.state.borrow().ctc_zero_counter, 0);
+        assert_eq!(bus.state.borrow().ctc_irq_counter, 0);
+        assert_eq!(0x20, ctc.chn[CTC_0].down_counter);
 
         // now trigger counters, this should update the counter and call the ctc_zero() callback
         for i in 0..0x50 {
             ctc.trigger(&bus, CTC_0);
         }
         assert!(bus.state.borrow().ctc_zero_called);
-        assert!(bus.state.borrow().ctc_irq_called == with_irq);
-        assert!(bus.state.borrow().ctc_zero_counter == 2);
-        assert!(bus.state.borrow().ctc_irq_counter ==
+        assert_eq!(bus.state.borrow().ctc_irq_called, with_irq);
+        assert_eq!(bus.state.borrow().ctc_zero_counter, 2);
+        assert_eq!(bus.state.borrow().ctc_irq_counter,
                 if with_irq {
             2
         } else {
             0
         });
-        assert!(ctc.chn[CTC_0].down_counter == 0x10);
-        assert!(ctc.read(CTC_0) == 0x10);
+        assert_eq!(ctc.chn[CTC_0].down_counter, 0x10);
+        assert_eq!(ctc.read(CTC_0), 0x10);
     }
 
     #[test]
@@ -351,10 +351,10 @@ mod test {
 
         ctc.write(&bus, CTC_0, ctrl);
         ctc.write(&bus, CTC_0, 0x20);       // write constant following control word
-        assert!(ctrl_test == ctc.chn[CTC_0].control as RegT);
-        assert!(0x20 == ctc.chn[CTC_0].constant);
-        assert!(0x200 == ctc.chn[CTC_0].down_counter);
-        assert!(0x20 == ctc.read(CTC_0));
+        assert_eq!(ctrl_test, ctc.chn[CTC_0].control as RegT);
+        assert_eq!(0x20, ctc.chn[CTC_0].constant);
+        assert_eq!(0x200, ctc.chn[CTC_0].down_counter);
+        assert_eq!(0x20, ctc.read(CTC_0));
         assert!(!ctc.chn[CTC_0].waiting_for_trigger); // CTC_TRIGGER_PULSE was not set
 
         // update the timer channels
@@ -362,16 +362,16 @@ mod test {
             ctc.update_timers(&bus, 2);
         }
         assert!(bus.state.borrow().ctc_zero_called);
-        assert!(bus.state.borrow().ctc_irq_called == with_irq);
-        assert!(bus.state.borrow().ctc_zero_counter == 2);
-        assert!(bus.state.borrow().ctc_irq_counter ==
+        assert_eq!(bus.state.borrow().ctc_irq_called, with_irq);
+        assert_eq!(bus.state.borrow().ctc_zero_counter, 2);
+        assert_eq!(bus.state.borrow().ctc_irq_counter,
                 if with_irq {
             2
         } else {
             0
         });
-        assert!(ctc.chn[CTC_0].down_counter == 0x200);
-        assert!(ctc.read(CTC_0) == 0x20);
+        assert_eq!(ctc.chn[CTC_0].down_counter, 0x200);
+        assert_eq!(ctc.read(CTC_0), 0x20);
     }
 
     #[test]

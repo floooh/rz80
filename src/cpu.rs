@@ -59,8 +59,8 @@ use bus::Bus;
 /// for _ in 0..3 {
 ///     cycles += cpu.step(&bus);
 /// }
-/// assert!(cpu.reg.a() == 0x33);
-/// assert!(cycles == 18);
+/// assert_eq!(cpu.reg.a(), 0x33);
+/// assert_eq!(cycles, 18);
 /// ```
 ///
 pub struct CPU {
@@ -988,7 +988,7 @@ impl CPU {
     #[inline(always)]
     fn handle_irq(&mut self, bus: &Bus) -> i64 {
         // NOTE: only interrupt mode 2 is supported at the moment
-        assert!(2 == self.reg.im);
+        assert_eq!(2, self.reg.im);
 
         let mut cycles = 2;
 
@@ -1762,14 +1762,14 @@ mod tests {
         cpu.reg.i = 2;
         cpu.reg.r = 3;
         cpu.reset();
-        assert!(0 == cpu.reg.pc());
-        assert!(0 == cpu.reg.wz());
-        assert!(0 == cpu.reg.im);
+        assert_eq!(0, cpu.reg.pc());
+        assert_eq!(0, cpu.reg.wz());
+        assert_eq!(0, cpu.reg.im);
         assert!(!cpu.halt);
         assert!(!cpu.iff1);
         assert!(!cpu.iff2);
-        assert!(0 == cpu.reg.i);
-        assert!(0 == cpu.reg.r);
+        assert_eq!(0, cpu.reg.i);
+        assert_eq!(0, cpu.reg.r);
     }
 
     #[test]
@@ -1779,17 +1779,17 @@ mod tests {
         cpu.reg.set_de(0x5678);
         cpu.reg.set_hl(0x1357);
         cpu.reg.set_af(0x1122);
-        assert!(0x12 == cpu.reg.b());
-        assert!(0x34 == cpu.reg.c());
-        assert!(0x1234 == cpu.reg.bc());
-        assert!(0x56 == cpu.reg.d());
-        assert!(0x78 == cpu.reg.e());
-        assert!(0x5678 == cpu.reg.de());
-        assert!(0x13 == cpu.reg.h());
-        assert!(0x57 == cpu.reg.l());
-        assert!(0x1357 == cpu.reg.hl());
-        assert!(0x22 == cpu.reg.f());
-        assert!(0x11 == cpu.reg.a());
+        assert_eq!(0x12, cpu.reg.b());
+        assert_eq!(0x34, cpu.reg.c());
+        assert_eq!(0x1234, cpu.reg.bc());
+        assert_eq!(0x56, cpu.reg.d());
+        assert_eq!(0x78, cpu.reg.e());
+        assert_eq!(0x5678, cpu.reg.de());
+        assert_eq!(0x13, cpu.reg.h());
+        assert_eq!(0x57, cpu.reg.l());
+        assert_eq!(0x1357, cpu.reg.hl());
+        assert_eq!(0x22, cpu.reg.f());
+        assert_eq!(0x11, cpu.reg.a());
     }
 
     #[test]
@@ -1798,7 +1798,7 @@ mod tests {
         cpu.reg.set_pc(0x1234);
         cpu.halt();
         assert!(cpu.halt);
-        assert!(0x1233 == cpu.reg.pc());
+        assert_eq!(0x1233, cpu.reg.pc());
     }
 
     #[test]
@@ -1807,10 +1807,10 @@ mod tests {
         cpu.reg.set_pc(0x123);
         cpu.reg.set_sp(0x100);
         cpu.rst(0x38);
-        assert!(0xFE == cpu.reg.sp());
-        assert!(cpu.mem.r16(cpu.reg.sp()) == 0x123);
-        assert!(0x38 == cpu.reg.pc());
-        assert!(0x38 == cpu.reg.wz());
+        assert_eq!(0xFE, cpu.reg.sp());
+        assert_eq!(cpu.mem.r16(cpu.reg.sp()), 0x123);
+        assert_eq!(0x38, cpu.reg.pc());
+        assert_eq!(0x38, cpu.reg.wz());
     }
 
     #[test]
@@ -1818,8 +1818,8 @@ mod tests {
         let mut cpu = CPU::new_64k();
         cpu.reg.set_sp(0x100);
         cpu.push(0x1234);
-        assert!(0xFE == cpu.reg.sp());
-        assert!(cpu.mem.r16(cpu.reg.sp()) == 0x1234);
+        assert_eq!(0xFE, cpu.reg.sp());
+        assert_eq!(cpu.mem.r16(cpu.reg.sp()), 0x1234);
     }
 
     fn test_flags(cpu: &CPU, expected: RegT) -> bool {
@@ -1831,17 +1831,17 @@ mod tests {
         let mut cpu = CPU::new_64k();
         cpu.reg.set_a(0xF);
         cpu.add8(0xF);
-        assert!(0x1E == cpu.reg.a());
+        assert_eq!(0x1E, cpu.reg.a());
         assert!(test_flags(&cpu, HF));
         cpu.add8(0xE0);
-        assert!(0xFE == cpu.reg.a());
+        assert_eq!(0xFE, cpu.reg.a());
         assert!(test_flags(&cpu, SF));
         cpu.reg.set_a(0x81);
         cpu.add8(0x80);
-        assert!(0x01 == cpu.reg.a());
+        assert_eq!(0x01, cpu.reg.a());
         assert!(test_flags(&cpu, VF | CF));
         cpu.add8(0xFF);
-        assert!(0x00 == cpu.reg.a());
+        assert_eq!(0x00, cpu.reg.a());
         assert!(test_flags(&cpu, ZF | HF | CF));
     }
 
@@ -1850,19 +1850,19 @@ mod tests {
         let mut cpu = CPU::new_64k();
         cpu.reg.set_a(0x00);
         cpu.adc8(0x00);
-        assert!(0x00 == cpu.reg.a());
+        assert_eq!(0x00, cpu.reg.a());
         assert!(test_flags(&cpu, ZF));
         cpu.adc8(0x41);
-        assert!(0x41 == cpu.reg.a());
+        assert_eq!(0x41, cpu.reg.a());
         assert!(test_flags(&cpu, 0));
         cpu.adc8(0x61);
-        assert!(0xA2 == cpu.reg.a());
+        assert_eq!(0xA2, cpu.reg.a());
         assert!(test_flags(&cpu, SF | VF));
         cpu.adc8(0x81);
-        assert!(0x23 == cpu.reg.a());
+        assert_eq!(0x23, cpu.reg.a());
         assert!(test_flags(&cpu, VF | CF));
         cpu.adc8(0x41);
-        assert!(0x65 == cpu.reg.a());
+        assert_eq!(0x65, cpu.reg.a());
         assert!(test_flags(&cpu, 0));
     }
 
@@ -1871,16 +1871,16 @@ mod tests {
         let mut cpu = CPU::new_64k();
         cpu.reg.set_a(0x04);
         cpu.sub8(0x04);
-        assert!(0x00 == cpu.reg.a());
+        assert_eq!(0x00, cpu.reg.a());
         assert!(test_flags(&cpu, ZF | NF));
         cpu.sub8(0x01);
-        assert!(0xFF == cpu.reg.a());
+        assert_eq!(0xFF, cpu.reg.a());
         assert!(test_flags(&cpu, SF | HF | NF | CF));
         cpu.sub8(0xF8);
-        assert!(0x07 == cpu.reg.a());
+        assert_eq!(0x07, cpu.reg.a());
         assert!(test_flags(&cpu, NF));
         cpu.sub8(0x0F);
-        assert!(0xF8 == cpu.reg.a());
+        assert_eq!(0xF8, cpu.reg.a());
         assert!(test_flags(&cpu, SF | HF | NF | CF));
     }
 
@@ -1889,13 +1889,13 @@ mod tests {
         let mut cpu = CPU::new_64k();
         cpu.reg.set_a(0x04);
         cpu.sbc8(0x04);
-        assert!(0x00 == cpu.reg.a());
+        assert_eq!(0x00, cpu.reg.a());
         assert!(test_flags(&cpu, ZF | NF));
         cpu.sbc8(0x01);
-        assert!(0xFF == cpu.reg.a());
+        assert_eq!(0xFF, cpu.reg.a());
         assert!(test_flags(&cpu, SF | HF | NF | CF));
         cpu.sbc8(0xF8);
-        assert!(0x06 == cpu.reg.a());
+        assert_eq!(0x06, cpu.reg.a());
         assert!(test_flags(&cpu, NF));
     }
 
@@ -1918,15 +1918,15 @@ mod tests {
         let mut cpu = CPU::new_64k();
         cpu.reg.set_a(0x01);
         cpu.neg8();
-        assert!(0xFF == cpu.reg.a());
+        assert_eq!(0xFF, cpu.reg.a());
         assert!(test_flags(&cpu, SF | HF | NF | CF));
         cpu.reg.set_a(0x00);
         cpu.neg8();
-        assert!(0x00 == cpu.reg.a());
+        assert_eq!(0x00, cpu.reg.a());
         assert!(test_flags(&cpu, NF | ZF));
         cpu.reg.set_a(0x80);
         cpu.neg8();
-        assert!(0x80 == cpu.reg.a());
+        assert_eq!(0x80, cpu.reg.a());
         assert!(test_flags(&cpu, SF | VF | NF | CF))
     }
 
@@ -1935,15 +1935,15 @@ mod tests {
         let mut cpu = CPU::new_64k();
         cpu.reg.set_a(0xFF);
         cpu.and8(0x01);
-        assert!(0x01 == cpu.reg.a());
+        assert_eq!(0x01, cpu.reg.a());
         assert!(test_flags(&cpu, HF));
         cpu.reg.set_a(0xFF);
         cpu.and8(0xAA);
-        assert!(0xAA == cpu.reg.a());
+        assert_eq!(0xAA, cpu.reg.a());
         assert!(test_flags(&cpu, SF | HF | PF));
         cpu.reg.set_a(0xFF);
         cpu.and8(0x03);
-        assert!(0x03 == cpu.reg.a());
+        assert_eq!(0x03, cpu.reg.a());
         assert!(test_flags(&cpu, HF | PF));
     }
 
@@ -1952,13 +1952,13 @@ mod tests {
         let mut cpu = CPU::new_64k();
         cpu.reg.set_a(0x00);
         cpu.or8(0x00);
-        assert!(0x00 == cpu.reg.a());
+        assert_eq!(0x00, cpu.reg.a());
         assert!(test_flags(&cpu, ZF | PF));
         cpu.or8(0x01);
-        assert!(0x01 == cpu.reg.a());
+        assert_eq!(0x01, cpu.reg.a());
         assert!(test_flags(&cpu, 0));
         cpu.or8(0x02);
-        assert!(0x03 == cpu.reg.a());
+        assert_eq!(0x03, cpu.reg.a());
         assert!(test_flags(&cpu, PF));
     }
 
@@ -1967,13 +1967,13 @@ mod tests {
         let mut cpu = CPU::new_64k();
         cpu.reg.set_a(0x00);
         cpu.xor8(0x00);
-        assert!(0x00 == cpu.reg.a());
+        assert_eq!(0x00, cpu.reg.a());
         assert!(test_flags(&cpu, ZF | PF));
         cpu.xor8(0x01);
-        assert!(0x01 == cpu.reg.a());
+        assert_eq!(0x01, cpu.reg.a());
         assert!(test_flags(&cpu, 0));
         cpu.xor8(0x03);
-        assert!(0x02 == cpu.reg.a());
+        assert_eq!(0x02, cpu.reg.a());
         assert!(test_flags(&cpu, 0));
     }
 
@@ -1981,24 +1981,24 @@ mod tests {
     fn inc8_dec8() {
         let mut cpu = CPU::new_64k();
         let a = cpu.inc8(0x00);
-        assert!(0x01 == a);
+        assert_eq!(0x01, a);
         assert!(test_flags(&cpu, 0));
         let b = cpu.dec8(a);
-        assert!(0x00 == b);
+        assert_eq!(0x00, b);
         assert!(test_flags(&cpu, ZF | NF));
         let c = cpu.inc8(0xFF);
-        assert!(0x00 == c);
+        assert_eq!(0x00, c);
         assert!(test_flags(&cpu, ZF | HF));
         let d = cpu.dec8(c);
         let f = cpu.reg.f() | CF;
         cpu.reg.set_f(f);   // set carry flag (should be preserved)
-        assert!(0xFF == d);
+        assert_eq!(0xFF, d);
         assert!(test_flags(&cpu, SF | HF | NF | CF));
         let e = cpu.inc8(0x0F);
-        assert!(0x10 == e);
+        assert_eq!(0x10, e);
         assert!(test_flags(&cpu, HF | CF));
         let f = cpu.dec8(e);
-        assert!(0x0F == f);
+        assert_eq!(0x0F, f);
         assert!(test_flags(&cpu, HF | NF | CF));
     }
 
@@ -2006,22 +2006,22 @@ mod tests {
     fn rlc8_rrc8() {
         let mut cpu = CPU::new_64k();
         let a = cpu.rrc8(0x01);
-        assert!(0x80 == a);
+        assert_eq!(0x80, a);
         assert!(test_flags(&cpu, SF | CF));
         let b = cpu.rlc8(a);
-        assert!(0x01 == b);
+        assert_eq!(0x01, b);
         assert!(test_flags(&cpu, CF));
         let c = cpu.rrc8(0xFF);
-        assert!(0xFF == c);
+        assert_eq!(0xFF, c);
         assert!(test_flags(&cpu, SF | PF | CF));
         let d = cpu.rlc8(c);
-        assert!(0xFF == d);
+        assert_eq!(0xFF, d);
         assert!(test_flags(&cpu, SF | PF | CF));
         let e = cpu.rlc8(0x03);
-        assert!(0x06 == e);
+        assert_eq!(0x06, e);
         assert!(test_flags(&cpu, PF));
         let f = cpu.rrc8(e);
-        assert!(0x03 == f);
+        assert_eq!(0x03, f);
         assert!(test_flags(&cpu, PF));
     }
 
@@ -2031,16 +2031,16 @@ mod tests {
         cpu.reg.set_f(0xFF);
         cpu.reg.set_a(0xA0);
         cpu.rlca8();
-        assert!(0x41 == cpu.reg.a());
+        assert_eq!(0x41, cpu.reg.a());
         assert!(test_flags(&cpu, SF | ZF | VF | CF));
         cpu.rlca8();
-        assert!(0x82 == cpu.reg.a());
+        assert_eq!(0x82, cpu.reg.a());
         assert!(test_flags(&cpu, SF | ZF | VF));
         cpu.rrca8();
-        assert!(0x41 == cpu.reg.a());
+        assert_eq!(0x41, cpu.reg.a());
         assert!(test_flags(&cpu, SF | ZF | VF));
         cpu.rrca8();
-        assert!(0xA0 == cpu.reg.a());
+        assert_eq!(0xA0, cpu.reg.a());
         assert!(test_flags(&cpu, SF | ZF | VF | CF));
     }
 
@@ -2048,22 +2048,22 @@ mod tests {
     fn rl8_rr8() {
         let mut cpu = CPU::new_64k();
         let a = cpu.rr8(0x01);
-        assert!(0x00 == a);
+        assert_eq!(0x00, a);
         assert!(test_flags(&cpu, ZF | PF | CF));
         let b = cpu.rl8(a);
-        assert!(0x01 == b);
+        assert_eq!(0x01, b);
         assert!(test_flags(&cpu, 0));
         let c = cpu.rr8(0xFF);
-        assert!(0x7F == c);
+        assert_eq!(0x7F, c);
         assert!(test_flags(&cpu, CF));
         let d = cpu.rl8(c);
-        assert!(0xFF == d);
+        assert_eq!(0xFF, d);
         assert!(test_flags(&cpu, SF | PF));
         let e = cpu.rl8(0x03);
-        assert!(0x06 == e);
+        assert_eq!(0x06, e);
         assert!(test_flags(&cpu, PF));
         let f = cpu.rr8(e);
-        assert!(0x03 == f);
+        assert_eq!(0x03, f);
         assert!(test_flags(&cpu, PF));
     }
 
@@ -2074,16 +2074,16 @@ mod tests {
         cpu.reg.set_f(0xFF);
         cpu.reg.set_a(0xA0);
         cpu.rla8();
-        assert!(0x41 == cpu.reg.a());
+        assert_eq!(0x41, cpu.reg.a());
         assert!(test_flags(&cpu, SF | ZF | VF | CF));
         cpu.rla8();
-        assert!(0x83 == cpu.reg.a());
+        assert_eq!(0x83, cpu.reg.a());
         assert!(test_flags(&cpu, SF | ZF | VF));
         cpu.rra8();
-        assert!(0x41 == cpu.reg.a());
+        assert_eq!(0x41, cpu.reg.a());
         assert!(test_flags(&cpu, SF | ZF | VF | CF));
         cpu.rra8();
-        assert!(0xA0 == cpu.reg.a());
+        assert_eq!(0xA0, cpu.reg.a());
         assert!(test_flags(&cpu, SF | ZF | VF | CF));
     }
 
@@ -2091,19 +2091,19 @@ mod tests {
     fn sla8() {
         let mut cpu = CPU::new_64k();
         let a = cpu.sla8(0x01);
-        assert!(0x02 == a);
+        assert_eq!(0x02, a);
         assert!(test_flags(&cpu, 0));
         let b = cpu.sla8(0x80);
-        assert!(0x00 == b);
+        assert_eq!(0x00, b);
         assert!(test_flags(&cpu, ZF | PF | CF));
         let c = cpu.sla8(0xAA);
-        assert!(0x54 == c);
+        assert_eq!(0x54, c);
         assert!(test_flags(&cpu, CF));
         let d = cpu.sla8(0xFE);
-        assert!(0xFC == d);
+        assert_eq!(0xFC, d);
         assert!(test_flags(&cpu, SF | PF | CF));
         let e = cpu.sla8(0x7F);
-        assert!(0xFE == e);
+        assert_eq!(0xFE, e);
         assert!(test_flags(&cpu, SF));
     }
 
@@ -2111,16 +2111,16 @@ mod tests {
     fn sra8() {
         let mut cpu = CPU::new_64k();
         let a = cpu.sra8(0x01);
-        assert!(0x00 == a);
+        assert_eq!(0x00, a);
         assert!(test_flags(&cpu, ZF | PF | CF));
         let b = cpu.sra8(0x80);
-        assert!(0xC0 == b);
+        assert_eq!(0xC0, b);
         assert!(test_flags(&cpu, SF | PF));
         let c = cpu.sra8(0xAA);
-        assert!(0xD5 == c);
+        assert_eq!(0xD5, c);
         assert!(test_flags(&cpu, SF));
         let d = cpu.sra8(0xFE);
-        assert!(0xFF == d);
+        assert_eq!(0xFF, d);
         assert!(test_flags(&cpu, SF | PF));
     }
 
@@ -2128,31 +2128,31 @@ mod tests {
     fn srl8() {
         let mut cpu = CPU::new_64k();
         let a = cpu.srl8(0x01);
-        assert!(0x00 == a);
+        assert_eq!(0x00, a);
         assert!(test_flags(&cpu, ZF | PF | CF));
         let b = cpu.srl8(0x80);
-        assert!(0x40 == b);
+        assert_eq!(0x40, b);
         assert!(test_flags(&cpu, 0));
         let c = cpu.srl8(0xAA);
-        assert!(0x55 == c);
+        assert_eq!(0x55, c);
         assert!(test_flags(&cpu, PF));
         let d = cpu.srl8(0xFE);
-        assert!(0x7f == d);
+        assert_eq!(0x7f, d);
         assert!(test_flags(&cpu, 0));
         let e = cpu.srl8(0x7F);
-        assert!(0x3F == e);
+        assert_eq!(0x3F, e);
         assert!(test_flags(&cpu, PF | CF));
     }
 
     struct TestBus;
     impl Bus for TestBus {
         fn cpu_inp(&self, port: RegT) -> RegT {
-            assert!(port == 0x1234);
+            assert_eq!(port, 0x1234);
             port & 0xFF
         }
         fn cpu_outp(&self, port: RegT, val: RegT) {
-            assert!(port == 0x1234);
-            assert!(val == 12)
+            assert_eq!(port, 0x1234);
+            assert_eq!(val, 12)
         }
     }
 
@@ -2161,7 +2161,7 @@ mod tests {
         let mut cpu = CPU::new_64k();
         let bus = TestBus {};
         let i = cpu.inp(&bus, 0x1234);
-        assert!(i == 0x34);
+        assert_eq!(i, 0x34);
     }
 
     #[test]

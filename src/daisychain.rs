@@ -119,12 +119,12 @@ mod test {
     #[test]
     fn reset() {
         let mut daisy = Daisychain::new(8);
-        assert!(8 == daisy.num_ctrl);
+        assert_eq!(8, daisy.num_ctrl);
         for ctrl in daisy.ctrl.iter() {
             assert!(ctrl.int_enabled);
             assert!(!ctrl.int_requested);
             assert!(!ctrl.int_pending);
-            assert!(0 == ctrl.int_vec);
+            assert_eq!(0, ctrl.int_vec);
         }
         daisy.ctrl[0].int_enabled = false;
         daisy.ctrl[1].int_requested = true;
@@ -135,7 +135,7 @@ mod test {
             assert!(ctrl.int_enabled);
             assert!(!ctrl.int_requested);
             assert!(!ctrl.int_pending);
-            assert!(0 == ctrl.int_vec);
+            assert_eq!(0, ctrl.int_vec);
         }
     }
 
@@ -196,7 +196,7 @@ mod test {
             assert!(!dev0.int_enabled);
             assert!(!dev0.int_requested);
             assert!(!dev0.int_pending);
-            assert!(dev0.int_vec == 0x00);
+            assert_eq!(dev0.int_vec, 0x00);
             assert!(!state.irq_received);
         }
         // test with interrupt enabled
@@ -210,7 +210,7 @@ mod test {
             assert!(!dev0.int_enabled);
             assert!(dev0.int_requested);
             assert!(!dev0.int_pending);
-            assert!(dev0.int_vec == 0x10);
+            assert_eq!(dev0.int_vec, 0x10);
             assert!(state.irq_cpu_called);
             assert!(!dev1.int_enabled);
             assert!(!dev2.int_enabled);

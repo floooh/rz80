@@ -125,19 +125,19 @@ impl Page {
 /// // write and read unsigned bytes
 /// mem.w8(0x0100, 0x23);
 /// let b = mem.r8(0x0100);
-/// assert!(b == 0x23);
+/// assert_eq!(b, 0x23);
 ///
 /// // ...same with 16-bit unsigned words
 /// mem.w16(0x0200, 0x1234);
 /// let w = mem.r16(0x0200);
-/// assert!(w == 0x1234);
+/// assert_eq!(w, 0x1234);
 ///
 /// // memory is little endian and wraps around at 64k
 /// mem.w16(0xFFFF, 0x1122);
 /// let l = mem.r8(0xFFFF);
 /// let h = mem.r8(0x0000);
-/// assert!(l == 0x22);
-/// assert!(h == 0x11);
+/// assert_eq!(l, 0x22);
+/// assert_eq!(h, 0x11);
 /// ```
 /// There is a special method to read an 8-bit signed value. This exists for the
 /// Z80's indexed and relative addressing instructions:
@@ -148,7 +148,7 @@ impl Page {
 ///
 /// mem.w8(0x0100, 0xF0);
 /// let s = mem.rs8(0x0100);
-/// assert!(s == -16);
+/// assert_eq!(s, -16);
 /// ```
 ///
 /// Trying to write to ROM areas will silently fail, unless the w8f() method is used:
@@ -159,17 +159,17 @@ impl Page {
 /// let rom = [0x11u8; 1024];
 /// mem.map_bytes(0, 0x00000, 0x0000, false, &rom);
 /// let b0 = mem.r8(0x0100);
-/// assert!(b0 == 0x11);
+/// assert_eq!(b0, 0x11);
 ///
 /// // try to write read-only memory
 /// mem.w8(0x0100, 0x33);
 /// let b1 = mem.r8(0x0100);
-/// assert!(b1 == 0x11);
+/// assert_eq!(b1, 0x11);
 ///
 /// // force-write to read-only memory
 /// mem.w8f(0x0100, 0x33);
 /// let b2 = mem.r8(0x0100);
-/// assert!(b2 == 0x33);
+/// assert_eq!(b2, 0x33);
 /// ```
 ///
 /// You can write a whole chunk of memory, ignoring write protection, this is useful
@@ -180,7 +180,9 @@ impl Page {
 /// let mut mem = Memory::new_64k();
 /// let dump : &[u8] = &[1, 2, 3];
 /// mem.write(0x0100, dump);
-/// assert!(mem.r8(0x0100) == 1 && mem.r8(0x0101) == 2 && mem.r8(0x0102) == 3);
+/// assert_eq!(mem.r8(0x0100), 1);
+/// assert_eq!(mem.r8(0x0101), 2);
+/// assert_eq!(mem.r8(0x0102), 3);
 ///
 /// ```
 ///
@@ -217,8 +219,8 @@ impl Memory {
                addr: usize,
                writable: bool,
                size: usize) {
-        assert!((size & PAGE_MASK) == 0);
-        assert!((addr & PAGE_MASK) == 0);
+        assert_eq!((size & PAGE_MASK), 0);
+        assert_eq!((addr & PAGE_MASK), 0);
         let num = size >> PAGE_SHIFT;
         for i in 0..num {
             let map_offset = i * PAGE_SIZE;
@@ -236,9 +238,9 @@ impl Memory {
                      addr: usize,
                      writable: bool,
                      content: &[u8]) {
-        assert!((addr & PAGE_MASK) == 0);
+        assert_eq!((addr & PAGE_MASK), 0);
         let size = mem::size_of_val(content);
-        assert!((size & PAGE_MASK) == 0);
+        assert_eq!((size & PAGE_MASK), 0);
         self.map(layer, heap_offset, addr, writable, size);
         let dst = &mut self.heap[heap_offset..heap_offset + size];
         dst.clone_from_slice(content);
@@ -246,8 +248,8 @@ impl Memory {
 
     /// unmap a chunk heap memory
     pub fn unmap(&mut self, layer: usize, size: usize, addr: usize) {
-        assert!((size & PAGE_MASK) == 0);
-        assert!((addr & PAGE_MASK) == 0);
+        assert_eq!((size & PAGE_MASK), 0);
+        assert_eq!((addr & PAGE_MASK), 0);
         let num = size >> PAGE_SHIFT;
         for i in 0..num {
             let map_offset = i * PAGE_SIZE;
@@ -378,20 +380,20 @@ mod tests {
     fn mem_readwrite() {
         let mut mem = Memory::new_64k();
         mem.w8(0x1234, 0x12);
-        assert!(mem.r8(0x1234) == 0x12);
+        assert_eq!(mem.r8(0x1234), 0x12);
 
         mem.w8(0x2345, 0x32);
-        assert!(mem.r8(0x2345) == 0x32);
+        assert_eq!(mem.r8(0x2345), 0x32);
 
         mem.w16(0x1000, 0x1234);
-        assert!(mem.r16(0x1000) == 0x1234);
-        assert!(mem.r8(0x1000) == 0x34);
-        assert!(mem.r8(0x1001) == 0x12);
+        assert_eq!(mem.r16(0x1000), 0x1234);
+        assert_eq!(mem.r8(0x1000), 0x34);
+        assert_eq!(mem.r8(0x1001), 0x12);
 
         mem.w16(0xFFFF, 0x2233);
-        assert!(mem.r16(0xFFFF) == 0x2233);
-        assert!(mem.r8(0xFFFF) == 0x33);
-        assert!(mem.r8(0x0000) == 0x22);
+        assert_eq!(mem.r16(0xFFFF), 0x2233);
+        assert_eq!(mem.r8(0xFFFF), 0x33);
+        assert_eq!(mem.r8(0x0000), 0x22);
     }
 
     #[test]
@@ -406,30 +408,30 @@ mod tests {
         mem.map_bytes(0, 0x4000, 0x4000, true, &x22);
         mem.map_bytes(0, 0x8000, 0x8000, true, &x33);
         mem.map_bytes(0, 0xC000, 0xC000, false, &x44);
-        assert!(mem.r8(0x0000) == 0x11);
-        assert!(mem.r8(0x4000) == 0x22);
-        assert!(mem.r8(0x8000) == 0x33);
-        assert!(mem.r8(0xC000) == 0x44);
-        assert!(mem.r8(0x3FFF) == 0x11);
-        assert!(mem.r8(0x7FFF) == 0x22);
-        assert!(mem.r8(0xBFFF) == 0x33);
-        assert!(mem.r8(0xFFFF) == 0x44);
-        assert!(mem.r16(0x3FFF) == 0x2211);
-        assert!(mem.r16(0x7FFF) == 0x3322);
-        assert!(mem.r16(0xBFFF) == 0x4433);
-        assert!(mem.r16(0xFFFF) == 0x1144);
+        assert_eq!(mem.r8(0x0000), 0x11);
+        assert_eq!(mem.r8(0x4000), 0x22);
+        assert_eq!(mem.r8(0x8000), 0x33);
+        assert_eq!(mem.r8(0xC000), 0x44);
+        assert_eq!(mem.r8(0x3FFF), 0x11);
+        assert_eq!(mem.r8(0x7FFF), 0x22);
+        assert_eq!(mem.r8(0xBFFF), 0x33);
+        assert_eq!(mem.r8(0xFFFF), 0x44);
+        assert_eq!(mem.r16(0x3FFF), 0x2211);
+        assert_eq!(mem.r16(0x7FFF), 0x3322);
+        assert_eq!(mem.r16(0xBFFF), 0x4433);
+        assert_eq!(mem.r16(0xFFFF), 0x1144);
         mem.w16(0xBFFF, 0x1234);
-        assert!(mem.r8(0xBFFF) == 0x34);
-        assert!(mem.r8(0xC000) == 0x44);
+        assert_eq!(mem.r8(0xBFFF), 0x34);
+        assert_eq!(mem.r8(0xC000), 0x44);
         mem.unmap(0, 0x4000, SIZE);
-        assert!(mem.r8(0x4000) == 0xFF);
-        assert!(mem.r8(0x7FFF) == 0xFF);
-        assert!(mem.r8(0x3FFF) == 0x11);
-        assert!(mem.r8(0x8000) == 0x33);
+        assert_eq!(mem.r8(0x4000), 0xFF);
+        assert_eq!(mem.r8(0x7FFF), 0xFF);
+        assert_eq!(mem.r8(0x3FFF), 0x11);
+        assert_eq!(mem.r8(0x8000), 0x33);
         mem.w8(0x4000, 0x55);
-        assert!(mem.r8(0x4000) == 0xFF);
+        assert_eq!(mem.r8(0x4000), 0xFF);
         mem.w8(0x0000, 0x66);
-        assert!(mem.r8(0x0000) == 0x66);
+        assert_eq!(mem.r8(0x0000), 0x66);
     }
 
     #[test]
@@ -444,14 +446,14 @@ mod tests {
         mem.map_bytes(2, 0x08000, 0x4000, true, &x22);
         mem.map_bytes(1, 0x10000, 0x8000, true, &x33);
         mem.map_bytes(0, 0x18000, 0xC000, true, &x44);
-        assert!(mem.r8(0x0000) == 0x44);    // layer 0 is wrapping around at 0xFFFF
-        assert!(mem.r8(0x4000) == 0x22);
-        assert!(mem.r8(0x8000) == 0x33);
-        assert!(mem.r8(0xC000) == 0x44);
+        assert_eq!(mem.r8(0x0000), 0x44);    // layer 0 is wrapping around at 0xFFFF
+        assert_eq!(mem.r8(0x4000), 0x22);
+        assert_eq!(mem.r8(0x8000), 0x33);
+        assert_eq!(mem.r8(0xC000), 0x44);
         mem.unmap(0, 0xC000, SIZE);
-        assert!(mem.r8(0x0000) == 0x11);
-        assert!(mem.r8(0x4000) == 0x22);
-        assert!(mem.r8(0x8000) == 0x33);
-        assert!(mem.r8(0xC000) == 0x33);
+        assert_eq!(mem.r8(0x0000), 0x11);
+        assert_eq!(mem.r8(0x4000), 0x22);
+        assert_eq!(mem.r8(0x8000), 0x33);
+        assert_eq!(mem.r8(0xC000), 0x33);
     }
 }

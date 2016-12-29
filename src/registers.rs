@@ -96,12 +96,12 @@ pub const WZ_: usize = 24;
 /// cpu.reg.set_a(0xFF);
 /// let a = cpu.reg.a() + 1;
 /// cpu.reg.set_a(a);
-/// assert!(cpu.reg.a() == 0x00);
+/// assert_eq!(cpu.reg.a(), 0x00);
 ///
 /// cpu.reg.set_hl(0x0000);
 /// let hl = cpu.reg.hl() - 1;
 /// cpu.reg.set_hl(hl);
-/// assert!(cpu.reg.hl() == 0xFFFF);
+/// assert_eq!(cpu.reg.hl(), 0xFFFF);
 /// ```
 pub struct Registers {
     reg: [u8; NUM_REGS],
@@ -501,31 +501,31 @@ mod tests {
     #[test]
     fn new() {
         let reg = Registers::new();
-        assert!(reg.a() == 0);
-        assert!(reg.f() == 0);
-        assert!(reg.b() == 0);
-        assert!(reg.c() == 0);
-        assert!(reg.d() == 0);
-        assert!(reg.e() == 0);
-        assert!(reg.h() == 0);
-        assert!(reg.l() == 0);
-        assert!(reg.af() == 0);
-        assert!(reg.af_() == 0);
-        assert!(reg.bc() == 0);
-        assert!(reg.bc_() == 0);
-        assert!(reg.de() == 0);
-        assert!(reg.de_() == 0);
-        assert!(reg.hl() == 0);
-        assert!(reg.hl_() == 0);
-        assert!(reg.wz() == 0);
-        assert!(reg.wz_() == 0);
-        assert!(reg.ix() == 0);
-        assert!(reg.iy() == 0);
-        assert!(reg.pc() == 0);
-        assert!(reg.sp() == 0);
-        assert!(reg.r == 0);
-        assert!(reg.i == 0);
-        assert!(reg.im == 0);
+        assert_eq!(reg.a(), 0);
+        assert_eq!(reg.f(), 0);
+        assert_eq!(reg.b(), 0);
+        assert_eq!(reg.c(), 0);
+        assert_eq!(reg.d(), 0);
+        assert_eq!(reg.e(), 0);
+        assert_eq!(reg.h(), 0);
+        assert_eq!(reg.l(), 0);
+        assert_eq!(reg.af(), 0);
+        assert_eq!(reg.af_(), 0);
+        assert_eq!(reg.bc(), 0);
+        assert_eq!(reg.bc_(), 0);
+        assert_eq!(reg.de(), 0);
+        assert_eq!(reg.de_(), 0);
+        assert_eq!(reg.hl(), 0);
+        assert_eq!(reg.hl_(), 0);
+        assert_eq!(reg.wz(), 0);
+        assert_eq!(reg.wz_(), 0);
+        assert_eq!(reg.ix(), 0);
+        assert_eq!(reg.iy(), 0);
+        assert_eq!(reg.pc(), 0);
+        assert_eq!(reg.sp(), 0);
+        assert_eq!(reg.r, 0);
+        assert_eq!(reg.i, 0);
+        assert_eq!(reg.im, 0);
     }
 
     #[test]
@@ -533,35 +533,35 @@ mod tests {
         let mut reg = Registers::new();
         reg.set_a(0x12);
         reg.set_f(0x34);
-        assert!(reg.a() == 0x12);
-        assert!(reg.f() == 0x34);
-        assert!(reg.af() == 0x1234);
+        assert_eq!(reg.a(), 0x12);
+        assert_eq!(reg.f(), 0x34);
+        assert_eq!(reg.af(), 0x1234);
         reg.set_af(0x2345);
-        assert!(reg.af() == 0x2345);
-        assert!(reg.a() == 0x23);
-        assert!(reg.f() == 0x45);
+        assert_eq!(reg.af(), 0x2345);
+        assert_eq!(reg.a(), 0x23);
+        assert_eq!(reg.f(), 0x45);
         reg.set_b(0x34);
         reg.set_c(0x56);
-        assert!(reg.b() == 0x34);
-        assert!(reg.c() == 0x56);
-        assert!(reg.bc() == 0x3456);
+        assert_eq!(reg.b(), 0x34);
+        assert_eq!(reg.c(), 0x56);
+        assert_eq!(reg.bc(), 0x3456);
         reg.set_d(0x78);
         reg.set_e(0x9A);
-        assert!(reg.de() == 0x789A);
-        assert!(reg.d() == 0x78);
-        assert!(reg.e() == 0x9A);
+        assert_eq!(reg.de(), 0x789A);
+        assert_eq!(reg.d(), 0x78);
+        assert_eq!(reg.e(), 0x9A);
         reg.set_h(0xAB);
         reg.set_l(0xCD);
-        assert!(reg.hl() == 0xABCD);
-        assert!(reg.h() == 0xAB);
-        assert!(reg.l() == 0xCD);
+        assert_eq!(reg.hl(), 0xABCD);
+        assert_eq!(reg.h(), 0xAB);
+        assert_eq!(reg.l(), 0xCD);
         reg.set_ix(0x0102);
-        assert!(reg.ix() == 0x0102);
+        assert_eq!(reg.ix(), 0x0102);
         reg.set_iy(0x0304);
-        assert!(reg.iy() == 0x0304);
+        assert_eq!(reg.iy(), 0x0304);
         reg.set_pc(0x1122);
-        assert!(reg.pc() == 0x1122);
+        assert_eq!(reg.pc(), 0x1122);
         reg.set_sp(0x3344);
-        assert!(reg.sp() == 0x3344);
+        assert_eq!(reg.sp(), 0x3344);
     }
 }
