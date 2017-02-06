@@ -220,7 +220,7 @@ fn main() {
 
     // the pixel frame buffer, written by System::decode_framebuffer()
     // and transfered to the minifb window
-    let mut frame_buffer = [0u32; WIDTH*HEIGHT];
+    let mut frame_buffer = vec![0u32; WIDTH*HEIGHT];
 
     let mut system = System::new();
     system.poweron();
