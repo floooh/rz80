@@ -50,7 +50,7 @@ mod daisychain;
 pub use registers::{Registers, CF, NF, VF, PF, XF, HF, YF, ZF, SF};
 pub use memory::Memory;
 pub use cpu::CPU;
-pub use bus::Bus;
+pub use bus::{Bus, CpuBus};
 pub use pio::{PIO, PIO_A, PIO_B};
 pub use ctc::{CTC, CTC_0, CTC_1, CTC_2, CTC_3};
 pub use daisychain::Daisychain;
