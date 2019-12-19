@@ -54,7 +54,7 @@ impl Daisychain {
     }
 
     /// request an interrupt from an interrupt controller, called by bus
-    pub fn irq(&mut self, bus: &Bus, ctrl_id: usize, vec: u8) {
+    pub fn irq(&mut self, bus: &dyn Bus, ctrl_id: usize, vec: u8) {
         if self.ctrl[ctrl_id].int_enabled {
             {
                 let ctrl = &mut self.ctrl[ctrl_id];

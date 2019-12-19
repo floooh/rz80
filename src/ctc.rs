@@ -80,7 +80,7 @@ impl CTC {
     }
 
     /// write a CTC control register
-    pub fn write(&mut self, bus: &Bus, chn: usize, val: RegT) {
+    pub fn write(&mut self, bus: &dyn Bus, chn: usize, val: RegT) {
         let mut notify_bus = false;
         let old_ctrl = self.chn[chn].control;
         let new_ctrl = val as u8;
@@ -126,7 +126,7 @@ impl CTC {
     }
 
     /// externally provided trigger/pulse signal, updates counters
-    pub fn trigger(&mut self, bus: &Bus, chn: usize) {
+    pub fn trigger(&mut self, bus: &dyn Bus, chn: usize) {
         let ctrl = self.chn[chn].control;
         if (ctrl & (CTC_RESET | CTC_CONSTANT_FOLLOWS)) == 0 {
             self.chn[chn].down_counter -= 1;
@@ -140,7 +140,7 @@ impl CTC {
 
     /// update the CTC channel timers
     #[inline(always)]
-    pub fn update_timers(&mut self, bus: &Bus, cycles: i64) {
+    pub fn update_timers(&mut self, bus: &dyn Bus, cycles: i64) {
         for chn in 0..NUM_CHANNELS {
             let ctrl = self.chn[chn].control;
             let waiting = self.chn[chn].waiting_for_trigger;
@@ -179,7 +179,7 @@ impl CTC {
     }
 
     /// trigger interrupt and/or callback when downcounter reaches 0
-    fn down_counter_trigger(&self, bus: &Bus, chn: usize) {
+    fn down_counter_trigger(&self, bus: &dyn Bus, chn: usize) {
         if (self.chn[chn].control & CTC_INTERRUPT_BIT) == CTC_INTERRUPT_ENABLED {
             bus.ctc_irq(self.id, chn, self.chn[chn].int_vector as RegT);
         }
