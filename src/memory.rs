@@ -208,7 +208,7 @@ impl Memory {
     /// return new memory object with 64 kByte mapped, writable memory (for testing)
     pub fn new_64k() -> Memory {
         let mut mem = Memory::new();
-        mem.map(0, 0, 0, true, (1 << 16));
+        mem.map(0, 0, 0, true, 1 << 16);
         mem
     }
 
